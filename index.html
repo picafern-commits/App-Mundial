@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Pontuação Limpa</title>
+  <title>Mundial Pontos 2026 · Filtros Corrigidos</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -35,7 +35,7 @@
             <h2>Fase de Grupos</h2>
             <p>Jogos por data, com horas de Portugal.</p>
           </div>
-          <input id="searchInput" class="search" type="search" placeholder="Pesquisar seleção ou grupo" />
+          <input id="searchInput" class="search" type="search" placeholder="" />
         </div>
         <div id="gamesList" class="calendar-list"></div>
       </section>
@@ -93,7 +93,7 @@
             <summary>
               <div>
                 <h2>Sistema de Pontos</h2>
-                <p>O Admin pode editar quantos pontos vale cada campo. Resultado exato pontua; vencedor/empate certo foi removido.</p>
+                <p>O Admin pode editar quantos pontos vale cada campo. Resultado exato não acumula com o ponto da equipa vencedora/empate.</p>
               </div>
               <span class="collapse-icon">⌄</span>
             </summary>
@@ -103,6 +103,9 @@
             <div class="points-settings-grid">
               <label>Resultado exato
                 <input id="pointsExactInput" type="number" min="0" step="1" />
+              </label>
+              <label>Equipa vencedora / empate
+                <input id="pointsWinnerInput" type="number" min="0" step="1" />
               </label>
               <label>MVP
                 <input id="pointsMvpInput" type="number" min="0" step="1" />

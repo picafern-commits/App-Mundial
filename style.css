@@ -974,3 +974,18 @@ h2 {
     min-width:360px!important;
   }
 }
+
+
+/* v27 filtros calendário + pontos corrigidos */
+#searchInput::placeholder{
+  color:transparent!important;
+}
+.active-filter{
+  background:linear-gradient(135deg,var(--gold),#fff0a8)!important;
+  color:#111827!important;
+  border-color:rgba(255,216,87,.75)!important;
+}
+#calendarMissingResultsBtn,
+#calendarAllGamesBtn{
+  white-space:nowrap;
+}

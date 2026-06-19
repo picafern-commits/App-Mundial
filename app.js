@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_pontuacao_limpa_v26";
+const STORAGE_KEY = "mundial_pontos_2026_filtros_pontos_v27";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -179,7 +179,7 @@ const playerIdFromName = name => `player_${normalizeKey(name).replace(/\s+/g, "_
 
 function defaultSettings() {
   return {
-    points: { exact: 3, winner: 0, mvp: 5, topScorer: 5, champion: 10 },
+    points: { exact: 3, winner: 1, mvp: 5, topScorer: 5, champion: 10 },
     extraResults: { mvp: "", topScorer: "", champion: "" },
     extraPredictions: {},
     importedPoints: {},
@@ -393,9 +393,20 @@ async function persistSettings() {
 function betsForGame(gameId) { return bets.filter(bet => bet.gameId === gameId); }
 function pointsForBet(bet, game) {
   if (!bet || !game || !hasResult(game)) return 0;
+
   const exactPoints = Number(appSettings.points.exact) || 0;
-  if (Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore)) return exactPoints;
-  return 0;
+  const winnerPoints = Number(appSettings.points.winner) || 0;
+
+  const isExact =
+    Number(bet.homeGuess) === Number(game.homeScore) &&
+    Number(bet.awayGuess) === Number(game.awayScore);
+
+  if (isExact) return exactPoints;
+
+  const guessedOutcome = outcome(bet.homeGuess, bet.awayGuess);
+  const realOutcome = outcome(game.homeScore, game.awayScore);
+
+  return guessedOutcome === realOutcome ? winnerPoints : 0;
 }
 function extraPointsForPlayer(playerName) {
   const predictions = appSettings.extraPredictions?.[playerName] || {};
@@ -425,6 +436,7 @@ function playerStats(playerName) {
     stats.gamePoints += points;
     stats.settled += 1;
     if (points === Number(appSettings.points.exact)) stats.exact += 1;
+    else if (points === Number(appSettings.points.winner)) stats.winner += 1;
     else stats.misses += 1;
   });
   const extras = extraPointsForPlayer(playerName);
@@ -442,9 +454,14 @@ function leaderboard() {
 }
 
 function filteredGames() {
-  const base = calendarViewMode === "all" ? games : games.filter(game => !hasResult(game));
-  const query = searchText.trim().toLowerCase();
+  let base = games;
+  if (calendarViewMode === "missing") {
+    base = games.filter(game => !hasResult(game));
+  }
+
+  const query = (searchText || "").trim().toLowerCase();
   if (!query) return base;
+
   return base.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
 }
 function groupByDate(list) {
@@ -543,6 +560,7 @@ function renderAdminState() {
 function renderSettingsForm() {
   if (!$("pointsExactInput")) return;
   $("pointsExactInput").value = appSettings.points.exact;
+  if ($("pointsWinnerInput")) $("pointsWinnerInput").value = appSettings.points.winner ?? 1;
   $("pointsMvpInput").value = appSettings.points.mvp;
   $("pointsTopScorerInput").value = appSettings.points.topScorer;
   $("pointsChampionInput").value = appSettings.points.champion;
@@ -868,7 +886,7 @@ async function confirmExcelImport() {
 async function savePointsSettings() {
   appSettings.points = {
     exact: Number($("pointsExactInput").value) || 0,
-    winner: 0,
+    winner: Number($("pointsWinnerInput")?.value ?? appSettings.points.winner ?? 1) || 0,
     mvp: Number($("pointsMvpInput").value) || 0,
     topScorer: Number($("pointsTopScorerInput").value) || 0,
     champion: Number($("pointsChampionInput").value) || 0
@@ -1086,6 +1104,19 @@ $("unlockAdminBtn").addEventListener("click", () => {
   if ($("adminPinInput").value !== ADMIN_PIN) return toast("PIN errado.");
   isAdmin = true; localStorage.setItem("mundial_admin_unlocked", "1"); renderAll();
 });
+
+$("calendarMissingResultsBtn")?.addEventListener("click", () => {
+  calendarViewMode = "missing";
+  renderCalendar();
+  renderCalendarFilterState();
+});
+
+$("calendarAllGamesBtn")?.addEventListener("click", () => {
+  calendarViewMode = "all";
+  renderCalendar();
+  renderCalendarFilterState();
+});
+
 $("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
 $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
 $("addUserBtn")?.addEventListener("click", addUser);
