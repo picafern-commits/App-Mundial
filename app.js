@@ -2210,7 +2210,7 @@ function setupOnlineUsersCloseControls() {
       if (!activePanel || !activePanel.open) return;
       if (activePanel.contains(event.target)) return;
       activePanel.open = false;
-    });
+    }, false);
 
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") closeOnlineUsersPanel();
@@ -4152,18 +4152,3 @@ setupKnockoutAdjustTopButton();
 setupOnlineUsersCloseControls();
 
 
-// v70 backup: fecha Users Online por captura, mesmo no Safari/iPhone.
-if (!window.__onlineUsersCloseCaptureBound) {
-  window.__onlineUsersCloseCaptureBound = true;
-  document.addEventListener("pointerdown", event => {
-    const closeButton = event.target.closest?.("#closeOnlineUsersBtn, .online-users-close");
-    if (!closeButton) return;
-    window.closeOnlineUsersPanelNow(event);
-  }, true);
-
-  document.addEventListener("touchstart", event => {
-    const closeButton = event.target.closest?.("#closeOnlineUsersBtn, .online-users-close");
-    if (!closeButton) return;
-    window.closeOnlineUsersPanelNow(event);
-  }, true);
-}

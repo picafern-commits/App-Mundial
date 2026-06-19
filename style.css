@@ -4941,3 +4941,59 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   pointer-events:auto!important;
   z-index:99998!important;
 }
+
+
+/* v71 — Android scroll fix */
+html,
+body{
+  overflow-x:hidden;
+  overscroll-behavior-y:auto;
+}
+
+body{
+  touch-action:pan-y;
+}
+
+/* A app pode rolar normalmente em Android */
+.app,
+.app-shell,
+main,
+.content,
+.tab-panel,
+.page,
+.screen{
+  touch-action:pan-y!important;
+}
+
+/* A janela dos users tem o seu próprio scroll e não bloqueia a página */
+.topbar .topbar-online-users .online-users-list{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+}
+
+/* Linhas/tabela dentro dos users também deixam arrastar verticalmente */
+.topbar .topbar-online-users .online-users-table,
+.topbar .topbar-online-users .online-users-row,
+.topbar .topbar-online-users .online-users-popup-head{
+  touch-action:pan-y!important;
+}
+
+/* Só o X usa toque de botão; o resto pode fazer scroll */
+.topbar .topbar-online-users .online-users-close{
+  touch-action:manipulation!important;
+}
+
+@media(max-width:760px){
+  .topbar .topbar-online-users .online-users-list{
+    max-height:calc(100dvh - 96px)!important;
+  }
+}
+
+@media(max-width:420px){
+  .topbar .topbar-online-users .online-users-list{
+    max-height:calc(100dvh - 84px)!important;
+  }
+}
