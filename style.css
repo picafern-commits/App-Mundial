@@ -1227,3 +1227,9 @@ button:disabled{
 .firebase-status-box.error{
   white-space:normal;
 }
+
+
+/* v38 refresh seguro */
+.firebase-status-box.success::after{
+  content:"";
+}

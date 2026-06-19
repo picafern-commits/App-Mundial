@@ -366,32 +366,43 @@ async function loadData() {
     const betsSnap = await getDocs(collection(db, "bets"));
     const settingsSnap = await getDocs(collection(db, "settings"));
 
-    const localBets = normalizeBets(local.bets || []);
     const localGames = normalizeGames(local.games || []);
+    const localBets = normalizeBets(local.bets || []);
     const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
 
+    let remoteGames = [];
     if (gamesSnap.empty) {
-      games = localGames.length ? localGames : clone(SEED_GAMES);
-      await Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
+      remoteGames = localGames.length ? localGames : clone(SEED_GAMES);
+      await Promise.all(remoteGames.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
     } else {
-      games = normalizeGames(gamesSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+      remoteGames = normalizeGames(gamesSnap.docs.map(item => ({ id: item.id, ...item.data() })));
     }
 
-    bets = normalizeBets(betsSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+    games = mergeGamesByNewest(remoteGames, localGames);
+
+    const remoteBets = normalizeBets(betsSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+    bets = remoteBets.length ? remoteBets : localBets;
+
     const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
-    appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : defaultSettings());
-
-    // Firebase é principal. Só recupera local se o Firebase ainda estiver vazio.
-    if (!bets.length && localBets.length) {
-      bets = localBets;
-      games = localGames;
-      appSettings = localSettings;
-      await syncFirebaseFull("recuperar local para firebase");
-    } else {
-      saveLocalData("firebase carregado");
-    }
+    const remoteSettings = mainSettingsDoc ? mergeSettings(mainSettingsDoc.data()) : defaultSettings();
+    appSettings = (!remoteBets.length && localBets.length) ? localSettings : remoteSettings;
 
     storageMode = "firebase";
+    saveLocalData("firebase carregado merge newest");
+
+    // Se a versão local de algum jogo ganhou, envia esse estado de volta ao Firebase sem bloquear a abertura.
+    const hasLocalNewerGame = games.some(game => {
+      const remote = remoteGames.find(item => item.id === game.id);
+      return timestampValue(game.updatedAt) > timestampValue(remote?.updatedAt);
+    });
+
+    if (hasLocalNewerGame || (!remoteBets.length && localBets.length)) {
+      setTimeout(() => {
+        persistAllGames().catch(error => console.warn("Não conseguiu reenviar jogos recentes ao Firebase", error));
+        if (!remoteBets.length && localBets.length) saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn);
+      }, 300);
+    }
+
     setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas sincronizadas`);
     renderAll();
   } catch (error) {
@@ -431,7 +442,10 @@ async function persistAllGames() {
 
   const { doc, writeBatch } = firebaseApi;
   const batch = writeBatch(db);
-  games.forEach(game => batch.set(doc(db, "games", game.id), game, { merge: true }));
+  games.forEach(game => {
+    if (hasResult(game) && !game.updatedAt) stampGame(game, "migração resultado existente");
+    batch.set(doc(db, "games", game.id), game, { merge: true });
+  });
   await withTimeout(batch.commit(), 15000, "guardar jogos");
   saveLocalData("guardar todos jogos firebase-ok");
 }
@@ -947,6 +961,7 @@ async function setResult(gameId, homeScore, awayScore) {
 
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
+  stampGame(game, "resultado guardado");
   saveLocalData("resultado editado local");
   renderAll();
 
@@ -964,6 +979,7 @@ async function clearResult(gameId) {
 
   game.homeScore = null;
   game.awayScore = null;
+  stampGame(game, "resultado limpo");
   saveLocalData("resultado limpo local");
   renderAll();
 
