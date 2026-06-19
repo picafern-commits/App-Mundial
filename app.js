@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_admin_limpo_v28";
+const STORAGE_KEY = "mundial_pontos_2026_editar_user_v30";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -11,6 +11,7 @@ let bets = [];
 let appSettings = defaultSettings();
 let searchText = "";
 let calendarViewMode = "missing";
+let selectedEditUser = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 let pendingExcelImport = null;
 
@@ -473,7 +474,7 @@ function groupByDate(list) {
   }, new Map());
 }
 
-function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderAdmin(); renderSettingsForm(); renderUsers(); renderCalendarFilterState(); }
+function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderCalendarFilterState(); }
 
 function renderCalendarFilterState() {
   $("calendarMissingResultsBtn")?.classList.toggle("active-filter", calendarViewMode === "missing");
@@ -584,6 +585,143 @@ function renderApiSettings() {
       ? `<strong>Última sincronização:</strong> ${escapeHtml(new Date(api.lastSync.at).toLocaleString("pt-PT"))} · ${api.lastSync.updated || 0} resultados atualizados · ${api.lastSync.matched || 0} jogos encontrados na app.`
       : "Ainda não foi feita sincronização automática.";
   }
+}
+
+
+function betForPlayerGame(playerName, gameId) {
+  const playerId = playerIdFromName(playerName);
+  return bets.find(item => item.playerId === playerId && item.gameId === gameId) || null;
+}
+
+function renderUserBetsSelector() {
+  const select = $("editUserSelect");
+  if (!select) return;
+
+  const players = allPlayers();
+  if (!selectedEditUser || !players.includes(selectedEditUser)) {
+    selectedEditUser = players[0] || "";
+  }
+
+  select.innerHTML = players.length
+    ? players.map(name => `<option value="${escapeHtml(name)}" ${name === selectedEditUser ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")
+    : `<option value="">Sem users importados</option>`;
+}
+
+function renderUserBetsEditor() {
+  const container = $("userBetsEditor");
+  if (!container) return;
+
+  const players = allPlayers();
+  if (!players.length) {
+    container.innerHTML = `<div class="empty">Ainda não existem users. Importa o Excel ou adiciona users no Admin.</div>`;
+    renderUserBetsSelector();
+    return;
+  }
+
+  if (!selectedEditUser || !players.includes(selectedEditUser)) {
+    selectedEditUser = players[0];
+  }
+
+  renderUserBetsSelector();
+
+  const extra = appSettings.extraPredictions?.[selectedEditUser] || {};
+
+  container.innerHTML = `
+    <div class="user-final-editor">
+      <h3>Resultados finais de ${escapeHtml(selectedEditUser)}</h3>
+      <div class="final-fields-grid">
+        <label>MVP
+          <input id="editExtraMvpInput" type="text" value="${escapeHtml(extra.mvp || "")}" placeholder="Nome do MVP" />
+        </label>
+        <label>Melhor Marcador
+          <input id="editExtraTopScorerInput" type="text" value="${escapeHtml(extra.topScorer || "")}" placeholder="Nome do melhor marcador" />
+        </label>
+        <label>Equipa Vencedora
+          <input id="editExtraChampionInput" type="text" value="${escapeHtml(extra.champion || "")}" placeholder="Seleção vencedora" />
+        </label>
+      </div>
+    </div>
+
+    <div class="user-games-editor">
+      ${games.map(game => {
+        const bet = betForPlayerGame(selectedEditUser, game.id);
+        return `
+          <div class="user-game-edit-row" data-edit-game="${escapeHtml(game.id)}">
+            <div class="user-game-meta">
+              <span>${escapeHtml(game.group)}</span>
+              <strong>${escapeHtml(game.homeTeam)} - ${escapeHtml(game.awayTeam)}</strong>
+              <small>${dateHeader(game.matchDate)} · ${timePortugal(game.matchDate)}</small>
+            </div>
+            <div class="user-game-score">
+              <input class="edit-home-score" type="number" min="0" inputmode="numeric" value="${bet ? bet.homeGuess : ""}" aria-label="Aposta ${escapeHtml(game.homeTeam)}" />
+              <span>-</span>
+              <input class="edit-away-score" type="number" min="0" inputmode="numeric" value="${bet ? bet.awayGuess : ""}" aria-label="Aposta ${escapeHtml(game.awayTeam)}" />
+            </div>
+            <button class="secondary small clear-user-game-btn" type="button">Limpar</button>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+async function saveEditedUserBets() {
+  const playerName = selectedEditUser;
+  if (!playerName) {
+    toast("Escolhe um utilizador.");
+    return;
+  }
+
+  const playerId = playerIdFromName(playerName);
+  const now = new Date().toISOString();
+  const otherBets = bets.filter(item => item.playerId !== playerId);
+  const newPlayerBets = [];
+
+  document.querySelectorAll("[data-edit-game]").forEach(row => {
+    const gameId = row.dataset.editGame;
+    const homeValue = row.querySelector(".edit-home-score")?.value ?? "";
+    const awayValue = row.querySelector(".edit-away-score")?.value ?? "";
+
+    if (homeValue === "" && awayValue === "") return;
+
+    if (homeValue === "" || awayValue === "") {
+      return;
+    }
+
+    newPlayerBets.push({
+      id: `${playerId}_${gameId}`,
+      playerId,
+      playerName,
+      gameId,
+      homeGuess: Number(homeValue),
+      awayGuess: Number(awayValue),
+      source: "Editado na app",
+      updatedAt: now
+    });
+  });
+
+  bets = [...otherBets, ...newPlayerBets];
+
+  appSettings.extraPredictions = appSettings.extraPredictions || {};
+  appSettings.extraPredictions[playerName] = {
+    mvp: $("editExtraMvpInput")?.value?.trim() || "",
+    topScorer: $("editExtraTopScorerInput")?.value?.trim() || "",
+    champion: $("editExtraChampionInput")?.value?.trim() || ""
+  };
+
+  if (!appSettings.users.includes(playerName)) {
+    appSettings.users.push(playerName);
+  }
+
+  await saveAll();
+  toast(`Apostas de ${playerName} guardadas.`);
+}
+
+function clearUserGameRow(button) {
+  const row = button.closest("[data-edit-game]");
+  if (!row) return;
+  row.querySelector(".edit-home-score").value = "";
+  row.querySelector(".edit-away-score").value = "";
 }
 
 function renderAdmin() {
@@ -823,7 +961,7 @@ function parsePontosWorkbookRows(rows) {
 async function previewExcelImport() {
   const resultadosFile = $("resultadosExcelInput").files?.[0];
   const pontosFile = $("pontosExcelInput").files?.[0];
-  if (!resultadosFile && !pontosFile) { toast("Seleciona pelo menos um ficheiro Excel."); return; }
+  if (!resultadosFile && !pontosFile) { toast("Seleciona o Excel Resultados corrigido para importar."); return; }
   const preview = $("excelPreview");
   preview.innerHTML = "A ler ficheiros...";
   const combined = { bets: [], extras: {}, results: [], importedPoints: {}, errors: [] };
@@ -940,6 +1078,79 @@ function renderUsers() {
   }).join("");
 }
 
+
+
+function scoreForExport(game, playerName) {
+  const playerId = playerIdFromName(playerName);
+  const bet = bets.find(item => item.gameId === game.id && item.playerId === playerId);
+  if (!bet) return "";
+  return `${bet.homeGuess}-${bet.awayGuess}`;
+}
+
+function resultLabelForExport(game) {
+  const base = `${game.homeTeam} - ${game.awayTeam}`;
+  return hasResult(game) ? `${base} ${game.homeScore}-${game.awayScore}` : base;
+}
+
+function exportResultadosExcel() {
+  if (!window.XLSX) {
+    toast("Biblioteca Excel ainda não carregou.");
+    return;
+  }
+
+  const players = allPlayers();
+  const rows = [];
+
+  rows.push(["Mundial 2026 - Resultados / Apostas"]);
+  rows.push(["Preenche as apostas no formato 2-1. Mantém a linha Jogadores e os nomes dos users."]);
+  rows.push([]);
+  rows.push(["Jogadores", ...players]);
+
+  let currentGroup = "";
+  games.forEach(game => {
+    if (game.group !== currentGroup) {
+      currentGroup = game.group;
+      rows.push([currentGroup]);
+    }
+
+    rows.push([
+      resultLabelForExport(game),
+      ...players.map(playerName => scoreForExport(game, playerName))
+    ]);
+  });
+
+  rows.push([]);
+  rows.push(["MVP", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.mvp || "")]);
+  rows.push(["Melhor Marcador", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.topScorer || "")]);
+  rows.push(["Equipa Vencedora", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.champion || "")]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  ws["!cols"] = [
+    { wch: 34 },
+    ...players.map(() => ({ wch: 16 }))
+  ];
+
+  // Congelar a linha dos jogadores e a primeira coluna em programas compatíveis.
+  ws["!freeze"] = { xSplit: 1, ySplit: 4 };
+
+  XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+
+  const resumo = [
+    ["Resumo"],
+    ["Users", players.length],
+    ["Jogos", games.length],
+    ["Apostas importadas", bets.length],
+    ["Última exportação", new Date().toLocaleString("pt-PT")]
+  ];
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumo);
+  wsResumo["!cols"] = [{ wch: 22 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+
+  XLSX.writeFile(wb, "Resultados_Mundial_2026.xlsx");
+  toast("Excel Resultados exportado.");
+}
 
 function exportPontosExcel() {
   if (!window.XLSX) {
@@ -1120,6 +1331,7 @@ $("calendarAllGamesBtn")?.addEventListener("click", () => {
 $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
 $("addUserBtn")?.addEventListener("click", addUser);
 $("newUserNameInput")?.addEventListener("keydown", event => { if (event.key === "Enter") addUser(); });
+$("exportResultadosBtn")?.addEventListener("click", exportResultadosExcel);
 $("openExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.remove("hidden"));
 $("closeExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.add("hidden"));
 $("excelModal")?.addEventListener("click", event => { if (event.target.id === "excelModal") $("excelModal").classList.add("hidden"); });
@@ -1137,6 +1349,19 @@ $("modalHomeScoreInput")?.addEventListener("input", updateResultPreview);
 $("modalAwayScoreInput")?.addEventListener("input", updateResultPreview);
 $("resultModal")?.addEventListener("click", event => { if (event.target.id === "resultModal") closeResultModal(); });
 document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("resultModal")?.classList.contains("hidden")) closeResultModal(); });
+
+
+$("editUserSelect")?.addEventListener("change", event => {
+  selectedEditUser = event.target.value;
+  renderUserBetsEditor();
+});
+
+$("saveUserBetsBtn")?.addEventListener("click", saveEditedUserBets);
+
+document.addEventListener("click", event => {
+  const clearBtn = event.target.closest(".clear-user-game-btn");
+  if (clearBtn) clearUserGameRow(clearBtn);
+});
 
 await initFirebase();
 await loadData();

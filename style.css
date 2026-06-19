@@ -1002,3 +1002,120 @@ h2 {
 .admin-collapse > .collapse-actions{
   margin:0 14px 14px;
 }
+
+
+/* v29 export/import resultados */
+.collapse-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+#exportResultadosBtn{
+  border-color:rgba(255,216,87,.35);
+}
+
+
+/* v30 editar apostas por utilizador */
+.user-editor-toolbar{
+  display:flex;
+  gap:12px;
+  align-items:end;
+  flex-wrap:wrap;
+  margin:0 14px 14px;
+}
+.user-editor-toolbar label{
+  display:grid;
+  gap:7px;
+  min-width:240px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:850;
+}
+.user-editor-toolbar select,
+.final-fields-grid input,
+.user-game-score input{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#060b13;
+  color:var(--text);
+  padding:10px 12px;
+}
+.user-editor-toolbar select{
+  min-height:42px;
+}
+.user-bets-editor{
+  margin:0 14px 14px;
+}
+.user-final-editor{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px;
+  background:rgba(255,255,255,.035);
+  margin-bottom:12px;
+}
+.user-final-editor h3{
+  margin:0 0 12px;
+}
+.final-fields-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(160px,1fr));
+  gap:10px;
+}
+.final-fields-grid label{
+  display:grid;
+  gap:7px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:850;
+}
+.user-games-editor{
+  display:grid;
+  gap:8px;
+  max-height:520px;
+  overflow:auto;
+  padding-right:4px;
+}
+.user-game-edit-row{
+  display:grid;
+  grid-template-columns:minmax(240px,1fr) auto auto;
+  align-items:center;
+  gap:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background:rgba(255,255,255,.03);
+}
+.user-game-meta{
+  display:grid;
+  gap:3px;
+}
+.user-game-meta span{
+  color:var(--gold);
+  font-size:12px;
+  font-weight:950;
+}
+.user-game-meta small{
+  color:var(--muted);
+}
+.user-game-score{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.user-game-score input{
+  width:64px;
+  text-align:center;
+  font-size:18px;
+  font-weight:950;
+}
+@media(max-width:760px){
+  .final-fields-grid{
+    grid-template-columns:1fr;
+  }
+  .user-game-edit-row{
+    grid-template-columns:1fr;
+  }
+  .user-game-score{
+    justify-content:flex-start;
+  }
+}

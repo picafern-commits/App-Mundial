@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Admin Limpo</title>
+  <title>Mundial Pontos 2026 · Editar por Utilizador</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -60,6 +60,26 @@
 
         <div id="adminUnlocked" class="hidden admin-stack admin-accordion">
 
+          <details class="admin-card admin-collapse" open>
+            <summary>
+              <div>
+                <h2>Editar resultados por utilizador</h2>
+                <p>Escolhe um user e edita todas as apostas dele diretamente na app, incluindo MVP, Melhor Marcador e Equipa Vencedora.</p>
+              </div>
+              <span class="collapse-icon">⌄</span>
+            </summary>
+
+            <div class="user-editor-toolbar">
+              <label>Utilizador
+                <select id="editUserSelect"></select>
+              </label>
+              <button id="saveUserBetsBtn" class="primary" type="button">Guardar alterações</button>
+            </div>
+
+            <div id="userBetsEditor" class="user-bets-editor"></div>
+          </details>
+
+
           <details class="admin-card admin-collapse">
             <summary>
               <div>
@@ -92,13 +112,14 @@
           <details class="admin-card admin-collapse">
             <summary>
               <div>
-                <h2>Importar Excel</h2>
-                <p>Usa o ficheiro <strong>Resultados.xlsx</strong> para importar as apostas dos users. A app gera o ficheiro de pontos.</p>
+                <h2>Importar Excel Resultados</h2>
+                <p>Exporta o Excel Resultados, corrige no Excel e volta a importar aqui.</p>
               </div>
               <span class="collapse-icon">⌄</span>
             </summary>
             <div class="collapse-actions">
-              <button id="openExcelModalBtn" class="primary" type="button">Importar Excel</button>
+              <button id="exportResultadosBtn" class="secondary" type="button">Exportar Excel Resultados</button>
+              <button id="openExcelModalBtn" class="primary" type="button">Importar Excel Resultados</button>
             </div>
             <div id="importSummary" class="import-summary">Ainda não foi feita importação nesta sessão.</div>
           </details>
