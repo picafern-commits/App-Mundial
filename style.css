@@ -386,7 +386,15 @@ body::before{
   .bet-grid{grid-template-columns:1fr}
 }
 
-.phase-bar button,.worldcup-tools button{
-background:rgba(255,255,255,.12);
-color:white;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
+body::before{
+content:'';position:fixed;inset:0;
+background:url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1600') center/cover;
+opacity:.12;pointer-events:none;
 }
+.hero{padding:24px;border:1px solid rgba(255,255,255,.15);border-radius:30px;
+background:linear-gradient(135deg,rgba(0,120,40,.25),rgba(180,0,0,.25));}
+.game-card{border-radius:30px!important;overflow:hidden;position:relative}
+.game-card::before{content:'🏆 MUNDIAL 2026';display:block;padding:8px 14px;
+background:linear-gradient(90deg,#0a7a3d,#b40000);font-weight:700}
+.mini-card.accent{background:linear-gradient(135deg,#0a7a3d,#b40000)}
+.tabs{position:sticky;top:10px;z-index:5}
