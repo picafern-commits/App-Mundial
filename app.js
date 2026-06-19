@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_sem_bandeiras_total_v23";
+const STORAGE_KEY = "mundial_pontos_2026_pontuacao_limpa_v26";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -10,6 +10,7 @@ let games = [];
 let bets = [];
 let appSettings = defaultSettings();
 let searchText = "";
+let calendarViewMode = "missing";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 let pendingExcelImport = null;
 
@@ -141,19 +142,19 @@ const FLAGS = {
 
 const TEAM_ALIASES = {
   "mexico": "México", "africa do sul": "África do Sul", "áfrica do sul": "África do Sul",
-  "coreia do sul": "Coreia do Sul", "republica checa": "Chéquia", "república checa": "Chéquia", "chequia": "Chéquia", "chéquia": "Chéquia",
-  "canada": "Canadá", "bosnia": "Bósnia", "bósnia": "Bósnia", "bosnia-herzegovina": "Bósnia", "bósnia-herzegovina": "Bósnia",
+  "coreia do sul": "Coreia do Sul", "republica checa": "Chéquia", "rep checa": "Chéquia", "czechia": "Chéquia", "czech republic": "Chéquia", "república checa": "Chéquia", "chequia": "Chéquia", "chéquia": "Chéquia",
+  "canada": "Canadá", "bosnia": "Bósnia", "bosnia e herzegovina": "Bósnia", "bósnia e herzegovina": "Bósnia", "bósnia": "Bósnia", "bosnia-herzegovina": "Bósnia", "bósnia-herzegovina": "Bósnia",
   "qatar": "Qatar", "suica": "Suíça", "suiça": "Suíça", "suíça": "Suíça", "brasil": "Brasil", "marrocos": "Marrocos",
   "haiti": "Haiti", "escocia": "Escócia", "escócia": "Escócia", "australia": "Austrália", "austrália": "Austrália",
   "turquia": "Turquia", "alemanha": "Alemanha", "curacao": "Curaçao", "curaçao": "Curaçao",
-  "paises baixos": "Países Baixos", "países baixos": "Países Baixos", "japao": "Japão", "japão": "Japão",
+  "paises baixos": "Países Baixos", "holanda": "Países Baixos", "netherlands": "Países Baixos", "países baixos": "Países Baixos", "japao": "Japão", "japão": "Japão",
   "costa do marfim": "Costa do Marfim", "equador": "Equador", "suecia": "Suécia", "suécia": "Suécia",
   "tunisia": "Tunísia", "tunísia": "Tunísia", "espanha": "Espanha", "cabo verde": "Cabo Verde",
   "belgica": "Bélgica", "bélgica": "Bélgica", "egito": "Egito", "arabia saudita": "Arábia Saudita", "arábia saudita": "Arábia Saudita",
   "uruguai": "Uruguai", "irao": "Irão", "irão": "Irão", "nova zelandia": "Nova Zelândia", "nova zelândia": "Nova Zelândia",
   "franca": "França", "frança": "França", "senegal": "Senegal", "iraque": "Iraque", "noruega": "Noruega",
   "argentina": "Argentina", "argelia": "Argélia", "argélia": "Argélia", "austria": "Áustria", "áustria": "Áustria",
-  "jordania": "Jordânia", "jordânia": "Jordânia", "rd congo": "RD Congo", "r.d. congo": "RD Congo",
+  "jordania": "Jordânia", "jordânia": "Jordânia", "rd congo": "RD Congo", "r d congo": "RD Congo", "dr congo": "RD Congo", "congo dr": "RD Congo", "r.d. congo": "RD Congo",
   "republica democratica do congo": "RD Congo", "inglaterra": "Inglaterra", "croacia": "Croácia", "croácia": "Croácia",
   "gana": "Gana", "panama": "Panamá", "panamá": "Panamá", "uzbequistao": "Uzbequistão", "uzbequistão": "Uzbequistão",
   "colombia": "Colômbia", "colômbia": "Colômbia"
@@ -441,7 +442,10 @@ function leaderboard() {
 }
 
 function filteredGames() {
-  return games;
+  const base = calendarViewMode === "all" ? games : games.filter(game => !hasResult(game));
+  const query = searchText.trim().toLowerCase();
+  if (!query) return base;
+  return base.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
 }
 function groupByDate(list) {
   return list.reduce((map, game) => {
@@ -452,13 +456,18 @@ function groupByDate(list) {
   }, new Map());
 }
 
-function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderGroups(); renderAdmin(); renderSettingsForm(); renderUsers(); }
+function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderAdmin(); renderSettingsForm(); renderUsers(); renderCalendarFilterState(); }
+
+function renderCalendarFilterState() {
+  $("calendarMissingResultsBtn")?.classList.toggle("active-filter", calendarViewMode === "missing");
+  $("calendarAllGamesBtn")?.classList.toggle("active-filter", calendarViewMode === "all");
+}
 
 function renderCalendar() {
   const container = $("gamesList");
   const groups = groupByDate(filteredGames());
   const days = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  if (!days.length) { container.innerHTML = `<div class="empty">Não há jogos para essa pesquisa.</div>`; return; }
+  if (!days.length) { container.innerHTML = `<div class="empty">Não há jogos para mostrar neste filtro.</div>`; return; }
   container.innerHTML = days.map(([, dayGames]) => `
     <section class="day-block"><h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3><div class="match-list">${dayGames.map(renderMatchRow).join("")}</div></section>
   `).join("");
@@ -489,10 +498,10 @@ function renderScore() {
   const rows = leaderboard();
   if (!rows.length) { $("scoreSummary").innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`; return; }
   $("scoreSummary").innerHTML = `
-    <div class="leaderboard-table">
-      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Extras</span><span>Total</span></div>
+    <div class="leaderboard-table simple-score-table">
+      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Total</span></div>
       ${rows.map((row, index) => `
-        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.extraPoints}</span><b class="total-highlight">${row.points}</b></div>
+        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><b class="total-highlight">${row.points}</b></div>
       `).join("")}
     </div>`;
 }
@@ -640,9 +649,15 @@ function toast(message) {
 
 function parseScore(value) {
   if (value === null || value === undefined) return null;
-  const match = String(value).trim().match(/(\d+)\s*[-–:]\s*(\d+)/);
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // formatos aceites: 2-1, 2 - 1, 2:1, 2/1, 2 x 1
+  const normal = raw.replace(/[–—]/g, "-").replace(/\s+/g, " ");
+  const match = normal.match(/(^|\D)(\d{1,2})\s*(?:-|:|\/|x)\s*(\d{1,2})(\D|$)/i);
   if (!match) return null;
-  return [Number(match[1]), Number(match[2])];
+
+  return [Number(match[2]), Number(match[3])];
 }
 function splitMatchLabel(label) {
   const raw = String(label || "").trim();
@@ -654,12 +669,42 @@ function splitMatchLabel(label) {
   if (parts.length < 2) return null;
   return { home: canonicalTeam(parts[0]), away: canonicalTeam(parts.slice(1).join(" - ")), score };
 }
-function findGameByTeams(home, away, group = "") {
+function findGameMatch(home, away, group = "") {
   const h = normalizeComparable(canonicalTeam(home));
   const a = normalizeComparable(canonicalTeam(away));
   const g = normalizeComparable(group);
-  return games.find(game => normalizeComparable(game.homeTeam) === h && normalizeComparable(game.awayTeam) === a && (!g || normalizeComparable(game.group) === g))
-    || games.find(game => normalizeComparable(game.homeTeam) === h && normalizeComparable(game.awayTeam) === a);
+
+  const directWithGroup = games.find(game =>
+    normalizeComparable(game.homeTeam) === h &&
+    normalizeComparable(game.awayTeam) === a &&
+    (!g || normalizeComparable(game.group) === g)
+  );
+  if (directWithGroup) return { game: directWithGroup, reversed: false };
+
+  const reverseWithGroup = games.find(game =>
+    normalizeComparable(game.homeTeam) === a &&
+    normalizeComparable(game.awayTeam) === h &&
+    (!g || normalizeComparable(game.group) === g)
+  );
+  if (reverseWithGroup) return { game: reverseWithGroup, reversed: true };
+
+  const directAnyGroup = games.find(game =>
+    normalizeComparable(game.homeTeam) === h &&
+    normalizeComparable(game.awayTeam) === a
+  );
+  if (directAnyGroup) return { game: directAnyGroup, reversed: false };
+
+  const reverseAnyGroup = games.find(game =>
+    normalizeComparable(game.homeTeam) === a &&
+    normalizeComparable(game.awayTeam) === h
+  );
+  if (reverseAnyGroup) return { game: reverseAnyGroup, reversed: true };
+
+  return null;
+}
+
+function findGameByTeams(home, away, group = "") {
+  return findGameMatch(home, away, group)?.game || null;
 }
 async function readWorkbookFile(file) {
   if (!window.XLSX) throw new Error("Biblioteca Excel ainda não carregou. Verifica ligação à internet.");
@@ -715,13 +760,15 @@ function parseResultadosWorkbookRows(rows) {
     }
     const parsedMatch = splitMatchLabel(label);
     if (!parsedMatch) continue;
-    const game = findGameByTeams(parsedMatch.home, parsedMatch.away, currentGroup);
-    if (!game) { errors.push(`Jogo não encontrado: ${currentGroup} · ${label}`); continue; }
+    const matchInfo = findGameMatch(parsedMatch.home, parsedMatch.away, currentGroup);
+    if (!matchInfo) { errors.push(`Jogo não encontrado: ${currentGroup} · ${label}`); continue; }
+    const game = matchInfo.game;
     info.players.forEach(player => {
       const score = parseScore(row[player.col]);
       if (!score) return;
+      const finalScore = matchInfo.reversed ? [score[1], score[0]] : score;
       const playerId = playerIdFromName(player.name);
-      importedBets.push({ id: `${playerId}_${game.id}`, playerId, playerName: player.name, gameId: game.id, homeGuess: score[0], awayGuess: score[1], source: "Resultados.xlsx", updatedAt: new Date().toISOString() });
+      importedBets.push({ id: `${playerId}_${game.id}`, playerId, playerName: player.name, gameId: game.id, homeGuess: finalScore[0], awayGuess: finalScore[1], source: "Resultados.xlsx", updatedAt: new Date().toISOString() });
     });
   }
   return { bets: importedBets, extras, errors };
@@ -741,8 +788,11 @@ function parsePontosWorkbookRows(rows) {
     if (/^grupo\s+/i.test(label)) { currentGroup = label; continue; }
     const parsedMatch = splitMatchLabel(label);
     if (parsedMatch?.score) {
-      const game = findGameByTeams(parsedMatch.home, parsedMatch.away, currentGroup);
-      if (game) results.push({ gameId: game.id, homeScore: parsedMatch.score[0], awayScore: parsedMatch.score[1] });
+      const matchInfo = findGameMatch(parsedMatch.home, parsedMatch.away, currentGroup);
+      if (matchInfo) {
+        const finalScore = matchInfo.reversed ? [parsedMatch.score[1], parsedMatch.score[0]] : parsedMatch.score;
+        results.push({ gameId: matchInfo.game.id, homeScore: finalScore[0], awayScore: finalScore[1] });
+      }
       else errors.push(`Resultado sem jogo encontrado: ${currentGroup} · ${label}`);
     }
     info.players.forEach(player => {
@@ -780,7 +830,7 @@ async function previewExcelImport() {
     pendingExcelImport = combined;
     preview.innerHTML = `
       <div class="preview-grid"><div><strong>${combined.bets.length}</strong><span>apostas lidas</span></div><div><strong>${players.size}</strong><span>users</span></div><div><strong>${combined.results.length}</strong><span>resultados de jogos</span></div><div><strong>${Object.keys(combined.extras).length}</strong><span>extras</span></div></div>
-      ${combined.errors.length ? `<details open><summary>${combined.errors.length} avisos</summary><ul>${combined.errors.slice(0, 80).map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul></details>` : `<p class="ok-line">Sem erros críticos encontrados.</p>`}
+      ${combined.errors.length ? `<details open><summary>${combined.errors.length} avisos — estas linhas não foram importadas</summary><ul>${combined.errors.slice(0, 80).map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul></details>` : `<p class="ok-line">Sem erros críticos encontrados.</p>`}
     `;
     $("confirmExcelImportBtn").disabled = false;
   } catch (error) {
@@ -1038,7 +1088,6 @@ $("unlockAdminBtn").addEventListener("click", () => {
 });
 $("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
 $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
-$("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação dos grupos copiada."));
 $("addUserBtn")?.addEventListener("click", addUser);
 $("newUserNameInput")?.addEventListener("keydown", event => { if (event.key === "Enter") addUser(); });
 $("openExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.remove("hidden"));
