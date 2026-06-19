@@ -3,142 +3,87 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v14</title>
+  <title>Mundial Pontos 2026</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="ambient-ball ball-one"></div>
-  <div class="ambient-ball ball-two"></div>
-
   <div class="app-shell">
-    <header class="hero">
-      <div class="hero-copy">
-        <div class="brand-mark">⚽</div>
-        <div>
-          <p class="eyebrow">Calendário da Fase de Grupos</p>
-          <h1>Mundial 2026</h1>
-          <p class="hero-subtitle">Lista limpa por data, grupo, bandeiras e hora de Portugal.</p>
-        </div>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Calendário da Fase de Grupos</p>
+        <h1>Mundial Pontos 2026</h1>
       </div>
-</header>
-<main id="mainView">
-</div>
-<nav class="tabs">
-        <button class="tab active" data-tab="gamesTab">📅 Calendário</button>
-        <button class="tab" data-tab="groupsTab">🌍 Grupos</button>
-        <button class="tab" data-tab="rankingTab">🏆 Pontuação</button>
-        <button class="tab" data-tab="adminTab">🛠️ Admin</button>
-      </nav>
+      <div class="copy-actions" aria-label="Copiar para WhatsApp">
+        <button id="copyTodayBtn" class="secondary" type="button">Copiar jogos de hoje</button>
+        <button id="copyScoreBtn" class="secondary" type="button">Copiar pontuação</button>
+        <button id="copyGroupsBtn" class="secondary" type="button">Copiar grupos</button>
+      </div>
+    </header>
 
-      <section id="gamesTab" class="tab-panel active">
-        <div class="section-head">
+    <nav class="tabs" aria-label="Navegação principal">
+      <button class="tab active" type="button" data-tab="calendarTab">Calendário</button>
+      <button class="tab" type="button" data-tab="scoreTab">Pontuação</button>
+      <button class="tab" type="button" data-tab="groupsTab">Grupos</button>
+      <button class="tab" type="button" data-tab="adminTab">Admin</button>
+    </nav>
+
+    <main>
+      <section id="calendarTab" class="tab-panel active">
+        <div class="section-head compact">
           <div>
-            <h2>Calendário da Fase de Grupos</h2>
-            <p>Organizado como calendário: data, grupo, seleções, bandeiras e hora de Portugal.</p>
+            <h2>Fase de Grupos</h2>
+            <p>Jogos por data, com horas de Portugal.</p>
           </div>
-          <div class="clean-actions"><button id="copyTodayBtn" class="secondary">📋 Jogos de Hoje</button><button id="refreshBtn" class="secondary">Atualizar</button></div>
+          <input id="searchInput" class="search" type="search" placeholder="Pesquisar seleção ou grupo" />
         </div>
-<div class="toolbar">
-          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, grupo, estádio ou fase..." />
-          <div class="filter-row">
-            <button class="filter-chip active" data-filter="all">Todos</button>
-            <button class="filter-chip" data-filter="open">Abertos</button>
-            <button class="filter-chip" data-filter="locked">Fechados</button>
-            <button class="filter-chip" data-filter="finished">Terminados</button>
-          </div>
-        </div>
-        <div id="gamesList" class="list"></div>
+        <div id="gamesList" class="calendar-list"></div>
       </section>
 
-      <section id="rankingTab" class="tab-panel">
+      <section id="scoreTab" class="tab-panel">
         <div class="section-head">
           <div>
             <h2>Pontuação</h2>
-            <p>Resumo dos pontos das tuas apostas.</p>
+            <p>Resumo simples das tuas apostas.</p>
           </div>
         </div>
-        <div id="rankingList" class="ranking-list"></div>
-      </section><section id="groupsTab" class="tab-panel">
+        <div id="scoreSummary" class="score-summary"></div>
+      </section>
+
+      <section id="groupsTab" class="tab-panel">
         <div class="section-head">
           <div>
-            <h2>🌍 Classificações dos Grupos</h2>
-            <p>Calculadas automaticamente a partir dos resultados inseridos.</p>
+            <h2>Classificação dos grupos</h2>
+            <p>Calculada a partir dos resultados inseridos no Admin.</p>
           </div>
-          <button id="copyGroupsBtn2" class="secondary">📋 Copiar Grupos</button>
         </div>
-        <div id="groupsTables" class="groups-tables"></div>
+        <div id="groupsTables" class="groups-grid"></div>
       </section>
 
       <section id="adminTab" class="tab-panel">
-        <div id="adminLocked" class="glass-card">
-          <h2>Área Admin</h2>
-          <p>Insere o PIN para adicionar jogos, lançar resultados e atualizar a pontuação.</p>
-          <div class="form-grid one compact-form">
-            <label>PIN Admin
-              <input id="adminPinInput" type="password" placeholder="PIN" />
-            </label>
+        <div id="adminLocked" class="admin-lock">
+          <h2>Admin</h2>
+          <p>Introduz o PIN para lançar ou limpar resultados.</p>
+          <div class="pin-row">
+            <input id="adminPinInput" type="password" inputmode="numeric" placeholder="PIN" />
+            <button id="unlockAdminBtn" class="primary" type="button">Entrar</button>
           </div>
-          <button id="unlockAdminBtn" class="primary">Entrar como admin</button>
         </div>
 
-        <div id="adminUnlocked" class="hidden admin-stack">
-          <div class="glass-card integration-card">
-            <div>
-              <h2>Firebase / Modo Manual</h2>
-              <p id="integrationText">Firebase: teste local · Resultados manuais</p>
-              <p class="small-note">Nesta versão os resultados são inseridos manualmente no Admin. Ao guardar o resultado, a app calcula automaticamente os pontos e atualiza o ranking.</p>
-            </div>
-            <div class="admin-actions">
-              <button id="exportBtn" class="secondary">Exportar JSON</button>
-              <label class="secondary file-button">Importar JSON<input id="importInput" type="file" accept="application/json" hidden></label>
-            </div>
-          </div>
-          <div class="glass-card">
-            <div class="admin-card-head">
-              <div>
-                <h2>Adicionar jogo</h2>
-                <p>Cria os jogos que vão aparecer para todos os jogadores.</p>
-              </div>
-            </div>
-            <div class="form-grid">
-              <label>Equipa casa
-                <input id="homeTeamInput" type="text" placeholder="Portugal" />
-              </label>
-              <label>Equipa fora
-                <input id="awayTeamInput" type="text" placeholder="Brasil" />
-              </label>
-              <label>Data / hora de Portugal
-                <input id="matchDateInput" type="datetime-local" />
-              </label>
-              <label>Estádio / local
-                <input id="venueInput" type="text" placeholder="Estádio" />
-              </label>
-              <label>Fase
-                <input id="phaseInput" type="text" placeholder="Fase de grupos" />
-              </label>
-              <label>Grupo do Mundial
-                <input id="groupInput" type="text" placeholder="Grupo A" />
-              </label>
-            </div>
-            <div class="admin-actions">
-              <button id="addGameBtn" class="primary">Adicionar jogo</button>
-              <button id="resetSeedBtn" class="secondary">Repor jogos base</button>
-            </div>
-          </div>
-
-          <div class="section-head admin-title">
+        <div id="adminUnlocked" class="hidden">
+          <div class="section-head compact">
             <div>
               <h2>Resultados</h2>
-              <p>Coloca o resultado final de cada jogo. A app calcula automaticamente: 3 pontos para resultado exato, 1 ponto para vencedor/empate certo, 0 pontos se falhar.</p>
+              <p id="storageStatus">A carregar dados...</p>
             </div>
           </div>
-          <div id="adminGamesList" class="list"></div>
+          <div id="adminGamesList" class="admin-list"></div>
         </div>
       </section>
-</main>
+    </main>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

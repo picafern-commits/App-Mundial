@@ -1,821 +1,93 @@
-// Mundial Pontos - v14.0 Calendário Limpo
-// Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
-const firebaseConfig = APP_CONFIG.firebase || {};
-const apiConfig = APP_CONFIG.api || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v14";
+const STORAGE_KEY = "mundial_pontos_2026_simple_v1";
+const PLAYER_ID = "single";
+const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
-let activePlayer = "__single_user__";
-let isAdmin = localStorage.getItem("mundial_is_admin") === "1";
+let firebaseApi = null;
+let storageMode = "local";
 let games = [];
 let bets = [];
-let currentFilter = "all";
-let currentSearch = "";
-let currentPhase = "groups";
+let searchText = "";
+let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 
-const SEED_GAMES = [
-  {
-    "id": "wc2026-groups-001",
-    "group": "Grupo A",
-    "homeTeam": "México",
-    "awayTeam": "África do Sul",
-    "matchDate": "2026-06-11T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-002",
-    "group": "Grupo A",
-    "homeTeam": "Coreia do Sul",
-    "awayTeam": "Chéquia",
-    "matchDate": "2026-06-12T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-003",
-    "group": "Grupo B",
-    "homeTeam": "Canadá",
-    "awayTeam": "Bósnia",
-    "matchDate": "2026-06-12T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-004",
-    "group": "Grupo D",
-    "homeTeam": "Estados Unidos",
-    "awayTeam": "Paraguai",
-    "matchDate": "2026-06-13T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-005",
-    "group": "Grupo B",
-    "homeTeam": "Qatar",
-    "awayTeam": "Suíça",
-    "matchDate": "2026-06-13T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-006",
-    "group": "Grupo C",
-    "homeTeam": "Brasil",
-    "awayTeam": "Marrocos",
-    "matchDate": "2026-06-13T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-007",
-    "group": "Grupo C",
-    "homeTeam": "Haiti",
-    "awayTeam": "Escócia",
-    "matchDate": "2026-06-14T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-008",
-    "group": "Grupo D",
-    "homeTeam": "Austrália",
-    "awayTeam": "Turquia",
-    "matchDate": "2026-06-14T05:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-009",
-    "group": "Grupo E",
-    "homeTeam": "Alemanha",
-    "awayTeam": "Curaçao",
-    "matchDate": "2026-06-14T18:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-010",
-    "group": "Grupo F",
-    "homeTeam": "Países Baixos",
-    "awayTeam": "Japão",
-    "matchDate": "2026-06-14T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-011",
-    "group": "Grupo E",
-    "homeTeam": "Costa do Marfim",
-    "awayTeam": "Equador",
-    "matchDate": "2026-06-15T00:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-012",
-    "group": "Grupo F",
-    "homeTeam": "Suécia",
-    "awayTeam": "Tunísia",
-    "matchDate": "2026-06-15T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-013",
-    "group": "Grupo H",
-    "homeTeam": "Espanha",
-    "awayTeam": "Cabo Verde",
-    "matchDate": "2026-06-15T17:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-014",
-    "group": "Grupo G",
-    "homeTeam": "Bélgica",
-    "awayTeam": "Egito",
-    "matchDate": "2026-06-15T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-015",
-    "group": "Grupo H",
-    "homeTeam": "Arábia Saudita",
-    "awayTeam": "Uruguai",
-    "matchDate": "2026-06-15T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-016",
-    "group": "Grupo G",
-    "homeTeam": "Irão",
-    "awayTeam": "Nova Zelândia",
-    "matchDate": "2026-06-16T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-017",
-    "group": "Grupo I",
-    "homeTeam": "França",
-    "awayTeam": "Senegal",
-    "matchDate": "2026-06-16T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-018",
-    "group": "Grupo I",
-    "homeTeam": "Iraque",
-    "awayTeam": "Noruega",
-    "matchDate": "2026-06-16T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-019",
-    "group": "Grupo J",
-    "homeTeam": "Argentina",
-    "awayTeam": "Argélia",
-    "matchDate": "2026-06-17T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-020",
-    "group": "Grupo J",
-    "homeTeam": "Áustria",
-    "awayTeam": "Jordânia",
-    "matchDate": "2026-06-17T05:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-021",
-    "group": "Grupo K",
-    "homeTeam": "Portugal",
-    "awayTeam": "RD Congo",
-    "matchDate": "2026-06-17T18:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-022",
-    "group": "Grupo L",
-    "homeTeam": "Inglaterra",
-    "awayTeam": "Croácia",
-    "matchDate": "2026-06-17T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-023",
-    "group": "Grupo L",
-    "homeTeam": "Gana",
-    "awayTeam": "Panamá",
-    "matchDate": "2026-06-18T00:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-024",
-    "group": "Grupo K",
-    "homeTeam": "Uzbequistão",
-    "awayTeam": "Colômbia",
-    "matchDate": "2026-06-18T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-025",
-    "group": "Grupo A",
-    "homeTeam": "Chéquia",
-    "awayTeam": "África do Sul",
-    "matchDate": "2026-06-18T17:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-026",
-    "group": "Grupo B",
-    "homeTeam": "Suíça",
-    "awayTeam": "Bósnia",
-    "matchDate": "2026-06-18T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-027",
-    "group": "Grupo B",
-    "homeTeam": "Canadá",
-    "awayTeam": "Qatar",
-    "matchDate": "2026-06-18T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-028",
-    "group": "Grupo A",
-    "homeTeam": "México",
-    "awayTeam": "Coreia do Sul",
-    "matchDate": "2026-06-19T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-029",
-    "group": "Grupo D",
-    "homeTeam": "Estados Unidos",
-    "awayTeam": "Austrália",
-    "matchDate": "2026-06-19T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-030",
-    "group": "Grupo C",
-    "homeTeam": "Escócia",
-    "awayTeam": "Marrocos",
-    "matchDate": "2026-06-19T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-031",
-    "group": "Grupo C",
-    "homeTeam": "Brasil",
-    "awayTeam": "Haiti",
-    "matchDate": "2026-06-20T01:30",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-032",
-    "group": "Grupo D",
-    "homeTeam": "Turquia",
-    "awayTeam": "Paraguai",
-    "matchDate": "2026-06-20T04:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-033",
-    "group": "Grupo F",
-    "homeTeam": "Países Baixos",
-    "awayTeam": "Suécia",
-    "matchDate": "2026-06-20T18:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-034",
-    "group": "Grupo E",
-    "homeTeam": "Alemanha",
-    "awayTeam": "Costa do Marfim",
-    "matchDate": "2026-06-20T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-035",
-    "group": "Grupo E",
-    "homeTeam": "Equador",
-    "awayTeam": "Curaçao",
-    "matchDate": "2026-06-21T01:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-036",
-    "group": "Grupo F",
-    "homeTeam": "Tunísia",
-    "awayTeam": "Japão",
-    "matchDate": "2026-06-21T05:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-037",
-    "group": "Grupo H",
-    "homeTeam": "Espanha",
-    "awayTeam": "Arábia Saudita",
-    "matchDate": "2026-06-21T17:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-038",
-    "group": "Grupo G",
-    "homeTeam": "Bélgica",
-    "awayTeam": "Irão",
-    "matchDate": "2026-06-21T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-039",
-    "group": "Grupo H",
-    "homeTeam": "Uruguai",
-    "awayTeam": "Cabo Verde",
-    "matchDate": "2026-06-21T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-040",
-    "group": "Grupo G",
-    "homeTeam": "Nova Zelândia",
-    "awayTeam": "Egito",
-    "matchDate": "2026-06-22T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-041",
-    "group": "Grupo J",
-    "homeTeam": "Argentina",
-    "awayTeam": "Áustria",
-    "matchDate": "2026-06-22T18:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-042",
-    "group": "Grupo I",
-    "homeTeam": "França",
-    "awayTeam": "Iraque",
-    "matchDate": "2026-06-22T22:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-043",
-    "group": "Grupo I",
-    "homeTeam": "Noruega",
-    "awayTeam": "Senegal",
-    "matchDate": "2026-06-23T01:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-044",
-    "group": "Grupo J",
-    "homeTeam": "Jordânia",
-    "awayTeam": "Argélia",
-    "matchDate": "2026-06-23T04:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-045",
-    "group": "Grupo K",
-    "homeTeam": "Portugal",
-    "awayTeam": "Uzbequistão",
-    "matchDate": "2026-06-23T18:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-046",
-    "group": "Grupo L",
-    "homeTeam": "Inglaterra",
-    "awayTeam": "Gana",
-    "matchDate": "2026-06-23T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-047",
-    "group": "Grupo L",
-    "homeTeam": "Panamá",
-    "awayTeam": "Croácia",
-    "matchDate": "2026-06-24T00:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-048",
-    "group": "Grupo K",
-    "homeTeam": "Colômbia",
-    "awayTeam": "RD Congo",
-    "matchDate": "2026-06-24T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-049",
-    "group": "Grupo B",
-    "homeTeam": "Suíça",
-    "awayTeam": "Canadá",
-    "matchDate": "2026-06-24T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-050",
-    "group": "Grupo B",
-    "homeTeam": "Bósnia",
-    "awayTeam": "Qatar",
-    "matchDate": "2026-06-24T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-051",
-    "group": "Grupo C",
-    "homeTeam": "Escócia",
-    "awayTeam": "Brasil",
-    "matchDate": "2026-06-24T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-052",
-    "group": "Grupo C",
-    "homeTeam": "Marrocos",
-    "awayTeam": "Haiti",
-    "matchDate": "2026-06-24T23:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-053",
-    "group": "Grupo A",
-    "homeTeam": "África do Sul",
-    "awayTeam": "Coreia do Sul",
-    "matchDate": "2026-06-25T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-054",
-    "group": "Grupo A",
-    "homeTeam": "Chéquia",
-    "awayTeam": "México",
-    "matchDate": "2026-06-25T02:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-055",
-    "group": "Grupo E",
-    "homeTeam": "Curaçao",
-    "awayTeam": "Costa do Marfim",
-    "matchDate": "2026-06-25T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-056",
-    "group": "Grupo E",
-    "homeTeam": "Equador",
-    "awayTeam": "Alemanha",
-    "matchDate": "2026-06-25T21:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-057",
-    "group": "Grupo F",
-    "homeTeam": "Tunísia",
-    "awayTeam": "Países Baixos",
-    "matchDate": "2026-06-26T00:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-058",
-    "group": "Grupo F",
-    "homeTeam": "Japão",
-    "awayTeam": "Suécia",
-    "matchDate": "2026-06-26T00:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-059",
-    "group": "Grupo D",
-    "homeTeam": "Turquia",
-    "awayTeam": "Estados Unidos",
-    "matchDate": "2026-06-26T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-060",
-    "group": "Grupo D",
-    "homeTeam": "Paraguai",
-    "awayTeam": "Austrália",
-    "matchDate": "2026-06-26T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-061",
-    "group": "Grupo I",
-    "homeTeam": "Noruega",
-    "awayTeam": "França",
-    "matchDate": "2026-06-26T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-062",
-    "group": "Grupo I",
-    "homeTeam": "Senegal",
-    "awayTeam": "Iraque",
-    "matchDate": "2026-06-26T20:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-063",
-    "group": "Grupo H",
-    "homeTeam": "Cabo Verde",
-    "awayTeam": "Arábia Saudita",
-    "matchDate": "2026-06-27T01:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-064",
-    "group": "Grupo H",
-    "homeTeam": "Uruguai",
-    "awayTeam": "Espanha",
-    "matchDate": "2026-06-27T01:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-065",
-    "group": "Grupo G",
-    "homeTeam": "Nova Zelândia",
-    "awayTeam": "Bélgica",
-    "matchDate": "2026-06-27T04:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-066",
-    "group": "Grupo G",
-    "homeTeam": "Egito",
-    "awayTeam": "Irão",
-    "matchDate": "2026-06-27T04:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-067",
-    "group": "Grupo L",
-    "homeTeam": "Panamá",
-    "awayTeam": "Inglaterra",
-    "matchDate": "2026-06-27T22:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-068",
-    "group": "Grupo L",
-    "homeTeam": "Croácia",
-    "awayTeam": "Gana",
-    "matchDate": "2026-06-27T22:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-069",
-    "group": "Grupo K",
-    "homeTeam": "Colômbia",
-    "awayTeam": "Portugal",
-    "matchDate": "2026-06-28T00:30",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-070",
-    "group": "Grupo K",
-    "homeTeam": "RD Congo",
-    "awayTeam": "Uzbequistão",
-    "matchDate": "2026-06-28T00:30",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-071",
-    "group": "Grupo J",
-    "homeTeam": "Argélia",
-    "awayTeam": "Áustria",
-    "matchDate": "2026-06-28T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  },
-  {
-    "id": "wc2026-groups-072",
-    "group": "Grupo J",
-    "homeTeam": "Jordânia",
-    "awayTeam": "Argentina",
-    "matchDate": "2026-06-28T03:00",
-    "venue": "A confirmar",
-    "phase": "Fase de grupos",
-    "homeScore": null,
-    "awayScore": null
-  }
-].map(g => ({ ...g, createdAt: Date.now(), source:"Calendário fase grupos" }));
+const MATCH_ROWS = [
+  ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
+  ["Grupo A", "Coreia do Sul", "Chéquia", "2026-06-12T03:00"],
+  ["Grupo B", "Canadá", "Bósnia", "2026-06-12T20:00"],
+  ["Grupo D", "Estados Unidos", "Paraguai", "2026-06-13T02:00"],
+  ["Grupo B", "Qatar", "Suíça", "2026-06-13T20:00"],
+  ["Grupo C", "Brasil", "Marrocos", "2026-06-13T23:00"],
+  ["Grupo C", "Haiti", "Escócia", "2026-06-14T02:00"],
+  ["Grupo D", "Austrália", "Turquia", "2026-06-14T05:00"],
+  ["Grupo E", "Alemanha", "Curaçao", "2026-06-14T18:00"],
+  ["Grupo F", "Países Baixos", "Japão", "2026-06-14T21:00"],
+  ["Grupo E", "Costa do Marfim", "Equador", "2026-06-15T00:00"],
+  ["Grupo F", "Suécia", "Tunísia", "2026-06-15T03:00"],
+  ["Grupo H", "Espanha", "Cabo Verde", "2026-06-15T17:00"],
+  ["Grupo G", "Bélgica", "Egito", "2026-06-15T20:00"],
+  ["Grupo H", "Arábia Saudita", "Uruguai", "2026-06-15T23:00"],
+  ["Grupo G", "Irão", "Nova Zelândia", "2026-06-16T02:00"],
+  ["Grupo I", "França", "Senegal", "2026-06-16T20:00"],
+  ["Grupo I", "Iraque", "Noruega", "2026-06-16T23:00"],
+  ["Grupo J", "Argentina", "Argélia", "2026-06-17T02:00"],
+  ["Grupo J", "Áustria", "Jordânia", "2026-06-17T05:00"],
+  ["Grupo K", "Portugal", "RD Congo", "2026-06-17T18:00"],
+  ["Grupo L", "Inglaterra", "Croácia", "2026-06-17T21:00"],
+  ["Grupo L", "Gana", "Panamá", "2026-06-18T00:00"],
+  ["Grupo K", "Uzbequistão", "Colômbia", "2026-06-18T03:00"],
+  ["Grupo A", "Chéquia", "África do Sul", "2026-06-18T17:00"],
+  ["Grupo B", "Suíça", "Bósnia", "2026-06-18T20:00"],
+  ["Grupo B", "Canadá", "Qatar", "2026-06-18T23:00"],
+  ["Grupo A", "México", "Coreia do Sul", "2026-06-19T02:00"],
+  ["Grupo D", "Estados Unidos", "Austrália", "2026-06-19T20:00"],
+  ["Grupo C", "Escócia", "Marrocos", "2026-06-19T23:00"],
+  ["Grupo C", "Brasil", "Haiti", "2026-06-20T01:30"],
+  ["Grupo D", "Turquia", "Paraguai", "2026-06-20T04:00"],
+  ["Grupo F", "Países Baixos", "Suécia", "2026-06-20T18:00"],
+  ["Grupo E", "Alemanha", "Costa do Marfim", "2026-06-20T21:00"],
+  ["Grupo E", "Equador", "Curaçao", "2026-06-21T01:00"],
+  ["Grupo F", "Tunísia", "Japão", "2026-06-21T05:00"],
+  ["Grupo H", "Espanha", "Arábia Saudita", "2026-06-21T17:00"],
+  ["Grupo G", "Bélgica", "Irão", "2026-06-21T20:00"],
+  ["Grupo H", "Uruguai", "Cabo Verde", "2026-06-21T23:00"],
+  ["Grupo G", "Nova Zelândia", "Egito", "2026-06-22T02:00"],
+  ["Grupo J", "Argentina", "Áustria", "2026-06-22T18:00"],
+  ["Grupo I", "França", "Iraque", "2026-06-22T22:00"],
+  ["Grupo I", "Noruega", "Senegal", "2026-06-23T01:00"],
+  ["Grupo J", "Jordânia", "Argélia", "2026-06-23T04:00"],
+  ["Grupo K", "Portugal", "Uzbequistão", "2026-06-23T18:00"],
+  ["Grupo L", "Inglaterra", "Gana", "2026-06-23T21:00"],
+  ["Grupo L", "Panamá", "Croácia", "2026-06-24T00:00"],
+  ["Grupo K", "Colômbia", "RD Congo", "2026-06-24T03:00"],
+  ["Grupo B", "Suíça", "Canadá", "2026-06-24T20:00"],
+  ["Grupo B", "Bósnia", "Qatar", "2026-06-24T20:00"],
+  ["Grupo C", "Escócia", "Brasil", "2026-06-24T23:00"],
+  ["Grupo C", "Marrocos", "Haiti", "2026-06-24T23:00"],
+  ["Grupo A", "África do Sul", "Coreia do Sul", "2026-06-25T02:00"],
+  ["Grupo A", "Chéquia", "México", "2026-06-25T02:00"],
+  ["Grupo E", "Curaçao", "Costa do Marfim", "2026-06-25T21:00"],
+  ["Grupo E", "Equador", "Alemanha", "2026-06-25T21:00"],
+  ["Grupo F", "Tunísia", "Países Baixos", "2026-06-26T00:00"],
+  ["Grupo F", "Japão", "Suécia", "2026-06-26T00:00"],
+  ["Grupo D", "Turquia", "Estados Unidos", "2026-06-26T03:00"],
+  ["Grupo D", "Paraguai", "Austrália", "2026-06-26T03:00"],
+  ["Grupo I", "Noruega", "França", "2026-06-26T20:00"],
+  ["Grupo I", "Senegal", "Iraque", "2026-06-26T20:00"],
+  ["Grupo H", "Cabo Verde", "Arábia Saudita", "2026-06-27T01:00"],
+  ["Grupo H", "Uruguai", "Espanha", "2026-06-27T01:00"],
+  ["Grupo G", "Nova Zelândia", "Bélgica", "2026-06-27T04:00"],
+  ["Grupo G", "Egito", "Irão", "2026-06-27T04:00"],
+  ["Grupo L", "Panamá", "Inglaterra", "2026-06-27T22:00"],
+  ["Grupo L", "Croácia", "Gana", "2026-06-27T22:00"],
+  ["Grupo K", "Colômbia", "Portugal", "2026-06-28T00:30"],
+  ["Grupo K", "RD Congo", "Uzbequistão", "2026-06-28T00:30"],
+  ["Grupo J", "Argélia", "Áustria", "2026-06-28T03:00"],
+  ["Grupo J", "Jordânia", "Argentina", "2026-06-28T03:00"]
+];
 
-const FLAG_MAP = {
+const FLAGS = {
   "Portugal": "🇵🇹",
   "África do Sul": "🇿🇦",
   "México": "🇲🇽",
@@ -823,7 +95,6 @@ const FLAG_MAP = {
   "Chéquia": "🇨🇿",
   "Canadá": "🇨🇦",
   "Bósnia": "🇧🇦",
-  "Bósnia-Herzegovina": "🇧🇦",
   "Estados Unidos": "🇺🇸",
   "Paraguai": "🇵🇾",
   "Qatar": "🇶🇦",
@@ -867,596 +138,562 @@ const FLAG_MAP = {
   "Colômbia": "🇨🇴"
 };
 
-const defaultDemo = { games: SEED_GAMES, bets: [] };
+const SEED_GAMES = MATCH_ROWS.map(([group, homeTeam, awayTeam, matchDate], index) => ({
+  id: `wc2026-group-${String(index + 1).padStart(3, "0")}`,
+  group,
+  homeTeam,
+  awayTeam,
+  matchDate,
+  phase: "Fase de grupos",
+  homeScore: null,
+  awayScore: null
+}));
+
 const $ = id => document.getElementById(id);
-const hasResult = game => game && game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined;
-const isLocked = game => hasResult(game) || new Date(game.matchDate).getTime() <= Date.now();
-const safeId = text => String(text ?? "").toLowerCase().trim().replace(/[^a-z0-9]+/gi, "_");
-const outcome = (h,a) => Number(h)>Number(a) ? "home" : Number(h)<Number(a) ? "away" : "draw";
-const escapeHtml = text => String(text ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+const clone = value => JSON.parse(JSON.stringify(value));
+const hasResult = game => game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined;
+const flag = team => FLAGS[team] || "🏳️";
+const outcome = (home, away) => Number(home) > Number(away) ? "home" : Number(home) < Number(away) ? "away" : "draw";
 
-const PORTUGAL_TZ = "Europe/Lisbon";
-function parseDateValue(value){
-  if(!value) return null;
-  const text = String(value);
-  if(/[zZ]$|[+-]\d{2}:\d{2}$/.test(text)) return new Date(text);
-  const m = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), Number(m[4]), Number(m[5]));
-  return new Date(text);
-}
-function portugalDateKey(value){
-  const d = parseDateValue(value);
-  if(!d || Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
-}
-function todayPortugalKey(){
-  return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
-}
-function portugalLongDate(value){
-  const d = parseDateValue(value);
-  if(!d || Number.isNaN(d.getTime())) return "Sem data";
-  return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, weekday:"long", day:"2-digit", month:"long" }).format(d);
-}
-function portugalTimeOnly(value){
-  const d = parseDateValue(value);
-  if(!d || Number.isNaN(d.getTime())) return "--:--";
-  return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, hour:"2-digit", minute:"2-digit" }).format(d);
-}
-function portugalDateTime(value, short=false){
-  const d = parseDateValue(value);
-  if(!d || Number.isNaN(d.getTime())) return "Sem data";
-  const opts = short
-    ? { timeZone: PORTUGAL_TZ, day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }
-    : { timeZone: PORTUGAL_TZ, weekday:"short", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" };
-  return new Intl.DateTimeFormat("pt-PT", opts).format(d).replace(",", "") + " 🇵🇹";
-}
-function isGroupStage(game){
-  return phaseKey(game) === "groups";
-}
-function displaySectionName(game){
-  return isGroupStage(game) ? groupOf(game) : phaseLabel(phaseKey(game));
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  })[char]);
 }
 
-const flag = team => FLAG_MAP[String(team || "").trim()] || (String(team || "").match(/^\d|Vencedor|Finalista/i) ? "🏆" : "🏳️");
-
-function toast(message){
-  const el=$("toast");
-  if(!el) return alert(message);
-  el.textContent=message;
-  el.classList.remove("hidden");
-  setTimeout(()=>el.classList.add("hidden"),2800);
-}
-function getDemoData(){
-  const raw=localStorage.getItem(demoStoreKey);
-  if(!raw){ localStorage.setItem(demoStoreKey, JSON.stringify(defaultDemo)); return structuredClone(defaultDemo); }
-  try { return JSON.parse(raw); }
-  catch { localStorage.removeItem(demoStoreKey); localStorage.setItem(demoStoreKey, JSON.stringify(defaultDemo)); return structuredClone(defaultDemo); }
-}
-function saveDemoData(data){ localStorage.setItem(demoStoreKey, JSON.stringify(data)); }
-function formatDate(value){
-  return portugalDateTime(value, false);
-}
-function formatShortDate(value){
-  return portugalDateTime(value, true);
-}
-function statusOf(game){
-  if(hasResult(game)) return { label:"Terminado", cls:"closed" };
-  if(isLocked(game)) return { label:"Apostas fechadas", cls:"locked" };
-  return { label:"Aberto", cls:"open" };
-}
-function groupOf(game){ return game.group || game.groupName || game.pool || game.phase || "Outros jogos"; }
-function groupSortKey(group){
-  const text = String(group || "");
-  const letter = text.match(/Grupo\s+([A-Z])/i);
-  if(letter) return `0_${letter[1].toUpperCase()}`;
-  const phaseOrder = { "Oitavos": "1", "Oitavos de Final": "1", "Quartos": "2", "Quartos de Final": "2", "Meias": "3", "Meias-Finais": "3", "Final": "4" };
-  return `${phaseOrder[text] || "9"}_${text}`;
-}
-function phaseKey(game){
-  const txt = `${game.phase || ""} ${game.group || ""}`.toLowerCase();
-  if(txt.includes("oitavo")) return "r16";
-  if(txt.includes("quarto")) return "quarters";
-  if(txt.includes("meia")) return "semis";
-  if(txt.includes("final") && !txt.includes("meia")) return "final";
-  return "groups";
-}
-function phaseLabel(key){
-  return ({groups:"Fase de grupos", r16:"Oitavos de Final", quarters:"Quartos de Final", semis:"Meias-Finais", final:"Final"}[key] || "Mundial");
-}
-function exactBet(bet, game){ return Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore); }
-function pointsForBet(bet, game){
-  if(!game || !hasResult(game)) return 0;
-  if(exactBet(bet, game)) return 3;
-  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0;
+function parsePortugalDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) return new Date(value);
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]));
 }
 
-async function initFirebase(){
-  if(DEMO_MODE) return;
+function dateKey(value) {
+  const date = parsePortugalDate(value);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: PORTUGAL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function todayKey() {
+  return dateKey(new Date());
+}
+
+function dateHeader(value) {
+  const date = parsePortugalDate(value);
+  const parts = new Intl.DateTimeFormat("pt-PT", {
+    timeZone: PORTUGAL_TZ,
+    day: "numeric",
+    month: "long",
+    weekday: "long"
+  }).formatToParts(date);
+  const day = parts.find(part => part.type === "day")?.value || "";
+  const month = parts.find(part => part.type === "month")?.value || "";
+  const weekday = parts.find(part => part.type === "weekday")?.value || "";
+  return `${day} de ${month} (${weekday})`;
+}
+
+function timePortugal(value) {
+  return new Intl.DateTimeFormat("pt-PT", {
+    timeZone: PORTUGAL_TZ,
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(parsePortugalDate(value));
+}
+
+function statusOf(game) {
+  if (hasResult(game)) return { text: "Jogado", className: "played" };
+  if (parsePortugalDate(game.matchDate).getTime() <= Date.now()) return { text: "Fechado", className: "closed" };
+  return { text: "Por jogar", className: "open" };
+}
+
+function isLocked(game) {
+  return statusOf(game).className !== "open";
+}
+
+function getLocalData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const data = { games: clone(SEED_GAMES), bets: [] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return data;
+  }
+
   try {
-    const app=initializeApp(firebaseConfig);
-    db=getFirestore(app);
-  } catch(e){
-    console.error(e);
-    toast("Firebase não ligou. A usar modo teste.");
+    const parsed = JSON.parse(raw);
+    return {
+      games: Array.isArray(parsed.games) && parsed.games.length ? parsed.games : clone(SEED_GAMES),
+      bets: Array.isArray(parsed.bets) ? parsed.bets : []
+    };
+  } catch {
+    const data = { games: clone(SEED_GAMES), bets: [] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return data;
   }
 }
-async function loadData(){
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    games=(data.games || []).sort((a,b)=>String(a.matchDate).localeCompare(String(b.matchDate)));
-    bets=data.bets || [];
+
+function saveLocalData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ games, bets }));
+}
+
+async function initFirebase() {
+  const config = APP_CONFIG.firebase || {};
+  if (!config.apiKey || !config.projectId) return;
+
+  try {
+    const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+    const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+    const app = appModule.initializeApp(config);
+    db = firestoreModule.getFirestore(app);
+    firebaseApi = firestoreModule;
+    storageMode = "firebase";
+  } catch (error) {
+    console.warn("Firebase indisponível. A usar modo local.", error);
+    storageMode = "local";
+  }
+}
+
+async function loadData() {
+  if (!db || !firebaseApi) {
+    const local = getLocalData();
+    games = normalizeGames(local.games);
+    bets = local.bets;
     renderAll();
     return;
   }
-  const gamesSnap=await getDocs(query(collection(db,"games"), orderBy("matchDate","asc")));
-  games=gamesSnap.docs.map(d=>({id:d.id,...d.data()}));
-  const betsSnap=await getDocs(collection(db,"bets"));
-  bets=betsSnap.docs.map(d=>({id:d.id,...d.data()}));
-  renderAll();
-}
-async function saveBet(gameId, homeGuess, awayGuess){
-  activePlayer = "__single_user__";
-  const game=games.find(g=>g.id===gameId);
-  if(!game) return;
-  if(isLocked(game)) return toast("As apostas deste jogo já estão fechadas.");
-  if(homeGuess==="" || awayGuess==="") return toast("Preenche o resultado completo.");
-  const bet={gameId, playerName:activePlayer, homeGuess:Number(homeGuess), awayGuess:Number(awayGuess), updatedAt:Date.now()};
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    data.bets=data.bets.filter(b=>!(b.gameId===gameId && b.playerName===activePlayer));
-    data.bets.push({id:`${gameId}_${activePlayer}`,...bet});
-    saveDemoData(data);
-  } else {
-    await setDoc(doc(db,"bets",`${gameId}_${safeId(activePlayer)}`), {...bet, updatedAt:serverTimestamp()});
+
+  try {
+    const { collection, doc, getDocs, query, orderBy, setDoc } = firebaseApi;
+    const gamesSnap = await getDocs(query(collection(db, "games"), orderBy("matchDate", "asc")));
+    const betsSnap = await getDocs(collection(db, "bets"));
+
+    if (gamesSnap.empty) {
+      games = clone(SEED_GAMES);
+      await Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
+    } else {
+      games = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+    }
+
+    bets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() })).filter(bet => bet.playerId === PLAYER_ID);
+    games = normalizeGames(games);
+    storageMode = "firebase";
+    renderAll();
+  } catch (error) {
+    console.warn("Erro no Firebase. A usar dados locais.", error);
+    storageMode = "local";
+    const local = getLocalData();
+    games = normalizeGames(local.games);
+    bets = local.bets;
+    renderAll();
+    toast("Firebase falhou. A app continua em modo local.");
   }
-  toast("Aposta guardada.");
-  await loadData();
-}
-async function addGame(homeTeam, awayTeam, matchDate, venue="", phase="Fase de grupos", group="Grupo A"){
-  if(!homeTeam || !awayTeam || !matchDate) return toast("Preenche os dados do jogo.");
-  const game={homeTeam, awayTeam, matchDate, venue, phase, group, homeScore:null, awayScore:null, createdAt:Date.now(), source:"Manual"};
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    data.games.push({id:crypto.randomUUID(),...game});
-    saveDemoData(data);
-  } else {
-    await addDoc(collection(db,"games"), {...game, createdAt:serverTimestamp()});
-  }
-  ["homeTeamInput","awayTeamInput","matchDateInput","venueInput","phaseInput","groupInput"].forEach(id=>$(id) && ($(id).value=""));
-  toast("Jogo adicionado.");
-  await loadData();
-}
-async function setResult(gameId, homeScore, awayScore){
-  if(homeScore==="" || awayScore==="") return toast("Coloca o resultado completo.");
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    data.games=data.games.map(g=>g.id===gameId ? {...g, homeScore:Number(homeScore), awayScore:Number(awayScore)} : g);
-    saveDemoData(data);
-  } else {
-    await setDoc(doc(db,"games",gameId), {homeScore:Number(homeScore), awayScore:Number(awayScore)}, {merge:true});
-  }
-  toast("Resultado guardado. Pontos e ranking atualizados automaticamente.");
-  await loadData();
-}
-async function removeResult(gameId){
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    data.games=data.games.map(g=>g.id===gameId ? {...g, homeScore:null, awayScore:null} : g);
-    saveDemoData(data);
-  } else {
-    await setDoc(doc(db,"games",gameId), {homeScore:null, awayScore:null}, {merge:true});
-  }
-  toast("Resultado removido.");
-  await loadData();
-}
-async function removeGame(gameId){
-  if(!confirm("Apagar este jogo e as apostas associadas?")) return;
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    data.games=data.games.filter(g=>g.id!==gameId);
-    data.bets=data.bets.filter(b=>b.gameId!==gameId);
-    saveDemoData(data);
-  } else {
-    await deleteDoc(doc(db,"games",gameId));
-  }
-  toast("Jogo apagado.");
-  await loadData();
-}
-async function resetSeed(){
-  if(!confirm("Isto repõe a lista base v9 e apaga apostas em modo teste. Continuar?")) return;
-  saveDemoData(structuredClone(defaultDemo));
-  toast("Lista base reposta.");
-  await loadData();
 }
 
-function getVisibleGames(){
-  return games.filter(g => {
-    const txt=`${g.homeTeam} ${g.awayTeam} ${g.venue} ${g.phase} ${g.group} ${groupOf(g)}`.toLowerCase();
-    const matchesSearch=!currentSearch || txt.includes(currentSearch.toLowerCase());
-    const matchesFilter=currentFilter==="all" || (currentFilter==="open" && !isLocked(g)) || (currentFilter==="locked" && isLocked(g) && !hasResult(g)) || (currentFilter==="finished" && hasResult(g));
-    const matchesPhase=currentPhase==="all" || phaseKey(g) === currentPhase;
-    return matchesSearch && matchesFilter && matchesPhase;
+function normalizeGames(list) {
+  const byId = new Map(clone(SEED_GAMES).map(game => [game.id, game]));
+  (list || []).forEach(game => {
+    if (!game?.id) return;
+    byId.set(game.id, { ...byId.get(game.id), ...game });
   });
+  return [...byId.values()].sort((a, b) => String(a.matchDate).localeCompare(String(b.matchDate)));
 }
-function getTotals(){
-  const totals=new Map();
-  bets.forEach(b=>{
-    const g=games.find(x=>x.id===b.gameId);
-    const cur=totals.get(b.playerName)||{playerName:b.playerName,points:0,exact:0,played:0, winner:0};
-    const pts=pointsForBet(b,g);
-    cur.points+=pts;
-    if(g&&hasResult(g)) cur.played+=1;
-    if(g&&exactBet(b,g)) cur.exact+=1;
-    else if(pts===1) cur.winner+=1;
-    totals.set(b.playerName,cur);
+
+async function persistGame(game) {
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    saveLocalData();
+    return;
+  }
+
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "games", game.id), game, { merge: true });
+  } catch (error) {
+    console.warn(error);
+    storageMode = "local";
+    saveLocalData();
+    toast("Firebase falhou. Resultado guardado localmente.");
+  }
+}
+
+async function persistBet(bet) {
+  bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === PLAYER_ID));
+  bets.push(bet);
+
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    saveLocalData();
+    return;
+  }
+
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "bets", bet.id), bet, { merge: true });
+  } catch (error) {
+    console.warn(error);
+    storageMode = "local";
+    saveLocalData();
+    toast("Firebase falhou. Aposta guardada localmente.");
+  }
+}
+
+function getBet(gameId) {
+  return bets.find(bet => bet.gameId === gameId && bet.playerId === PLAYER_ID);
+}
+
+function pointsForBet(bet, game) {
+  if (!bet || !game || !hasResult(game)) return 0;
+  if (Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore)) return 3;
+  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0;
+}
+
+function scoreStats() {
+  const stats = { points: 0, totalBets: bets.length, settled: 0, exact: 0, winner: 0, misses: 0 };
+
+  bets.forEach(bet => {
+    const game = games.find(item => item.id === bet.gameId);
+    if (!game || !hasResult(game)) return;
+
+    const points = pointsForBet(bet, game);
+    stats.points += points;
+    stats.settled += 1;
+    if (points === 3) stats.exact += 1;
+    else if (points === 1) stats.winner += 1;
+    else stats.misses += 1;
   });
-  if(activePlayer&&!totals.has(activePlayer)) totals.set(activePlayer,{playerName:activePlayer,points:0,exact:0,played:0,winner:0});
-  return totals;
+
+  stats.accuracy = stats.settled ? Math.round(((stats.exact + stats.winner) / stats.settled) * 100) : 0;
+  return stats;
 }
-function blankTeam(team){
-  return { team, played:0, wins:0, draws:0, losses:0, gf:0, ga:0, gd:0, points:0 };
+
+function filteredGames() {
+  const query = searchText.trim().toLowerCase();
+  if (!query) return games;
+  return games.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
 }
-function buildGroupStandings(){
+
+function groupByDate(list) {
+  return list.reduce((map, game) => {
+    const key = dateKey(game.matchDate);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(game);
+    return map;
+  }, new Map());
+}
+
+function renderAll() {
+  renderAdminState();
+  renderCalendar();
+  renderScore();
+  renderGroups();
+  renderAdmin();
+}
+
+function renderCalendar() {
+  const container = $("gamesList");
+  const groups = groupByDate(filteredGames());
+  const days = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (!days.length) {
+    container.innerHTML = `<div class="empty">Não há jogos para essa pesquisa.</div>`;
+    return;
+  }
+
+  container.innerHTML = days.map(([, dayGames]) => `
+    <section class="day-block">
+      <h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3>
+      <div class="match-list">
+        ${dayGames.map(renderMatchRow).join("")}
+      </div>
+    </section>
+  `).join("");
+}
+
+function renderMatchRow(game) {
+  const bet = getBet(game.id);
+  const status = statusOf(game);
+  const locked = isLocked(game);
+  const scoreText = hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "VS";
+  const betText = bet ? `${bet.homeGuess}-${bet.awayGuess}${hasResult(game) ? ` · ${pointsForBet(bet, game)} pts` : ""}` : "Sem aposta";
+
+  return `
+    <article class="match-row ${status.className}">
+      <div class="group-pill">${escapeHtml(game.group)}</div>
+      <div class="team home"><span>${flag(game.homeTeam)}</span><strong>${escapeHtml(game.homeTeam)}</strong></div>
+      <div class="score-vs">${escapeHtml(scoreText)}</div>
+      <div class="team away"><span>${flag(game.awayTeam)}</span><strong>${escapeHtml(game.awayTeam)}</strong></div>
+      <div class="time">${timePortugal(game.matchDate)}</div>
+      <div class="state ${status.className}">${status.text}</div>
+      <div class="bet-note">${escapeHtml(betText)}</div>
+      <div class="bet-inputs">
+        <input id="home_${game.id}" type="number" min="0" inputmode="numeric" value="${bet?.homeGuess ?? ""}" ${locked ? "disabled" : ""} aria-label="Aposta ${escapeHtml(game.homeTeam)}" />
+        <span>-</span>
+        <input id="away_${game.id}" type="number" min="0" inputmode="numeric" value="${bet?.awayGuess ?? ""}" ${locked ? "disabled" : ""} aria-label="Aposta ${escapeHtml(game.awayTeam)}" />
+        <button class="primary small" type="button" onclick="window.saveBetFromUI('${game.id}')" ${locked ? "disabled" : ""}>OK</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderScore() {
+  const stats = scoreStats();
+  $("scoreSummary").innerHTML = `
+    <div class="score-card main-score">
+      <span>Total de pontos</span>
+      <strong>${stats.points}</strong>
+    </div>
+    <div class="score-card"><span>Jogos apostados</span><strong>${stats.totalBets}</strong></div>
+    <div class="score-card"><span>Resultados exatos</span><strong>${stats.exact}</strong></div>
+    <div class="score-card"><span>Vencedor/empate certo</span><strong>${stats.winner}</strong></div>
+    <div class="score-card"><span>Percentagem de acerto</span><strong>${stats.accuracy}%</strong></div>
+  `;
+}
+
+function blankTeam(team) {
+  return { team, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0 };
+}
+
+function groupSortName(group) {
+  const letter = String(group).match(/Grupo ([A-Z])/i)?.[1] || "Z";
+  return letter;
+}
+
+function buildStandings() {
   const tables = new Map();
-  games.filter(g => phaseKey(g)==="groups").forEach(g => {
-    const group = groupOf(g);
-    if(!tables.has(group)) tables.set(group, new Map());
-    const table = tables.get(group);
-    [g.homeTeam, g.awayTeam].forEach(team => {
-      if(!table.has(team)) table.set(team, blankTeam(team));
+
+  games.forEach(game => {
+    if (!tables.has(game.group)) tables.set(game.group, new Map());
+    const table = tables.get(game.group);
+    [game.homeTeam, game.awayTeam].forEach(team => {
+      if (!table.has(team)) table.set(team, blankTeam(team));
     });
-    if(!hasResult(g)) return;
-    const home = table.get(g.homeTeam);
-    const away = table.get(g.awayTeam);
-    const hs = Number(g.homeScore);
-    const as = Number(g.awayScore);
-    home.played++; away.played++;
-    home.gf += hs; home.ga += as; home.gd = home.gf - home.ga;
-    away.gf += as; away.ga += hs; away.gd = away.gf - away.ga;
-    if(hs > as){ home.wins++; home.points += 3; away.losses++; }
-    else if(hs < as){ away.wins++; away.points += 3; home.losses++; }
-    else { home.draws++; away.draws++; home.points++; away.points++; }
+
+    if (!hasResult(game)) return;
+
+    const home = table.get(game.homeTeam);
+    const away = table.get(game.awayTeam);
+    const hs = Number(game.homeScore);
+    const as = Number(game.awayScore);
+
+    home.played += 1;
+    away.played += 1;
+    home.gf += hs;
+    home.ga += as;
+    away.gf += as;
+    away.ga += hs;
+    home.gd = home.gf - home.ga;
+    away.gd = away.gf - away.ga;
+
+    if (hs > as) {
+      home.wins += 1;
+      away.losses += 1;
+      home.points += 3;
+    } else if (hs < as) {
+      away.wins += 1;
+      home.losses += 1;
+      away.points += 3;
+    } else {
+      home.draws += 1;
+      away.draws += 1;
+      home.points += 1;
+      away.points += 1;
+    }
   });
 
   return [...tables.entries()]
-    .sort((a,b)=>groupSortKey(a[0]).localeCompare(groupSortKey(b[0])))
+    .sort((a, b) => groupSortName(a[0]).localeCompare(groupSortName(b[0])))
     .map(([group, table]) => ({
       group,
-      rows: [...table.values()].sort((a,b)=>
-        b.points-a.points || b.gd-a.gd || b.gf-a.gf || a.team.localeCompare(b.team)
-      )
+      rows: [...table.values()].sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.team.localeCompare(b.team))
     }));
 }
-function todayGames(){
-  const today = todayPortugalKey();
-  return games.filter(g => portugalDateKey(g.matchDate) === today);
-}
 
-function renderAll(){
-  renderSession();
-  renderStats();
-  renderTodayGames();
-  renderGames();
-  renderRanking();
-  renderGroupsTables();
-  renderAdmin();
-}
-function renderSession(){
-  activePlayer = "__single_user__";
-  $("loginView")?.classList.add("hidden");
-  $("mainView")?.classList.remove("hidden");
-  $("adminLocked")?.classList.toggle("hidden",isAdmin);
-  $("adminUnlocked")?.classList.toggle("hidden",!isAdmin);
-}
-function renderStats(){
-  const done=games.filter(hasResult).length;
-  const open=games.filter(g=>!isLocked(g)).length;
-  $("statGames").textContent=games.length;
-  if($("statBets")) $("statBets").textContent=bets.length;
-  $("statMyPoints").textContent=getTotals().get(activePlayer)?.points||0;
-  if($("statFinished")) $("statFinished").textContent=done;
-  if($("statOpen")) $("statOpen").textContent=open;
-}
-function renderTodayGames(){
-  const el = $("todayGamesList");
-  if(!el) return;
-  const list = todayGames();
-  if(!list.length){
-    el.innerHTML = `<div class="empty-today">Hoje não há jogos registados na app.</div>`;
-    return;
-  }
-  el.innerHTML = list.map(game => {
-    const st=statusOf(game);
-    const result = hasResult(game) ? `${game.homeScore} - ${game.awayScore}` : formatShortDate(game.matchDate);
-    return `<article class="today-card ${st.cls}">
-      <div class="today-teams">
-        <strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)}</strong>
-        <span>${result}</span>
-        <strong>${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong>
-      </div>
-      <p>${escapeHtml(game.venue || "Estádio a confirmar")} · ${escapeHtml(game.phase || "Mundial")}</p>
-    </article>`;
-  }).join("");
-}
-function renderGames(){
-  const el=$("gamesList");
-  if(!el) return;
-  const list=getVisibleGames().filter(g => phaseKey(g)==="groups");
-  if(!list.length){ el.innerHTML=`<div class="glass-card">Não encontrei jogos com esse filtro.</div>`; return; }
-
-  const groupedByDate = new Map();
-  list.forEach(game => {
-    const key = portugalDateKey(game.matchDate);
-    if(!groupedByDate.has(key)) groupedByDate.set(key, []);
-    groupedByDate.get(key).push(game);
-  });
-
-  const days = [...groupedByDate.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-  el.innerHTML = `<div class="calendar-clean">${days.map(([dateKey, dayGames]) => {
-    const label = portugalLongDate(dayGames[0].matchDate);
-    return `<section class="calendar-day">
-      <div class="calendar-date">${escapeHtml(label)}</div>
-      <div class="calendar-matches">
-        ${dayGames.sort((a,b)=>String(a.matchDate).localeCompare(String(b.matchDate))).map(renderCalendarRow).join("")}
-      </div>
-    </section>`;
-  }).join("")}</div>`;
-}
-function renderGameCard(game){
-  const myBet=bets.find(b=>b.gameId===game.id&&b.playerName===activePlayer);
-  const st=statusOf(game);
-  const resultText=hasResult(game)?`${game.homeScore} - ${game.awayScore}`:"VS";
-  const pts=myBet?pointsForBet(myBet,game):0;
-  const betLabel = !myBet ? "Ainda sem aposta" : !hasResult(game) ? `A tua aposta: <strong>${myBet.homeGuess}-${myBet.awayGuess}</strong> · à espera do resultado` : `A tua aposta: <strong>${myBet.homeGuess}-${myBet.awayGuess}</strong> · <strong>${pts} pts</strong>`;
-  const locked=isLocked(game);
-  return `<article class="game-card match-card-pro ${st.cls}">
-    <div class="match-topline">
-      <span class="phase-pill">${escapeHtml(game.phase||"Mundial")}</span>
-      <span class="badge ${st.cls}">${st.label}</span>
-    </div>
-    <div class="teams-pro">
-      <div class="team-pro">
-        <span class="flag-ball">${flag(game.homeTeam)}</span>
-        <strong>${escapeHtml(game.homeTeam)}</strong>
-      </div>
-      <div class="score-pro">
-        <span>${resultText}</span>
-        <small>${hasResult(game) ? "Resultado final" : "Hora Portugal"}</small>
-      </div>
-      <div class="team-pro right">
-        <span class="flag-ball">${flag(game.awayTeam)}</span>
-        <strong>${escapeHtml(game.awayTeam)}</strong>
-      </div>
-    </div>
-    <div class="match-meta-pro">🏟️ ${escapeHtml(game.venue||"Estádio a confirmar")} · 🕒 ${formatDate(game.matchDate)} · ${escapeHtml(groupOf(game))}</div>
-    <div class="bet-status-pro">${betLabel}</div>
-    <div class="bet-grid bet-grid-pro">
-      <label>${escapeHtml(game.homeTeam)}<input id="home_${game.id}" type="number" min="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}></label>
-      <label>${escapeHtml(game.awayTeam)}<input id="away_${game.id}" type="number" min="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}></label>
-      <button class="primary" onclick="window.saveBetFromUI('${game.id}')" ${locked?"disabled":""}>Guardar</button>
-    </div>
-  </article>`;
-}
-
-function renderCalendarRow(game){
-  const myBet = bets.find(b=>b.gameId===game.id && b.playerName===activePlayer);
-  const st = statusOf(game);
-  const locked = isLocked(game);
-  const pts = myBet ? pointsForBet(myBet, game) : 0;
-  const resultText = hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "Por jogar";
-  const betText = !myBet ? "Sem aposta" : !hasResult(game) ? `Aposta ${myBet.homeGuess}-${myBet.awayGuess}` : `Aposta ${myBet.homeGuess}-${myBet.awayGuess} · ${pts} pts`;
-  return `<article class="calendar-match ${st.cls}">
-    <div class="cal-group">${escapeHtml(groupOf(game))}</div>
-    <div class="cal-teams">
-      <span class="cal-team">${flag(game.homeTeam)} <strong>${escapeHtml(game.homeTeam)}</strong></span>
-      <span class="cal-vs">${hasResult(game) ? resultText : "vs"}</span>
-      <span class="cal-team right">${flag(game.awayTeam)} <strong>${escapeHtml(game.awayTeam)}</strong></span>
-    </div>
-    <div class="cal-time">${portugalTimeOnly(game.matchDate)}</div>
-    <div class="cal-status">
-      <span class="badge ${st.cls}">${hasResult(game) ? "Jogado" : (locked ? "Fechado" : "Por jogar")}</span>
-      <small>${betText}</small>
-    </div>
-    <div class="cal-bet">
-      <input id="home_${game.id}" type="number" min="0" placeholder="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}>
-      <span>-</span>
-      <input id="away_${game.id}" type="number" min="0" placeholder="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}>
-      <button class="primary" onclick="window.saveBetFromUI('${game.id}')" ${locked?"disabled":""}>OK</button>
-    </div>
-  </article>`;
-}
-
-function renderRanking(){
-  const r = getTotals().get(activePlayer) || {points:0, exact:0, played:0, winner:0};
-  $("rankingList").innerHTML = `<div class="ranking-row single-score">
-    <div class="rank-number">🏆</div>
-    <div><strong>Pontuação total</strong><p class="muted">Jogos com resultado: ${r.played} · Resultados exatos: ${r.exact} · Vencedor/empate certo: ${r.winner || 0}</p></div>
-    <div class="points">${r.points} pts</div>
-  </div>`;
-}
-function renderGroupsTables(){
-  const el = $("groupsTables");
-  if(!el) return;
-  const tables = buildGroupStandings();
-  if(!tables.length){
-    el.innerHTML = `<div class="glass-card">Ainda não existem grupos para mostrar.</div>`;
-    return;
-  }
-  el.innerHTML = tables.map(({group, rows}) => `<section class="standings-card">
-    <div class="standings-head">
+function renderGroups() {
+  $("groupsTables").innerHTML = buildStandings().map(({ group, rows }) => `
+    <section class="group-table">
       <h3>${escapeHtml(group)}</h3>
-      <span>${rows.filter(r=>r.played>0).length ? "Com resultados" : "Sem resultados"}</span>
-    </div>
-    <div class="standings-table">
-      <div class="standings-row standings-title">
-        <span>#</span><span>Seleção</span><span>J</span><span>V</span><span>E</span><span>D</span><span>GM</span><span>GS</span><span>DG</span><span>Pts</span>
+      <div class="table">
+        <div class="table-row head"><span>#</span><span>Seleção</span><span>J</span><span>DG</span><span>Pts</span></div>
+        ${rows.map((row, index) => `
+          <div class="table-row">
+            <span>${index + 1}</span>
+            <strong>${flag(row.team)} ${escapeHtml(row.team)}</strong>
+            <span>${row.played}</span>
+            <span>${row.gd}</span>
+            <b>${row.points}</b>
+          </div>
+        `).join("")}
       </div>
-      ${rows.map((r,i)=>`<div class="standings-row ${i<2?"qualified":""}">
-        <span>${i+1}</span>
-        <strong>${flag(r.team)} ${escapeHtml(r.team)}</strong>
-        <span>${r.played}</span><span>${r.wins}</span><span>${r.draws}</span><span>${r.losses}</span>
-        <span>${r.gf}</span><span>${r.ga}</span><span>${r.gd}</span><b>${r.points}</b>
-      </div>`).join("")}
-    </div>
-  </section>`).join("");
-}
-function renderAdmin(){
-  const el=$("adminGamesList");
-  if(!el) return;
-  renderIntegration();
-  el.innerHTML=games.map(game=>`<article class="game-card"><div class="match-title"><div><strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong><p class="muted">${escapeHtml(groupOf(game))} · ${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"")}</p></div><button class="danger" onclick="window.removeGameFromUI('${game.id}')">Apagar</button></div><div class="result-grid"><label>${escapeHtml(game.homeTeam)}<input id="res_home_${game.id}" type="number" min="0" value="${game.homeScore ?? ""}"></label><label>${escapeHtml(game.awayTeam)}<input id="res_away_${game.id}" type="number" min="0" value="${game.awayScore ?? ""}"></label><button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" onclick="window.removeResultFromUI('${game.id}')">Limpar resultado</button><span class="muted">Apostas: ${bets.filter(b=>b.gameId===game.id).length}</span></div></article>`).join("")||`<div class="glass-card">Ainda não existem jogos.</div>`;
+    </section>
+  `).join("");
 }
 
-function renderIntegration(){
-  const t=$("integrationText"); if(!t) return;
-  const firebaseState = DEMO_MODE || !db ? "Firebase: teste local" : "Firebase: online";
-  t.textContent = `${firebaseState} · Resultados manuais · Pontos automáticos`;
+function renderAdminState() {
+  $("adminLocked").classList.toggle("hidden", isAdmin);
+  $("adminUnlocked").classList.toggle("hidden", !isAdmin);
+  const status = storageMode === "firebase" ? "Firebase online" : "Modo local";
+  $("storageStatus").textContent = `${status}. Ao guardar resultado, os pontos são recalculados automaticamente.`;
 }
-function normalizeApiGame(item){
-  const id = item.id || item.matchId || `${safeId(item.homeTeam||item.home||item.home_name)}_${safeId(item.awayTeam||item.away||item.away_name)}_${item.matchDate||item.date||item.utcDate||Date.now()}`;
-  return {
-    id,
-    homeTeam: item.homeTeam || item.home || item.home_name || item.homeTeamName || "Casa",
-    awayTeam: item.awayTeam || item.away || item.away_name || item.awayTeamName || "Fora",
-    matchDate: item.matchDate || item.date || item.utcDate || "",
-    venue: item.venue || item.stadium || "",
-    phase: item.phase || item.stage || "Mundial",
-    group: item.group || item.groupName || item.pool || item.roundGroup || "Outros jogos",
-    homeScore: item.homeScore ?? item.scoreHome ?? item.home_score ?? null,
-    awayScore: item.awayScore ?? item.scoreAway ?? item.away_score ?? null,
-    source: "API",
-    createdAt: Date.now()
+
+function renderAdmin() {
+  const container = $("adminGamesList");
+  if (!isAdmin) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = games.map(game => `
+    <article class="admin-row">
+      <div class="admin-match">
+        <span class="group-pill">${escapeHtml(game.group)}</span>
+        <strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong>
+        <small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))}</small>
+      </div>
+      <div class="result-inputs">
+        <input id="res_home_${game.id}" type="number" min="0" inputmode="numeric" value="${game.homeScore ?? ""}" aria-label="Resultado ${escapeHtml(game.homeTeam)}" />
+        <span>-</span>
+        <input id="res_away_${game.id}" type="number" min="0" inputmode="numeric" value="${game.awayScore ?? ""}" aria-label="Resultado ${escapeHtml(game.awayTeam)}" />
+        <button class="primary" type="button" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button>
+        <button class="secondary" type="button" onclick="window.clearResultFromUI('${game.id}')">Limpar resultado</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function saveBet(gameId, homeGuess, awayGuess) {
+  const game = games.find(item => item.id === gameId);
+  if (!game) return;
+  if (isLocked(game)) return toast("Apostas fechadas para este jogo.");
+  if (homeGuess === "" || awayGuess === "") return toast("Preenche os dois campos da aposta.");
+
+  const bet = {
+    id: `${PLAYER_ID}_${gameId}`,
+    playerId: PLAYER_ID,
+    gameId,
+    homeGuess: Number(homeGuess),
+    awayGuess: Number(awayGuess),
+    updatedAt: new Date().toISOString()
   };
-}
-async function upsertGames(imported){
-  if(!Array.isArray(imported) || !imported.length) return toast("Não encontrei jogos para importar.");
-  if(DEMO_MODE || !db){
-    const data=getDemoData();
-    const map=new Map(data.games.map(g=>[g.id,g]));
-    imported.forEach(g=>map.set(g.id,{...(map.get(g.id)||{}),...g}));
-    data.games=[...map.values()];
-    saveDemoData(data);
-  } else {
-    for(const g of imported) await setDoc(doc(db,"games",g.id), g, {merge:true});
-  }
-  toast(`${imported.length} jogos sincronizados.`);
-  await loadData();
-}
-async function syncFromApi(showToast=true){
-  if(!apiConfig.enabled || !apiConfig.endpoint){ if(showToast) toast("API ainda não configurada no config.js."); return; }
-  try{
-    const headers=apiConfig.apiKey ? {"Authorization":`Bearer ${apiConfig.apiKey}`} : {};
-    const res=await fetch(apiConfig.endpoint,{headers});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json=await res.json();
-    const arr=Array.isArray(json) ? json : (json.games || json.matches || json.fixtures || []);
-    await upsertGames(arr.map(normalizeApiGame));
-  }catch(e){
-    console.error(e);
-    toast("Não consegui sincronizar a API.");
-  }
-}
-function exportJson(){
-  const data={version:APP_CONFIG.appVersion||"9.0", exportedAt:new Date().toISOString(), games, bets};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="mundial-pontos-backup.json";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-async function importJson(file){
-  if(!file) return;
-  try{
-    const data=JSON.parse(await file.text());
-    await upsertGames((data.games||[]).map(normalizeApiGame));
-    if(Array.isArray(data.bets) && (DEMO_MODE || !db)){
-      const cur=getDemoData();
-      cur.bets=data.bets;
-      saveDemoData(cur);
-      await loadData();
-    }
-    toast("Importação concluída.");
-  }catch(e){
-    console.error(e);
-    toast("Ficheiro inválido.");
-  }
+
+  await persistBet(bet);
+  renderAll();
+  toast("Aposta guardada.");
 }
 
-function rankingText(){
-  const r = getTotals().get(activePlayer) || {points:0, exact:0, played:0, winner:0};
-  return `🏆 PONTUAÇÃO MUNDIAL 2026
+async function setResult(gameId, homeScore, awayScore) {
+  if (homeScore === "" || awayScore === "") return toast("Preenche o resultado completo.");
+  const game = games.find(item => item.id === gameId);
+  if (!game) return;
 
-Total: ${r.points} pts
-Jogos com resultado: ${r.played}
-Resultados exatos: ${r.exact}
-Vencedor/empate certo: ${r.winner || 0}`;
+  game.homeScore = Number(homeScore);
+  game.awayScore = Number(awayScore);
+  await persistGame(game);
+  renderAll();
+  toast("Resultado guardado. Pontos recalculados.");
 }
-function todayText(){
-  const list=todayGames();
-  if(!list.length) return "⭐ JOGOS DE HOJE\n\nHoje não há jogos registados.";
-  return "⭐ JOGOS DE HOJE\n\n" + list.map(g=>`${flag(g.homeTeam)} ${g.homeTeam} vs ${flag(g.awayTeam)} ${g.awayTeam}\n⏰ ${formatShortDate(g.matchDate)} · Hora Portugal · 🏟️ ${g.venue || "A confirmar"}`).join("\n\n");
+
+async function clearResult(gameId) {
+  const game = games.find(item => item.id === gameId);
+  if (!game) return;
+
+  game.homeScore = null;
+  game.awayScore = null;
+  await persistGame(game);
+  renderAll();
+  toast("Resultado limpo.");
 }
-function groupsText(){
-  const tables=buildGroupStandings();
-  if(!tables.length) return "🌍 CLASSIFICAÇÃO DOS GRUPOS\n\nAinda sem grupos.";
-  return "🌍 CLASSIFICAÇÃO DOS GRUPOS\n\n" + tables.map(({group, rows}) =>
-    `🏆 ${group}\n` + rows.map((r,i)=>`${i+1}. ${flag(r.team)} ${r.team} — ${r.points} pts | DG ${r.gd}`).join("\n")
-  ).join("\n\n");
+
+function todayGames() {
+  const key = todayKey();
+  return games.filter(game => dateKey(game.matchDate) === key);
 }
-async function copyText(text, msg){
-  try{
+
+function scoreText() {
+  const stats = scoreStats();
+  return `⭐ Pontuação Mundial 2026
+
+Total de pontos: ${stats.points}
+Jogos apostados: ${stats.totalBets}
+Resultados exatos: ${stats.exact}
+Vencedor/empate certo: ${stats.winner}
+Percentagem de acerto: ${stats.accuracy}%`;
+}
+
+function todayText() {
+  const list = todayGames();
+  if (!list.length) return "⭐ Jogos de Hoje\n\nHoje não há jogos registados.";
+
+  const grouped = [...groupByGroup(list).entries()];
+  return "⭐ Jogos de Hoje\n\n" + grouped.map(([group, rows]) => {
+    const lines = rows.map(game => `${flag(game.homeTeam)} ${game.homeTeam} vs ${flag(game.awayTeam)} ${game.awayTeam} - ${timePortugal(game.matchDate)}`);
+    return `${group}\n${lines.join("\n")}`;
+  }).join("\n\n");
+}
+
+function groupsText() {
+  return "⭐ Classificação dos Grupos\n\n" + buildStandings().map(({ group, rows }) => {
+    const lines = rows.map((row, index) => `${index + 1}. ${flag(row.team)} ${row.team} - ${row.points} pts`);
+    return `${group}\n${lines.join("\n")}`;
+  }).join("\n\n");
+}
+
+function groupByGroup(list) {
+  return list.reduce((map, game) => {
+    if (!map.has(game.group)) map.set(game.group, []);
+    map.get(game.group).push(game);
+    return map;
+  }, new Map());
+}
+
+async function copyText(text, message) {
+  try {
     await navigator.clipboard.writeText(text);
-    toast(msg);
-  }catch{
-    prompt("Copia o texto:", text);
+    toast(message);
+  } catch {
+    window.prompt("Copia o texto:", text);
   }
 }
 
-window.saveBetFromUI=id=>saveBet(id,$(`home_${id}`).value,$(`away_${id}`).value);
-window.setResultFromUI=id=>setResult(id,$(`res_home_${id}`).value,$(`res_away_${id}`).value);
-window.removeResultFromUI=id=>removeResult(id);
-window.removeGameFromUI=id=>removeGame(id);
+function toast(message) {
+  const element = $("toast");
+  element.textContent = message;
+  element.classList.remove("hidden");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => element.classList.add("hidden"), 2600);
+}
 
+window.saveBetFromUI = id => saveBet(id, $(`home_${id}`).value, $(`away_${id}`).value);
+window.setResultFromUI = id => setResult(id, $(`res_home_${id}`).value, $(`res_away_${id}`).value);
+window.clearResultFromUI = id => clearResult(id);
 
-$("refreshBtn")?.addEventListener("click",loadData);
-$("unlockAdminBtn")?.addEventListener("click",()=>{
-  if($("adminPinInput").value!==ADMIN_PIN) return toast("PIN errado.");
-  isAdmin=true;
-  localStorage.setItem("mundial_is_admin","1");
-  renderSession();
-  renderAdmin();
+document.querySelectorAll(".tab").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
+    button.classList.add("active");
+    $(button.dataset.tab).classList.add("active");
+  });
 });
-$("addGameBtn")?.addEventListener("click",()=>addGame($("homeTeamInput").value.trim(),$("awayTeamInput").value.trim(),$("matchDateInput").value,$("venueInput").value.trim(),$("phaseInput").value.trim()||"Fase de grupos",$("groupInput").value.trim()||"Grupo A"));
-$("resetSeedBtn")?.addEventListener("click",resetSeed);
-$("syncApiBtn")?.addEventListener("click",()=>syncFromApi(true));
-$("exportBtn")?.addEventListener("click",exportJson);
-$("importInput")?.addEventListener("change",e=>importJson(e.target.files?.[0]));
-$("searchInput")?.addEventListener("input",e=>{ currentSearch=e.target.value; renderGames(); });
 
-document.querySelectorAll(".filter-chip").forEach(btn=>btn.addEventListener("click",()=>{
-  document.querySelectorAll(".filter-chip").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  currentFilter=btn.dataset.filter;
-  renderGames();
-}));
-document.querySelectorAll(".phase-chip").forEach(btn=>btn.addEventListener("click",()=>{
-  document.querySelectorAll(".phase-chip").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  currentPhase=btn.dataset.phase;
-  renderGames();
-}));
-document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
-  btn.classList.add("active");
-  $(btn.dataset.tab).classList.add("active");
-  if(btn.dataset.tab==="groupsTab") renderGroupsTables();
-}));
+$("searchInput").addEventListener("input", event => {
+  searchText = event.target.value;
+  renderCalendar();
+});
 
-["copyRankingBtn"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(rankingText(),"Pontuação copiada para WhatsApp.")));
-["copyTodayBtn","copyTodayBtn2"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(todayText(),"Jogos de hoje copiados para WhatsApp.")));
-["copyGroupsBtn","copyGroupsBtn2"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(groupsText(),"Classificações dos grupos copiadas.")));
+$("unlockAdminBtn").addEventListener("click", () => {
+  if ($("adminPinInput").value !== ADMIN_PIN) return toast("PIN errado.");
+  isAdmin = true;
+  localStorage.setItem("mundial_admin_unlocked", "1");
+  renderAll();
+});
+
+$("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
+$("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Pontuação copiada."));
+$("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação copiada."));
 
 await initFirebase();
 await loadData();
