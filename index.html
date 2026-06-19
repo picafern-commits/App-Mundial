@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Resultados Manuais</title>
+  <title>Mundial Pontos 2026 · Modal Resultados</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -187,6 +187,57 @@
       <div class="modal-actions">
         <button id="previewExcelBtn" class="secondary" type="button">Pré-visualizar</button>
         <button id="confirmExcelImportBtn" class="primary" type="button" disabled>Confirmar importação</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="resultModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+    <div class="modal-card result-modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="resultModalTitle">Adicionar resultado</h2>
+          <p id="resultModalSubtitle">Mete o resultado real do jogo. A pontuação recalcula automaticamente.</p>
+        </div>
+        <button id="closeResultModalBtn" class="icon-button" type="button" aria-label="Fechar">×</button>
+      </div>
+
+      <input id="resultGameIdInput" type="hidden" />
+
+      <div class="result-game-preview">
+        <div class="result-team">
+          <span id="resultHomeFlag">🏳️</span>
+          <strong id="resultHomeTeam">Equipa casa</strong>
+        </div>
+        <div class="result-vs">VS</div>
+        <div class="result-team right">
+          <span id="resultAwayFlag">🏳️</span>
+          <strong id="resultAwayTeam">Equipa fora</strong>
+        </div>
+      </div>
+
+      <div class="result-fields-grid">
+        <label>Grupo
+          <input id="resultGroupInput" type="text" disabled />
+        </label>
+        <label>Data / Hora Portugal
+          <input id="resultDateInput" type="text" disabled />
+        </label>
+        <label>Resultado casa
+          <input id="modalHomeScoreInput" type="number" min="0" inputmode="numeric" placeholder="0" />
+        </label>
+        <label>Resultado fora
+          <input id="modalAwayScoreInput" type="number" min="0" inputmode="numeric" placeholder="0" />
+        </label>
+      </div>
+
+      <div class="result-points-preview" id="resultPointsPreview">
+        Sem resultado guardado.
+      </div>
+
+      <div class="modal-actions">
+        <button id="clearModalResultBtn" class="secondary danger-soft" type="button">Limpar resultado</button>
+        <button id="saveModalResultBtn" class="primary" type="button">Guardar resultado</button>
       </div>
     </div>
   </div>

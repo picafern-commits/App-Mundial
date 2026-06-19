@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_resultados_manuais_v20";
+const STORAGE_KEY = "mundial_pontos_2026_modal_resultados_v21";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -209,6 +209,17 @@ function dateHeader(value) {
   const month = parts.find(part => part.type === "month")?.value || "";
   const weekday = parts.find(part => part.type === "weekday")?.value || "";
   return `${day} de ${month} (${weekday})`;
+}
+function dateTimePortugal(value) {
+  const date = parsePortugalDate(value);
+  return new Intl.DateTimeFormat("pt-PT", {
+    timeZone: PORTUGAL_TZ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 function timePortugal(value) {
   return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, hour: "2-digit", minute: "2-digit" }).format(parsePortugalDate(value));
@@ -546,7 +557,10 @@ function renderAdmin() {
   if (!isAdmin) { container.innerHTML = ""; return; }
   container.innerHTML = games.map(game => `
     <article class="admin-row"><div class="admin-match"><span class="group-pill">${escapeHtml(game.group)}</span><strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong><small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))} · ${betsForGame(game.id).length} apostas</small></div>
-      <div class="result-inputs"><input id="res_home_${game.id}" type="number" min="0" inputmode="numeric" value="${game.homeScore ?? ""}" aria-label="Resultado ${escapeHtml(game.homeTeam)}" /><span>-</span><input id="res_away_${game.id}" type="number" min="0" inputmode="numeric" value="${game.awayScore ?? ""}" aria-label="Resultado ${escapeHtml(game.awayTeam)}" /><button class="primary" type="button" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" type="button" onclick="window.clearResultFromUI('${game.id}')">Limpar resultado</button></div>
+      <div class="result-inputs modal-result-actions">
+        <span class="admin-result-chip">${hasResult(game) ? `Resultado: ${game.homeScore}-${game.awayScore}` : "Sem resultado"}</span>
+        <button class="primary" type="button" onclick="window.openResultModal('${game.id}')">${hasResult(game) ? "Editar resultado" : "Adicionar resultado"}</button>
+      </div>
     </article>`).join("");
 }
 
@@ -912,6 +926,77 @@ function showGameBets(gameId) {
   alert(`${game.homeTeam} vs ${game.awayTeam}\n\n${rows.length ? rows.join("\n") : "Sem apostas para este jogo."}`);
 }
 
+
+function resultImpactPreview(game, homeScore, awayScore) {
+  const gameBets = betsForGame(game.id);
+  if (homeScore === "" || awayScore === "") {
+    return `${gameBets.length} apostas importadas. Mete o resultado para calcular pontos.`;
+  }
+
+  const tempGame = { ...game, homeScore: Number(homeScore), awayScore: Number(awayScore) };
+  const exact = gameBets.filter(bet => pointsForBet(bet, tempGame) > 0).length;
+  const totalPoints = gameBets.reduce((sum, bet) => sum + pointsForBet(bet, tempGame), 0);
+  return `${gameBets.length} apostas · ${exact} resultados exatos · ${totalPoints} pontos atribuídos`;
+}
+
+function updateResultPreview() {
+  const gameId = $("resultGameIdInput")?.value;
+  const game = games.find(item => item.id === gameId);
+  if (!game || !$("resultPointsPreview")) return;
+
+  $("resultPointsPreview").textContent = resultImpactPreview(
+    game,
+    $("modalHomeScoreInput").value,
+    $("modalAwayScoreInput").value
+  );
+}
+
+function openResultModal(gameId) {
+  const game = games.find(item => item.id === gameId);
+  if (!game) return;
+
+  $("resultGameIdInput").value = game.id;
+  $("resultModalTitle").textContent = hasResult(game) ? "Editar resultado" : "Adicionar resultado";
+  $("resultModalSubtitle").textContent = "Ao guardar, a app compara as apostas dos users e recalcula a classificação.";
+  $("resultHomeFlag").textContent = flag(game.homeTeam);
+  $("resultAwayFlag").textContent = flag(game.awayTeam);
+  $("resultHomeTeam").textContent = game.homeTeam;
+  $("resultAwayTeam").textContent = game.awayTeam;
+  $("resultGroupInput").value = game.group;
+  $("resultDateInput").value = `${dateHeader(game.matchDate)} · ${timePortugal(game.matchDate)}`;
+  $("modalHomeScoreInput").value = game.homeScore ?? "";
+  $("modalAwayScoreInput").value = game.awayScore ?? "";
+
+  updateResultPreview();
+  $("resultModal").classList.remove("hidden");
+  setTimeout(() => $("modalHomeScoreInput")?.focus(), 80);
+}
+
+function closeResultModal() {
+  $("resultModal")?.classList.add("hidden");
+}
+
+async function saveResultFromModal() {
+  const gameId = $("resultGameIdInput").value;
+  const homeScore = $("modalHomeScoreInput").value;
+  const awayScore = $("modalAwayScoreInput").value;
+
+  if (homeScore === "" || awayScore === "") {
+    toast("Preenche os dois campos do resultado.");
+    return;
+  }
+
+  await setResult(gameId, homeScore, awayScore);
+  closeResultModal();
+}
+
+async function clearResultFromModal() {
+  const gameId = $("resultGameIdInput").value;
+  if (!gameId) return;
+  await clearResult(gameId);
+  closeResultModal();
+}
+
 window.showGameBets = showGameBets;
 window.saveBetFromUI = id => saveBet(id, $("home_" + id)?.value ?? "", $("away_" + id)?.value ?? "");
 window.setResultFromUI = id => setResult(id, $("res_home_" + id).value, $("res_away_" + id).value);
@@ -942,6 +1027,15 @@ $("confirmExcelImportBtn")?.addEventListener("click", confirmExcelImport);
 $("savePointsSettingsBtn")?.addEventListener("click", savePointsSettings);
 $("saveExtraResultsBtn")?.addEventListener("click", saveExtraResults);
 $("exportPontosBtn")?.addEventListener("click", exportPontosExcel);
+
+
+$("closeResultModalBtn")?.addEventListener("click", closeResultModal);
+$("saveModalResultBtn")?.addEventListener("click", saveResultFromModal);
+$("clearModalResultBtn")?.addEventListener("click", clearResultFromModal);
+$("modalHomeScoreInput")?.addEventListener("input", updateResultPreview);
+$("modalAwayScoreInput")?.addEventListener("input", updateResultPreview);
+$("resultModal")?.addEventListener("click", event => { if (event.target.id === "resultModal") closeResultModal(); });
+document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("resultModal")?.classList.contains("hidden")) closeResultModal(); });
 
 await initFirebase();
 await loadData();
