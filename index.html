@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v12</title>
+  <title>Mundial Pontos v13</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -51,7 +51,7 @@
         <div class="section-head">
           <div>
             <h2>⭐ Jogos de Hoje</h2>
-            <p>Atualizado automaticamente pela data do teu dispositivo.</p>
+            <p>Jogos do dia apresentados com data e hora de Portugal.</p>
           </div>
           <button id="copyTodayBtn2" class="secondary">📋 Copiar para WhatsApp</button>
         </div>
@@ -78,7 +78,7 @@
         <div class="section-head">
           <div>
             <h2>Jogos por grupos</h2>
-            <p>Escolhe o resultado antes do apito inicial. Os jogos ficam separados por grupo para ser mais fácil acompanhar.</p>
+            <p>Escolhe o resultado antes do apito inicial. A fase de grupos fica separada por Grupo A, B, C… e as horas aparecem em Portugal.</p>
           </div>
           <button id="refreshBtn" class="secondary">Atualizar</button>
         </div>
@@ -91,7 +91,7 @@
           <button class="phase-chip" data-phase="final">Final</button>
         </div>
         <div class="toolbar">
-          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, estádio ou fase..." />
+          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, grupo, estádio ou fase..." />
           <div class="filter-row">
             <button class="filter-chip active" data-filter="all">Todos</button>
             <button class="filter-chip" data-filter="open">Abertos</button>
@@ -159,7 +159,7 @@
               <label>Equipa fora
                 <input id="awayTeamInput" type="text" placeholder="Brasil" />
               </label>
-              <label>Data / hora
+              <label>Data / hora de Portugal
                 <input id="matchDateInput" type="datetime-local" />
               </label>
               <label>Estádio / local
@@ -168,7 +168,7 @@
               <label>Fase
                 <input id="phaseInput" type="text" placeholder="Fase de grupos" />
               </label>
-              <label>Grupo
+              <label>Grupo do Mundial
                 <input id="groupInput" type="text" placeholder="Grupo A" />
               </label>
             </div>

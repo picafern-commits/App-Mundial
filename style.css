@@ -698,3 +698,31 @@ body{
 @media(max-width:620px){
   .single-score{grid-template-columns:1fr}
 }
+
+
+/* v13 hora Portugal + grupos organizados */
+.group-kicker{ color:#ffd166!important; }
+.match-meta-pro{ line-height:1.45; }
+.score-pro small{ color:#ffd166!important; }
+.phase-filter-row::before{
+  content:"Fases";
+  align-self:center;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  margin-right:4px;
+}
+.group-header h3::before{ content:"🌍 "; }
+.today-card{ position:relative; overflow:hidden; }
+.today-card::after{
+  content:"Hora de Portugal";
+  position:absolute;
+  right:12px;
+  top:10px;
+  color:rgba(255,255,255,.55);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}

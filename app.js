@@ -1,4 +1,4 @@
-// Mundial Pontos - v12.0 Sem Jogador
+// Mundial Pontos - v13.0 Hora Portugal + Grupos
 // Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -9,7 +9,7 @@ const firebaseConfig = APP_CONFIG.firebase || {};
 const apiConfig = APP_CONFIG.api || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v12";
+const demoStoreKey = "mundial_demo_data_v13";
 
 let db = null;
 let activePlayer = "__single_user__";
@@ -64,6 +64,39 @@ const isLocked = game => hasResult(game) || new Date(game.matchDate).getTime() <
 const safeId = text => String(text ?? "").toLowerCase().trim().replace(/[^a-z0-9]+/gi, "_");
 const outcome = (h,a) => Number(h)>Number(a) ? "home" : Number(h)<Number(a) ? "away" : "draw";
 const escapeHtml = text => String(text ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+
+const PORTUGAL_TZ = "Europe/Lisbon";
+function parseDateValue(value){
+  if(!value) return null;
+  const text = String(value);
+  if(/[zZ]$|[+-]\d{2}:\d{2}$/.test(text)) return new Date(text);
+  const m = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), Number(m[4]), Number(m[5]));
+  return new Date(text);
+}
+function portugalDateKey(value){
+  const d = parseDateValue(value);
+  if(!d || Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
+}
+function todayPortugalKey(){
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+}
+function portugalDateTime(value, short=false){
+  const d = parseDateValue(value);
+  if(!d || Number.isNaN(d.getTime())) return "Sem data";
+  const opts = short
+    ? { timeZone: PORTUGAL_TZ, day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }
+    : { timeZone: PORTUGAL_TZ, weekday:"short", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" };
+  return new Intl.DateTimeFormat("pt-PT", opts).format(d).replace(",", "") + " 🇵🇹";
+}
+function isGroupStage(game){
+  return phaseKey(game) === "groups";
+}
+function displaySectionName(game){
+  return isGroupStage(game) ? groupOf(game) : phaseLabel(phaseKey(game));
+}
+
 const flag = team => FLAG_MAP[String(team || "").trim()] || (String(team || "").match(/^\d|Vencedor|Finalista/i) ? "🏆" : "🏳️");
 
 function toast(message){
@@ -81,12 +114,10 @@ function getDemoData(){
 }
 function saveDemoData(data){ localStorage.setItem(demoStoreKey, JSON.stringify(data)); }
 function formatDate(value){
-  if(!value) return "Sem data";
-  return new Date(value).toLocaleString("pt-PT", { weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return portugalDateTime(value, false);
 }
 function formatShortDate(value){
-  if(!value) return "";
-  return new Date(value).toLocaleString("pt-PT", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return portugalDateTime(value, true);
 }
 function statusOf(game){
   if(hasResult(game)) return { label:"Terminado", cls:"closed" };
@@ -95,10 +126,11 @@ function statusOf(game){
 }
 function groupOf(game){ return game.group || game.groupName || game.pool || game.phase || "Outros jogos"; }
 function groupSortKey(group){
-  const letter = String(group).match(/Grupo\s+([A-Z])/i);
+  const text = String(group || "");
+  const letter = text.match(/Grupo\s+([A-Z])/i);
   if(letter) return `0_${letter[1].toUpperCase()}`;
-  const phaseOrder = { "Oitavos": "1", "Quartos": "2", "Meias": "3", "Final": "4" };
-  return `${phaseOrder[group] || "9"}_${group}`;
+  const phaseOrder = { "Oitavos": "1", "Oitavos de Final": "1", "Quartos": "2", "Quartos de Final": "2", "Meias": "3", "Meias-Finais": "3", "Final": "4" };
+  return `${phaseOrder[text] || "9"}_${text}`;
 }
 function phaseKey(game){
   const txt = `${game.phase || ""} ${game.group || ""}`.toLowerCase();
@@ -219,7 +251,7 @@ async function resetSeed(){
 
 function getVisibleGames(){
   return games.filter(g => {
-    const txt=`${g.homeTeam} ${g.awayTeam} ${g.venue} ${g.phase} ${g.group}`.toLowerCase();
+    const txt=`${g.homeTeam} ${g.awayTeam} ${g.venue} ${g.phase} ${g.group} ${groupOf(g)}`.toLowerCase();
     const matchesSearch=!currentSearch || txt.includes(currentSearch.toLowerCase());
     const matchesFilter=currentFilter==="all" || (currentFilter==="open" && !isLocked(g)) || (currentFilter==="locked" && isLocked(g) && !hasResult(g)) || (currentFilter==="finished" && hasResult(g));
     const matchesPhase=currentPhase==="all" || phaseKey(g) === currentPhase;
@@ -276,8 +308,8 @@ function buildGroupStandings(){
     }));
 }
 function todayGames(){
-  const today = new Date().toISOString().slice(0,10);
-  return games.filter(g => String(g.matchDate || "").slice(0,10) === today);
+  const today = todayPortugalKey();
+  return games.filter(g => portugalDateKey(g.matchDate) === today);
 }
 
 function renderAll(){
@@ -334,7 +366,7 @@ function renderGames(){
 
   const grouped = new Map();
   list.forEach(game => {
-    const key = currentPhase === "all" ? (phaseKey(game)==="groups" ? groupOf(game) : phaseLabel(phaseKey(game))) : (phaseKey(game)==="groups" ? groupOf(game) : phaseLabel(phaseKey(game)));
+    const key = displaySectionName(game);
     if(!grouped.has(key)) grouped.set(key, []);
     grouped.get(key).push(game);
   });
@@ -346,7 +378,7 @@ function renderGames(){
     return `<section class="group-section">
       <div class="group-header">
         <div>
-          <span class="group-kicker">${escapeHtml(phaseLabel(phaseKey(groupGames[0])))}</span>
+          <span class="group-kicker">${phaseKey(groupGames[0])==="groups" ? "Grupo do Mundial" : escapeHtml(phaseLabel(phaseKey(groupGames[0])) )}</span>
           <h3>${escapeHtml(group)}</h3>
         </div>
         <div class="group-meta">
@@ -382,14 +414,14 @@ function renderGameCard(game){
       </div>
       <div class="score-pro">
         <span>${resultText}</span>
-        <small>${hasResult(game) ? "Resultado final" : formatShortDate(game.matchDate)}</small>
+        <small>${hasResult(game) ? "Resultado final" : "Hora Portugal"}</small>
       </div>
       <div class="team-pro right">
         <span class="flag-ball">${flag(game.awayTeam)}</span>
         <strong>${escapeHtml(game.awayTeam)}</strong>
       </div>
     </div>
-    <div class="match-meta-pro">🏟️ ${escapeHtml(game.venue||"Estádio a confirmar")} · ${escapeHtml(groupOf(game))}</div>
+    <div class="match-meta-pro">🏟️ ${escapeHtml(game.venue||"Estádio a confirmar")} · 🕒 ${formatDate(game.matchDate)} · ${escapeHtml(groupOf(game))}</div>
     <div class="bet-status-pro">${betLabel}</div>
     <div class="bet-grid bet-grid-pro">
       <label>${escapeHtml(game.homeTeam)}<input id="home_${game.id}" type="number" min="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}></label>
@@ -527,7 +559,7 @@ Vencedor/empate certo: ${r.winner || 0}`;
 function todayText(){
   const list=todayGames();
   if(!list.length) return "⭐ JOGOS DE HOJE\n\nHoje não há jogos registados.";
-  return "⭐ JOGOS DE HOJE\n\n" + list.map(g=>`${flag(g.homeTeam)} ${g.homeTeam} vs ${flag(g.awayTeam)} ${g.awayTeam}\n⏰ ${formatShortDate(g.matchDate)} · 🏟️ ${g.venue || "A confirmar"}`).join("\n\n");
+  return "⭐ JOGOS DE HOJE\n\n" + list.map(g=>`${flag(g.homeTeam)} ${g.homeTeam} vs ${flag(g.awayTeam)} ${g.awayTeam}\n⏰ ${formatShortDate(g.matchDate)} · Hora Portugal · 🏟️ ${g.venue || "A confirmar"}`).join("\n\n");
 }
 function groupsText(){
   const tables=buildGroupStandings();
