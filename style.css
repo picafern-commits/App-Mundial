@@ -1126,3 +1126,9 @@ h2 {
   display:grid!important;
   margin:0 14px 14px;
 }
+
+
+/* v32 import por ID do jogo */
+.excel-preview strong{
+  color:var(--gold);
+}

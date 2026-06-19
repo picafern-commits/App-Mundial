@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_admin_resultados_aba_v31";
+const STORAGE_KEY = "mundial_pontos_2026_import_id_jogo_v32";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -155,10 +155,10 @@ const TEAM_ALIASES = {
   "uruguai": "Uruguai", "irao": "Irão", "irão": "Irão", "nova zelandia": "Nova Zelândia", "nova zelândia": "Nova Zelândia",
   "franca": "França", "frança": "França", "senegal": "Senegal", "iraque": "Iraque", "noruega": "Noruega",
   "argentina": "Argentina", "argelia": "Argélia", "argélia": "Argélia", "austria": "Áustria", "áustria": "Áustria",
-  "jordania": "Jordânia", "jordânia": "Jordânia", "rd congo": "RD Congo", "r d congo": "RD Congo", "dr congo": "RD Congo", "congo dr": "RD Congo", "r.d. congo": "RD Congo",
-  "republica democratica do congo": "RD Congo", "inglaterra": "Inglaterra", "croacia": "Croácia", "croácia": "Croácia",
-  "gana": "Gana", "panama": "Panamá", "panamá": "Panamá", "uzbequistao": "Uzbequistão", "uzbequistão": "Uzbequistão",
-  "colombia": "Colômbia", "colômbia": "Colômbia"
+  "jordania": "Jordânia", "jordânia": "Jordânia", "rd congo": "RD Congo", "r d congo": "RD Congo", "dr congo": "RD Congo", "congo dr": "RD Congo", "r.d. congo": "RD Congo", "r d. congo": "RD Congo", "rd. congo": "RD Congo", "r.d congo": "RD Congo", "rdcongo": "RD Congo", "rdc": "RD Congo", "congo rd": "RD Congo", "d r congo": "RD Congo", "d.r. congo": "RD Congo", "democratic republic of congo": "RD Congo",
+  "republica democratica do congo": "RD Congo", "rep democratica do congo": "RD Congo", "república democrática do congo": "RD Congo", "inglaterra": "Inglaterra", "croacia": "Croácia", "croácia": "Croácia",
+  "gana": "Gana", "panama": "Panamá", "panamá": "Panamá", "uzbequistao": "Uzbequistão", "uzbequistão": "Uzbequistão", "uzbekistan": "Uzbequistão",
+  "colombia": "Colômbia", "colômbia": "Colômbia", "columbia": "Colômbia"
 };
 
 const SEED_GAMES = MATCH_ROWS.map(([group, homeTeam, awayTeam, matchDate], index) => ({
@@ -818,12 +818,23 @@ function parseScore(value) {
 function splitMatchLabel(label) {
   const raw = String(label || "").trim();
   if (!raw) return null;
-  const scoreMatch = raw.match(/\s+(\d+\s*[-–:]\s*\d+)\s*$/);
+
+  const scoreMatch = raw.match(/\s+(\d+\s*[-–:\/x]\s*\d+)\s*$/i);
   const score = scoreMatch ? parseScore(scoreMatch[1]) : null;
   const cleanLabel = scoreMatch ? raw.slice(0, scoreMatch.index).trim() : raw;
-  const parts = cleanLabel.split(/\s+-\s+/);
-  if (parts.length < 2) return null;
-  return { home: canonicalTeam(parts[0]), away: canonicalTeam(parts.slice(1).join(" - ")), score };
+
+  const directParts = cleanLabel.split(/\s+(?:-|–|—|vs|v\.?|x)\s+/i);
+  if (directParts.length >= 2) {
+    return { home: canonicalTeam(directParts[0]), away: canonicalTeam(directParts.slice(1).join(" - ")), score };
+  }
+
+  // Caso venha sem espaços: "Colômbia-RD Congo"
+  const looseParts = cleanLabel.split(/\s*(?:-|–|—)\s*/).filter(Boolean);
+  if (looseParts.length >= 2) {
+    return { home: canonicalTeam(looseParts[0]), away: canonicalTeam(looseParts.slice(1).join(" - ")), score };
+  }
+
+  return null;
 }
 function findGameMatch(home, away, group = "") {
   const h = normalizeComparable(canonicalTeam(home));
@@ -881,12 +892,19 @@ function findPlayersRow(rows) {
     const row = rows[r] || [];
     const idx = row.findIndex(cell => normalizeKey(cell) === "jogadores");
     if (idx !== -1) {
+      let gameIdCol = -1;
       const players = [];
       for (let c = idx + 1; c < row.length; c += 1) {
         const name = cellText(row[c]);
-        if (name) players.push({ name, col: c });
+        const key = normalizeKey(name);
+        if (!name) continue;
+        if (["id jogo", "id do jogo", "game id", "gameid", "id"].includes(key)) {
+          gameIdCol = c;
+          continue;
+        }
+        players.push({ name, col: c });
       }
-      return { rowIndex: r, labelCol: idx, players };
+      return { rowIndex: r, labelCol: idx, gameIdCol, players };
     }
   }
   return null;
@@ -914,10 +932,20 @@ function parseResultadosWorkbookRows(rows) {
       });
       continue;
     }
+    const excelGameId = info.gameIdCol >= 0 ? cellText(row[info.gameIdCol]) : "";
+    let matchInfo = null;
+
+    if (excelGameId) {
+      const gameById = games.find(item => item.id === excelGameId);
+      if (gameById) matchInfo = { game: gameById, reversed: false };
+    }
+
     const parsedMatch = splitMatchLabel(label);
-    if (!parsedMatch) continue;
-    const matchInfo = findGameMatch(parsedMatch.home, parsedMatch.away, currentGroup);
-    if (!matchInfo) { errors.push(`Jogo não encontrado: ${currentGroup} · ${label}`); continue; }
+    if (!matchInfo && parsedMatch) {
+      matchInfo = findGameMatch(parsedMatch.home, parsedMatch.away, currentGroup);
+    }
+
+    if (!matchInfo) { errors.push(`Jogo não encontrado: ${currentGroup} · ${label}${excelGameId ? ` · ID: ${excelGameId}` : ""}`); continue; }
     const game = matchInfo.game;
     info.players.forEach(player => {
       const score = parseScore(row[player.col]);
@@ -1102,9 +1130,9 @@ function exportResultadosExcel() {
   const rows = [];
 
   rows.push(["Mundial 2026 - Resultados / Apostas"]);
-  rows.push(["Preenche as apostas no formato 2-1. Mantém a linha Jogadores e os nomes dos users."]);
+  rows.push(["Preenche as apostas no formato 2-1. Não alteres a coluna ID Jogo, ela serve para a app importar sem falhas."]);
   rows.push([]);
-  rows.push(["Jogadores", ...players]);
+  rows.push(["Jogadores", "ID Jogo", ...players]);
 
   let currentGroup = "";
   games.forEach(game => {
@@ -1115,25 +1143,27 @@ function exportResultadosExcel() {
 
     rows.push([
       resultLabelForExport(game),
+      game.id,
       ...players.map(playerName => scoreForExport(game, playerName))
     ]);
   });
 
   rows.push([]);
-  rows.push(["MVP", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.mvp || "")]);
-  rows.push(["Melhor Marcador", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.topScorer || "")]);
-  rows.push(["Equipa Vencedora", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.champion || "")]);
+  rows.push(["MVP", "", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.mvp || "")]);
+  rows.push(["Melhor Marcador", "", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.topScorer || "")]);
+  rows.push(["Equipa Vencedora", "", ...players.map(playerName => appSettings.extraPredictions?.[playerName]?.champion || "")]);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   ws["!cols"] = [
     { wch: 34 },
+    { wch: 18 },
     ...players.map(() => ({ wch: 16 }))
   ];
 
   // Congelar a linha dos jogadores e a primeira coluna em programas compatíveis.
-  ws["!freeze"] = { xSplit: 1, ySplit: 4 };
+  ws["!freeze"] = { xSplit: 2, ySplit: 4 };
 
   XLSX.utils.book_append_sheet(wb, ws, "Resultados");
 
