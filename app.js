@@ -4,6 +4,8 @@ const STORAGE_KEY = "mundial_pontos_2026_import_id_jogo_v32";
 const PENDING_FIREBASE_KEY = `${STORAGE_KEY}_pending_games_v1`;
 const PENDING_FULL_SYNC_KEY = `${STORAGE_KEY}_pending_full_sync_v1`;
 const PENDING_DELETE_BETS_KEY = `${STORAGE_KEY}_pending_delete_bets_v1`;
+const PENDING_BETS_KEY = `${STORAGE_KEY}_pending_bets_v1`;
+const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -368,6 +370,29 @@ function clearPendingGame(gameId) {
   setPendingGameIds(pendingGameIds().filter(id => id !== gameId));
 }
 
+function pendingBetIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(PENDING_BETS_KEY) || "[]");
+    return Array.isArray(ids) ? ids.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPendingBetIds(ids) {
+  localStorage.setItem(PENDING_BETS_KEY, JSON.stringify([...new Set(ids)].filter(Boolean)));
+}
+
+function markBetsPending(ids) {
+  if (!ids.length) return;
+  setPendingBetIds([...pendingBetIds(), ...ids]);
+}
+
+function clearPendingBets(ids) {
+  const done = new Set(ids);
+  setPendingBetIds(pendingBetIds().filter(id => !done.has(id)));
+}
+
 function pendingDeleteBetIds() {
   try {
     const ids = JSON.parse(localStorage.getItem(PENDING_DELETE_BETS_KEY) || "[]");
@@ -389,6 +414,18 @@ function markBetsForDelete(ids) {
 function clearPendingDeleteBets(ids) {
   const done = new Set(ids);
   setPendingDeleteBetIds(pendingDeleteBetIds().filter(id => !done.has(id)));
+}
+
+function markSettingsPending() {
+  localStorage.setItem(PENDING_SETTINGS_KEY, "1");
+}
+
+function hasSettingsPending() {
+  return localStorage.getItem(PENDING_SETTINGS_KEY) === "1";
+}
+
+function clearSettingsPending() {
+  localStorage.removeItem(PENDING_SETTINGS_KEY);
 }
 
 function hasFullSyncPending() {
@@ -569,13 +606,15 @@ async function loadData() {
     setFirebaseStatus("loading", "Firebase: a carregar dados...");
     const { collection, doc, getDocs, setDoc } = firebaseApi;
 
-    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
-    const betsSnap = await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
-    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
-
     const localGames = normalizeGames(local.games || []);
     const localBets = normalizeBets(local.bets || []);
     const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
+
+    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
+    const betsSnap = localBets.length
+      ? { docs: [], skipped: true }
+      : await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
+    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
 
     const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
     const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
@@ -604,7 +643,7 @@ async function loadData() {
     setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas carregadas`);
     renderAll();
 
-    if (!remoteBets.length && localBets.length) {
+    if (!betsSnap.skipped && !remoteBets.length && localBets.length && pendingBetIds().length) {
       setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
     }
     setTimeout(() => retryPendingGameSaves("arranque").catch(console.warn), 700);
@@ -648,12 +687,14 @@ async function persistAllGames() {
   games.forEach(game => {
     if (hasResult(game) && !game.updatedAt) stampGame(game, "migração resultado existente");
   });
+  games.forEach(game => markGamePending(game.id));
   scheduleFullSync("guardar jogos", 300);
 }
 
 async function persistBet(bet) {
   bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
   bets.push(bet);
+  markBetsPending([bet.id]);
   saveLocalData("persistBet local-primeiro");
   scheduleFullSync("guardar aposta", 300);
 }
@@ -667,11 +708,13 @@ async function persistAllBets(importedBets, replaceImported = true) {
   const byKey = new Map(bets.map(bet => [`${bet.playerId}_${bet.gameId}`, bet]));
   importedBets.forEach(bet => byKey.set(`${bet.playerId}_${bet.gameId}`, bet));
   bets = [...byKey.values()];
+  markBetsPending(importedBets.map(bet => bet.id));
   saveLocalData("importar apostas local");
   scheduleFullSync("importar apostas", 300);
 }
 
 async function persistSettings() {
+  markSettingsPending();
   saveLocalData("guardar configuracoes local");
   scheduleFullSync("guardar configuracoes", 300);
 }
@@ -808,6 +851,7 @@ async function saveSettingsFastToFirebase(reason = "settings") {
 
   const { doc, setDoc } = firebaseApi;
   await withTimeout(setDoc(doc(db, "settings", "main"), appSettings, { merge: true }), 12000, reason);
+  clearSettingsPending();
   saveLocalData(`${reason} firebase-ok`);
   return true;
 }
@@ -818,10 +862,12 @@ async function saveBetsFastToFirebase(reason = "bets") {
   if (!db || !firebaseApi || storageMode !== "firebase") return false;
 
   const { doc, setDoc, writeBatch } = firebaseApi;
+  const ids = pendingBetIds();
+  const betsToSave = ids.length ? bets.filter(bet => ids.includes(bet.id)) : bets;
 
   // Lotes pequenos para não deixar a app presa.
   const chunks = [];
-  for (let i = 0; i < bets.length; i += 350) chunks.push(bets.slice(i, i + 350));
+  for (let i = 0; i < betsToSave.length; i += 250) chunks.push(betsToSave.slice(i, i + 250));
 
   for (const chunk of chunks) {
     const batch = writeBatch(db);
@@ -829,6 +875,7 @@ async function saveBetsFastToFirebase(reason = "bets") {
     await withTimeout(batch.commit(), 30000, reason);
   }
 
+  clearPendingBets(betsToSave.map(bet => bet.id));
   saveLocalData(`${reason} firebase-ok`);
   return true;
 }
@@ -851,7 +898,9 @@ async function saveUserBetsFastToFirebase(playerId, previousBetIds, playerBets, 
   batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
 
   await withTimeout(batch.commit(), 30000, reason);
+  clearPendingBets(playerBets.map(bet => bet.id));
   clearPendingDeleteBets(previousBetIds.filter(id => !nextBetIds.has(id)));
+  clearSettingsPending();
   saveLocalData(`${reason} firebase-ok`);
   return true;
 }
@@ -875,16 +924,20 @@ async function syncFirebaseFull(reason = "") {
   const { doc } = firebaseApi;
 
   const operations = [];
+  const syncGameIds = pendingGameIds();
+  const syncBetIds = pendingBetIds();
 
-  games.forEach(game => {
+  games.filter(game => syncGameIds.includes(game.id)).forEach(game => {
     operations.push(batch => batch.set(doc(db, "games", game.id), game, { merge: true }));
   });
 
-  bets.forEach(bet => {
+  bets.filter(bet => syncBetIds.includes(bet.id)).forEach(bet => {
     operations.push(batch => batch.set(doc(db, "bets", bet.id), bet, { merge: true }));
   });
 
-  operations.push(batch => batch.set(doc(db, "settings", "main"), appSettings, { merge: true }));
+  if (hasSettingsPending()) {
+    operations.push(batch => batch.set(doc(db, "settings", "main"), appSettings, { merge: true }));
+  }
 
   const deleteBetIds = pendingDeleteBetIds();
   deleteBetIds.forEach(id => {
@@ -892,7 +945,10 @@ async function syncFirebaseFull(reason = "") {
   });
 
   await commitFirestoreOperations(operations, reason || "sincronizar dados");
+  syncGameIds.forEach(clearPendingGame);
+  clearPendingBets(syncBetIds);
   clearPendingDeleteBets(deleteBetIds);
+  clearSettingsPending();
   saveLocalData(`${reason} firebase-full-ok`);
   setFirebaseStatus("success", "Firebase: dados guardados e sincronizados");
   return true;
@@ -1161,7 +1217,9 @@ async function saveEditedUserBets() {
 
   const nextPlayerBetIds = new Set(newPlayerBets.map(bet => bet.id));
   const removedPlayerBetIds = previousPlayerBetIds.filter(id => !nextPlayerBetIds.has(id));
+  markBetsPending(newPlayerBets.map(bet => bet.id));
   markBetsForDelete(removedPlayerBetIds);
+  markSettingsPending();
 
   saveLocalData("editar apostas utilizador local");
   renderAll();

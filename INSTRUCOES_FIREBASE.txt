@@ -19,3 +19,7 @@ primeiro no browser e tenta sincronizar em segundo plano. Se aparecer
 A sincronizacao em segundo plano grava em lotes pequenos e nao le a colecao
 inteira de apostas, para evitar erros de "tempo esgotado" quando houver muitos
 registos no Firestore.
+
+Se o Firebase Console mostrar que o projeto ultrapassou os limites gratis, a app
+pode continuar a guardar no browser, mas o Firestore pode bloquear leituras e
+gravacoes ate a quota renovar ou ate mudares para um plano pago.
