@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v13</title>
+  <title>Mundial Pontos v14</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,82 +15,30 @@
       <div class="hero-copy">
         <div class="brand-mark">⚽</div>
         <div>
-          <p class="eyebrow">Jogo de Prognósticos</p>
-          <h1>Mundial Pontos</h1>
-          <p class="hero-subtitle">Prognósticos, resultados, grupos, fases e partilha rápida para WhatsApp.</p>
+          <p class="eyebrow">Calendário da Fase de Grupos</p>
+          <h1>Mundial 2026</h1>
+          <p class="hero-subtitle">Lista limpa por data, grupo, bandeiras e hora de Portugal.</p>
         </div>
       </div>
 </header>
 <main id="mainView">
-<section class="premium-hub">
-<div class="hero-world">
-<h2>🏆 FIFA WORLD CUP 2026</h2>
-<p>Resultados manuais • Pontos automáticos • Ranking</p>
-<div class="hub-grid">
-<div class="hub-card">⭐ Jogos de Hoje</div>
-<div class="hub-card">🏆 Classificações</div>
-<div class="hub-card">📋 WhatsApp</div>
-<div class="hub-card">🌍 Fases</div>
 </div>
-</div>
-</section>
-
-<div class="wc-banner">
-<div class="wc-overlay">
-<h2>🏆 FIFA WORLD CUP 2026</h2>
-<p>Resultados manuais • Classificações • WhatsApp</p>
-<div class="quick-actions">
-      <button id="copyRankingBtn">📋 Copiar Pontuação</button>
-      <button id="copyTodayBtn">⭐ Copiar Jogos Hoje</button>
-      <button id="copyGroupsBtn">🏆 Copiar Grupos</button>
-    </div>
-</div>
-</div>
-
-      <section class="today-section">
-        <div class="section-head">
-          <div>
-            <h2>⭐ Jogos de Hoje</h2>
-            <p>Jogos do dia apresentados com data e hora de Portugal.</p>
-          </div>
-          <button id="copyTodayBtn2" class="secondary">📋 Copiar para WhatsApp</button>
-        </div>
-        <div id="todayGamesList" class="today-games"></div>
-      </section>
-
-      <section class="score-overview">
-        <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
-        <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>
-        
-        <article class="mini-card"><span>Abertos</span><strong id="statOpen">0</strong></article>
-        <article class="mini-card"><span>Terminados</span><strong id="statFinished">0</strong></article>
-        <article class="mini-card accent"><span>Pontos</span><strong id="statMyPoints">0</strong></article>
-      </section>
-
-      <nav class="tabs">
-        <button class="tab active" data-tab="gamesTab">⚽ Jogos</button>
-        <button class="tab" data-tab="rankingTab">🏆 Pontuação</button><button class="tab" data-tab="groupsTab">🌍 Grupos</button>
+<nav class="tabs">
+        <button class="tab active" data-tab="gamesTab">📅 Calendário</button>
+        <button class="tab" data-tab="groupsTab">🌍 Grupos</button>
+        <button class="tab" data-tab="rankingTab">🏆 Pontuação</button>
         <button class="tab" data-tab="adminTab">🛠️ Admin</button>
-        <button class="tab" data-tab="rulesTab">📌 Regras</button>
       </nav>
 
       <section id="gamesTab" class="tab-panel active">
         <div class="section-head">
           <div>
-            <h2>Jogos por grupos</h2>
-            <p>Escolhe o resultado antes do apito inicial. A fase de grupos fica separada por Grupo A, B, C… e as horas aparecem em Portugal.</p>
+            <h2>Calendário da Fase de Grupos</h2>
+            <p>Organizado como calendário: data, grupo, seleções, bandeiras e hora de Portugal.</p>
           </div>
-          <button id="refreshBtn" class="secondary">Atualizar</button>
+          <div class="clean-actions"><button id="copyTodayBtn" class="secondary">📋 Jogos de Hoje</button><button id="refreshBtn" class="secondary">Atualizar</button></div>
         </div>
-        <div class="phase-filter-row">
-          <button class="phase-chip active" data-phase="all">🌍 Todos</button>
-          <button class="phase-chip" data-phase="groups">Fase de Grupos</button>
-          <button class="phase-chip" data-phase="r16">Oitavos</button>
-          <button class="phase-chip" data-phase="quarters">Quartos</button>
-          <button class="phase-chip" data-phase="semis">Meias</button>
-          <button class="phase-chip" data-phase="final">Final</button>
-        </div>
-        <div class="toolbar">
+<div class="toolbar">
           <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, grupo, estádio ou fase..." />
           <div class="filter-row">
             <button class="filter-chip active" data-filter="all">Todos</button>
@@ -187,15 +135,7 @@
           <div id="adminGamesList" class="list"></div>
         </div>
       </section>
-
-      <section id="rulesTab" class="tab-panel">
-        <div class="rules-grid">
-          <article class="glass-card rule-card"><strong>+1</strong><span>Acertar vencedor ou empate, sem acertar o resultado.</span></article>
-          <article class="glass-card rule-card"><strong>+3</strong><span>Acertar o resultado exato.</span></article>
-          <article class="glass-card rule-card"><strong>0</strong><span>Não acertar vencedor, empate ou resultado.</span></article>
-        </div>
-      </section>
-    </main>
+</main>
   </div>
 
   <div id="toast" class="toast hidden"></div>

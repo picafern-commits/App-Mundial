@@ -1,4 +1,4 @@
-// Mundial Pontos - v13.0 Hora Portugal + Grupos
+// Mundial Pontos - v14.0 Calendário Limpo
 // Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -9,7 +9,7 @@ const firebaseConfig = APP_CONFIG.firebase || {};
 const apiConfig = APP_CONFIG.api || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v13";
+const demoStoreKey = "mundial_demo_data_v14";
 
 let db = null;
 let activePlayer = "__single_user__";
@@ -18,43 +18,853 @@ let games = [];
 let bets = [];
 let currentFilter = "all";
 let currentSearch = "";
-let currentPhase = "all";
+let currentPhase = "groups";
 
 const SEED_GAMES = [
-  { id:"wc2026-mex-kor", group:"Grupo A", homeTeam:"México", awayTeam:"Coreia do Sul", matchDate:"2026-06-19T01:00", venue:"Estadio Guadalajara", phase:"Fase de grupos", homeScore:1, awayScore:0 },
-  { id:"wc2026-can-qat", group:"Grupo B", homeTeam:"Canadá", awayTeam:"Qatar", matchDate:"2026-06-18T22:00", venue:"BC Place Vancouver", phase:"Fase de grupos", homeScore:6, awayScore:0 },
-  { id:"wc2026-sui-bih", group:"Grupo C", homeTeam:"Suíça", awayTeam:"Bósnia-Herzegovina", matchDate:"2026-06-18T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:4, awayScore:1 },
-  { id:"wc2026-cze-rsa", group:"Grupo A", homeTeam:"Chéquia", awayTeam:"África do Sul", matchDate:"2026-06-18T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
-  { id:"wc2026-uzb-col", group:"Grupo H", homeTeam:"Uzbequistão", awayTeam:"Colômbia", matchDate:"2026-06-18T02:00", venue:"Mexico City Stadium", phase:"Fase de grupos", homeScore:1, awayScore:3 },
-  { id:"wc2026-eng-cro", group:"Grupo D", homeTeam:"Inglaterra", awayTeam:"Croácia", matchDate:"2026-06-17T20:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:4, awayScore:2 },
-  { id:"wc2026-por-cod", group:"Grupo H", homeTeam:"Portugal", awayTeam:"RD Congo", matchDate:"2026-06-17T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
-  { id:"wc2026-usa-aus", group:"Grupo E", homeTeam:"Estados Unidos", awayTeam:"Austrália", matchDate:"2026-06-19T19:00", venue:"Seattle Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-sco-mar", group:"Grupo F", homeTeam:"Escócia", awayTeam:"Marrocos", matchDate:"2026-06-19T22:00", venue:"Boston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-bra-hai", group:"Grupo G", homeTeam:"Brasil", awayTeam:"Haiti", matchDate:"2026-06-20T00:30", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-tur-par", group:"Grupo I", homeTeam:"Turquia", awayTeam:"Paraguai", matchDate:"2026-06-20T03:00", venue:"San Francisco Bay Area Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ned-swe", group:"Grupo J", homeTeam:"Países Baixos", awayTeam:"Suécia", matchDate:"2026-06-20T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ger-civ", group:"Grupo K", homeTeam:"Alemanha", awayTeam:"Costa do Marfim", matchDate:"2026-06-20T20:00", venue:"Toronto Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ecu-cuw", group:"Grupo L", homeTeam:"Equador", awayTeam:"Curaçao", matchDate:"2026-06-21T00:00", venue:"Kansas City Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-tun-jpn", group:"Grupo M", homeTeam:"Tunísia", awayTeam:"Japão", matchDate:"2026-06-21T04:00", venue:"Estadio Monterrey", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-esp-ksa", group:"Grupo N", homeTeam:"Espanha", awayTeam:"Arábia Saudita", matchDate:"2026-06-21T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-bel-irn", group:"Grupo O", homeTeam:"Bélgica", awayTeam:"Irão", matchDate:"2026-06-21T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-uru-cpv", group:"Grupo P", homeTeam:"Uruguai", awayTeam:"Cabo Verde", matchDate:"2026-06-21T22:00", venue:"Miami Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-arg-aut", group:"Grupo Q", homeTeam:"Argentina", awayTeam:"Áustria", matchDate:"2026-06-22T17:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-fra-irq", group:"Grupo R", homeTeam:"França", awayTeam:"Iraque", matchDate:"2026-06-22T21:00", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-por-uzb", group:"Grupo H", homeTeam:"Portugal", awayTeam:"Uzbequistão", matchDate:"2026-06-23T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-r16-1", group:"Oitavos", homeTeam:"1.º Grupo A", awayTeam:"2.º Grupo B", matchDate:"2026-06-28T20:00", venue:"A confirmar", phase:"Oitavos de Final", homeScore:null, awayScore:null },
-  { id:"wc2026-qf-1", group:"Quartos", homeTeam:"Vencedor O1", awayTeam:"Vencedor O2", matchDate:"2026-07-04T20:00", venue:"A confirmar", phase:"Quartos de Final", homeScore:null, awayScore:null },
-  { id:"wc2026-sf-1", group:"Meias", homeTeam:"Vencedor Q1", awayTeam:"Vencedor Q2", matchDate:"2026-07-08T20:00", venue:"A confirmar", phase:"Meias-Finais", homeScore:null, awayScore:null },
-  { id:"wc2026-final", group:"Final", homeTeam:"Finalista 1", awayTeam:"Finalista 2", matchDate:"2026-07-19T20:00", venue:"A confirmar", phase:"Final", homeScore:null, awayScore:null }
-].map(g => ({ ...g, createdAt: Date.now(), source:"Base inicial" }));
+  {
+    "id": "wc2026-groups-001",
+    "group": "Grupo A",
+    "homeTeam": "México",
+    "awayTeam": "África do Sul",
+    "matchDate": "2026-06-11T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-002",
+    "group": "Grupo A",
+    "homeTeam": "Coreia do Sul",
+    "awayTeam": "Chéquia",
+    "matchDate": "2026-06-12T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-003",
+    "group": "Grupo B",
+    "homeTeam": "Canadá",
+    "awayTeam": "Bósnia",
+    "matchDate": "2026-06-12T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-004",
+    "group": "Grupo D",
+    "homeTeam": "Estados Unidos",
+    "awayTeam": "Paraguai",
+    "matchDate": "2026-06-13T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-005",
+    "group": "Grupo B",
+    "homeTeam": "Qatar",
+    "awayTeam": "Suíça",
+    "matchDate": "2026-06-13T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-006",
+    "group": "Grupo C",
+    "homeTeam": "Brasil",
+    "awayTeam": "Marrocos",
+    "matchDate": "2026-06-13T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-007",
+    "group": "Grupo C",
+    "homeTeam": "Haiti",
+    "awayTeam": "Escócia",
+    "matchDate": "2026-06-14T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-008",
+    "group": "Grupo D",
+    "homeTeam": "Austrália",
+    "awayTeam": "Turquia",
+    "matchDate": "2026-06-14T05:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-009",
+    "group": "Grupo E",
+    "homeTeam": "Alemanha",
+    "awayTeam": "Curaçao",
+    "matchDate": "2026-06-14T18:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-010",
+    "group": "Grupo F",
+    "homeTeam": "Países Baixos",
+    "awayTeam": "Japão",
+    "matchDate": "2026-06-14T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-011",
+    "group": "Grupo E",
+    "homeTeam": "Costa do Marfim",
+    "awayTeam": "Equador",
+    "matchDate": "2026-06-15T00:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-012",
+    "group": "Grupo F",
+    "homeTeam": "Suécia",
+    "awayTeam": "Tunísia",
+    "matchDate": "2026-06-15T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-013",
+    "group": "Grupo H",
+    "homeTeam": "Espanha",
+    "awayTeam": "Cabo Verde",
+    "matchDate": "2026-06-15T17:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-014",
+    "group": "Grupo G",
+    "homeTeam": "Bélgica",
+    "awayTeam": "Egito",
+    "matchDate": "2026-06-15T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-015",
+    "group": "Grupo H",
+    "homeTeam": "Arábia Saudita",
+    "awayTeam": "Uruguai",
+    "matchDate": "2026-06-15T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-016",
+    "group": "Grupo G",
+    "homeTeam": "Irão",
+    "awayTeam": "Nova Zelândia",
+    "matchDate": "2026-06-16T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-017",
+    "group": "Grupo I",
+    "homeTeam": "França",
+    "awayTeam": "Senegal",
+    "matchDate": "2026-06-16T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-018",
+    "group": "Grupo I",
+    "homeTeam": "Iraque",
+    "awayTeam": "Noruega",
+    "matchDate": "2026-06-16T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-019",
+    "group": "Grupo J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Argélia",
+    "matchDate": "2026-06-17T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-020",
+    "group": "Grupo J",
+    "homeTeam": "Áustria",
+    "awayTeam": "Jordânia",
+    "matchDate": "2026-06-17T05:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-021",
+    "group": "Grupo K",
+    "homeTeam": "Portugal",
+    "awayTeam": "RD Congo",
+    "matchDate": "2026-06-17T18:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-022",
+    "group": "Grupo L",
+    "homeTeam": "Inglaterra",
+    "awayTeam": "Croácia",
+    "matchDate": "2026-06-17T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-023",
+    "group": "Grupo L",
+    "homeTeam": "Gana",
+    "awayTeam": "Panamá",
+    "matchDate": "2026-06-18T00:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-024",
+    "group": "Grupo K",
+    "homeTeam": "Uzbequistão",
+    "awayTeam": "Colômbia",
+    "matchDate": "2026-06-18T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-025",
+    "group": "Grupo A",
+    "homeTeam": "Chéquia",
+    "awayTeam": "África do Sul",
+    "matchDate": "2026-06-18T17:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-026",
+    "group": "Grupo B",
+    "homeTeam": "Suíça",
+    "awayTeam": "Bósnia",
+    "matchDate": "2026-06-18T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-027",
+    "group": "Grupo B",
+    "homeTeam": "Canadá",
+    "awayTeam": "Qatar",
+    "matchDate": "2026-06-18T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-028",
+    "group": "Grupo A",
+    "homeTeam": "México",
+    "awayTeam": "Coreia do Sul",
+    "matchDate": "2026-06-19T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-029",
+    "group": "Grupo D",
+    "homeTeam": "Estados Unidos",
+    "awayTeam": "Austrália",
+    "matchDate": "2026-06-19T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-030",
+    "group": "Grupo C",
+    "homeTeam": "Escócia",
+    "awayTeam": "Marrocos",
+    "matchDate": "2026-06-19T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-031",
+    "group": "Grupo C",
+    "homeTeam": "Brasil",
+    "awayTeam": "Haiti",
+    "matchDate": "2026-06-20T01:30",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-032",
+    "group": "Grupo D",
+    "homeTeam": "Turquia",
+    "awayTeam": "Paraguai",
+    "matchDate": "2026-06-20T04:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-033",
+    "group": "Grupo F",
+    "homeTeam": "Países Baixos",
+    "awayTeam": "Suécia",
+    "matchDate": "2026-06-20T18:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-034",
+    "group": "Grupo E",
+    "homeTeam": "Alemanha",
+    "awayTeam": "Costa do Marfim",
+    "matchDate": "2026-06-20T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-035",
+    "group": "Grupo E",
+    "homeTeam": "Equador",
+    "awayTeam": "Curaçao",
+    "matchDate": "2026-06-21T01:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-036",
+    "group": "Grupo F",
+    "homeTeam": "Tunísia",
+    "awayTeam": "Japão",
+    "matchDate": "2026-06-21T05:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-037",
+    "group": "Grupo H",
+    "homeTeam": "Espanha",
+    "awayTeam": "Arábia Saudita",
+    "matchDate": "2026-06-21T17:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-038",
+    "group": "Grupo G",
+    "homeTeam": "Bélgica",
+    "awayTeam": "Irão",
+    "matchDate": "2026-06-21T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-039",
+    "group": "Grupo H",
+    "homeTeam": "Uruguai",
+    "awayTeam": "Cabo Verde",
+    "matchDate": "2026-06-21T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-040",
+    "group": "Grupo G",
+    "homeTeam": "Nova Zelândia",
+    "awayTeam": "Egito",
+    "matchDate": "2026-06-22T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-041",
+    "group": "Grupo J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Áustria",
+    "matchDate": "2026-06-22T18:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-042",
+    "group": "Grupo I",
+    "homeTeam": "França",
+    "awayTeam": "Iraque",
+    "matchDate": "2026-06-22T22:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-043",
+    "group": "Grupo I",
+    "homeTeam": "Noruega",
+    "awayTeam": "Senegal",
+    "matchDate": "2026-06-23T01:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-044",
+    "group": "Grupo J",
+    "homeTeam": "Jordânia",
+    "awayTeam": "Argélia",
+    "matchDate": "2026-06-23T04:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-045",
+    "group": "Grupo K",
+    "homeTeam": "Portugal",
+    "awayTeam": "Uzbequistão",
+    "matchDate": "2026-06-23T18:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-046",
+    "group": "Grupo L",
+    "homeTeam": "Inglaterra",
+    "awayTeam": "Gana",
+    "matchDate": "2026-06-23T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-047",
+    "group": "Grupo L",
+    "homeTeam": "Panamá",
+    "awayTeam": "Croácia",
+    "matchDate": "2026-06-24T00:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-048",
+    "group": "Grupo K",
+    "homeTeam": "Colômbia",
+    "awayTeam": "RD Congo",
+    "matchDate": "2026-06-24T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-049",
+    "group": "Grupo B",
+    "homeTeam": "Suíça",
+    "awayTeam": "Canadá",
+    "matchDate": "2026-06-24T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-050",
+    "group": "Grupo B",
+    "homeTeam": "Bósnia",
+    "awayTeam": "Qatar",
+    "matchDate": "2026-06-24T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-051",
+    "group": "Grupo C",
+    "homeTeam": "Escócia",
+    "awayTeam": "Brasil",
+    "matchDate": "2026-06-24T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-052",
+    "group": "Grupo C",
+    "homeTeam": "Marrocos",
+    "awayTeam": "Haiti",
+    "matchDate": "2026-06-24T23:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-053",
+    "group": "Grupo A",
+    "homeTeam": "África do Sul",
+    "awayTeam": "Coreia do Sul",
+    "matchDate": "2026-06-25T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-054",
+    "group": "Grupo A",
+    "homeTeam": "Chéquia",
+    "awayTeam": "México",
+    "matchDate": "2026-06-25T02:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-055",
+    "group": "Grupo E",
+    "homeTeam": "Curaçao",
+    "awayTeam": "Costa do Marfim",
+    "matchDate": "2026-06-25T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-056",
+    "group": "Grupo E",
+    "homeTeam": "Equador",
+    "awayTeam": "Alemanha",
+    "matchDate": "2026-06-25T21:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-057",
+    "group": "Grupo F",
+    "homeTeam": "Tunísia",
+    "awayTeam": "Países Baixos",
+    "matchDate": "2026-06-26T00:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-058",
+    "group": "Grupo F",
+    "homeTeam": "Japão",
+    "awayTeam": "Suécia",
+    "matchDate": "2026-06-26T00:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-059",
+    "group": "Grupo D",
+    "homeTeam": "Turquia",
+    "awayTeam": "Estados Unidos",
+    "matchDate": "2026-06-26T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-060",
+    "group": "Grupo D",
+    "homeTeam": "Paraguai",
+    "awayTeam": "Austrália",
+    "matchDate": "2026-06-26T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-061",
+    "group": "Grupo I",
+    "homeTeam": "Noruega",
+    "awayTeam": "França",
+    "matchDate": "2026-06-26T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-062",
+    "group": "Grupo I",
+    "homeTeam": "Senegal",
+    "awayTeam": "Iraque",
+    "matchDate": "2026-06-26T20:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-063",
+    "group": "Grupo H",
+    "homeTeam": "Cabo Verde",
+    "awayTeam": "Arábia Saudita",
+    "matchDate": "2026-06-27T01:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-064",
+    "group": "Grupo H",
+    "homeTeam": "Uruguai",
+    "awayTeam": "Espanha",
+    "matchDate": "2026-06-27T01:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-065",
+    "group": "Grupo G",
+    "homeTeam": "Nova Zelândia",
+    "awayTeam": "Bélgica",
+    "matchDate": "2026-06-27T04:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-066",
+    "group": "Grupo G",
+    "homeTeam": "Egito",
+    "awayTeam": "Irão",
+    "matchDate": "2026-06-27T04:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-067",
+    "group": "Grupo L",
+    "homeTeam": "Panamá",
+    "awayTeam": "Inglaterra",
+    "matchDate": "2026-06-27T22:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-068",
+    "group": "Grupo L",
+    "homeTeam": "Croácia",
+    "awayTeam": "Gana",
+    "matchDate": "2026-06-27T22:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-069",
+    "group": "Grupo K",
+    "homeTeam": "Colômbia",
+    "awayTeam": "Portugal",
+    "matchDate": "2026-06-28T00:30",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-070",
+    "group": "Grupo K",
+    "homeTeam": "RD Congo",
+    "awayTeam": "Uzbequistão",
+    "matchDate": "2026-06-28T00:30",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-071",
+    "group": "Grupo J",
+    "homeTeam": "Argélia",
+    "awayTeam": "Áustria",
+    "matchDate": "2026-06-28T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  },
+  {
+    "id": "wc2026-groups-072",
+    "group": "Grupo J",
+    "homeTeam": "Jordânia",
+    "awayTeam": "Argentina",
+    "matchDate": "2026-06-28T03:00",
+    "venue": "A confirmar",
+    "phase": "Fase de grupos",
+    "homeScore": null,
+    "awayScore": null
+  }
+].map(g => ({ ...g, createdAt: Date.now(), source:"Calendário fase grupos" }));
 
 const FLAG_MAP = {
-  "Portugal":"🇵🇹","Brasil":"🇧🇷","Argentina":"🇦🇷","França":"🇫🇷","Alemanha":"🇩🇪","Espanha":"🇪🇸","Inglaterra":"🏴","Croácia":"🇭🇷",
-  "Canadá":"🇨🇦","México":"🇲🇽","Japão":"🇯🇵","Austrália":"🇦🇺","Estados Unidos":"🇺🇸","Suíça":"🇨🇭","Bósnia-Herzegovina":"🇧🇦",
-  "Chéquia":"🇨🇿","África do Sul":"🇿🇦","Uzbequistão":"🇺🇿","Colômbia":"🇨🇴","RD Congo":"🇨🇩","Escócia":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-  "Marrocos":"🇲🇦","Haiti":"🇭🇹","Turquia":"🇹🇷","Paraguai":"🇵🇾","Países Baixos":"🇳🇱","Suécia":"🇸🇪","Costa do Marfim":"🇨🇮",
-  "Equador":"🇪🇨","Curaçao":"🇨🇼","Tunísia":"🇹🇳","Arábia Saudita":"🇸🇦","Bélgica":"🇧🇪","Irão":"🇮🇷","Uruguai":"🇺🇾",
-  "Cabo Verde":"🇨🇻","Áustria":"🇦🇹","Iraque":"🇮🇶","Qatar":"🇶🇦","Coreia do Sul":"🇰🇷"
+  "Portugal": "🇵🇹",
+  "África do Sul": "🇿🇦",
+  "México": "🇲🇽",
+  "Coreia do Sul": "🇰🇷",
+  "Chéquia": "🇨🇿",
+  "Canadá": "🇨🇦",
+  "Bósnia": "🇧🇦",
+  "Bósnia-Herzegovina": "🇧🇦",
+  "Estados Unidos": "🇺🇸",
+  "Paraguai": "🇵🇾",
+  "Qatar": "🇶🇦",
+  "Suíça": "🇨🇭",
+  "Brasil": "🇧🇷",
+  "Marrocos": "🇲🇦",
+  "Haiti": "🇭🇹",
+  "Escócia": "🏴",
+  "Austrália": "🇦🇺",
+  "Turquia": "🇹🇷",
+  "Alemanha": "🇩🇪",
+  "Curaçao": "🇨🇼",
+  "Países Baixos": "🇳🇱",
+  "Japão": "🇯🇵",
+  "Costa do Marfim": "🇨🇮",
+  "Equador": "🇪🇨",
+  "Suécia": "🇸🇪",
+  "Tunísia": "🇹🇳",
+  "Espanha": "🇪🇸",
+  "Cabo Verde": "🇨🇻",
+  "Bélgica": "🇧🇪",
+  "Egito": "🇪🇬",
+  "Arábia Saudita": "🇸🇦",
+  "Uruguai": "🇺🇾",
+  "Irão": "🇮🇷",
+  "Nova Zelândia": "🇳🇿",
+  "França": "🇫🇷",
+  "Senegal": "🇸🇳",
+  "Iraque": "🇮🇶",
+  "Noruega": "🇳🇴",
+  "Argentina": "🇦🇷",
+  "Argélia": "🇩🇿",
+  "Áustria": "🇦🇹",
+  "Jordânia": "🇯🇴",
+  "RD Congo": "🇨🇩",
+  "Inglaterra": "🏴",
+  "Croácia": "🇭🇷",
+  "Gana": "🇬🇭",
+  "Panamá": "🇵🇦",
+  "Uzbequistão": "🇺🇿",
+  "Colômbia": "🇨🇴"
 };
 
 const defaultDemo = { games: SEED_GAMES, bets: [] };
@@ -81,6 +891,16 @@ function portugalDateKey(value){
 }
 function todayPortugalKey(){
   return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+}
+function portugalLongDate(value){
+  const d = parseDateValue(value);
+  if(!d || Number.isNaN(d.getTime())) return "Sem data";
+  return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, weekday:"long", day:"2-digit", month:"long" }).format(d);
+}
+function portugalTimeOnly(value){
+  const d = parseDateValue(value);
+  if(!d || Number.isNaN(d.getTime())) return "--:--";
+  return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, hour:"2-digit", minute:"2-digit" }).format(d);
 }
 function portugalDateTime(value, short=false){
   const d = parseDateValue(value);
@@ -361,39 +1181,26 @@ function renderTodayGames(){
 function renderGames(){
   const el=$("gamesList");
   if(!el) return;
-  const list=getVisibleGames();
+  const list=getVisibleGames().filter(g => phaseKey(g)==="groups");
   if(!list.length){ el.innerHTML=`<div class="glass-card">Não encontrei jogos com esse filtro.</div>`; return; }
 
-  const grouped = new Map();
+  const groupedByDate = new Map();
   list.forEach(game => {
-    const key = displaySectionName(game);
-    if(!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(game);
+    const key = portugalDateKey(game.matchDate);
+    if(!groupedByDate.has(key)) groupedByDate.set(key, []);
+    groupedByDate.get(key).push(game);
   });
 
-  const sections = [...grouped.entries()].sort((a,b)=>groupSortKey(a[0]).localeCompare(groupSortKey(b[0]))).map(([group, groupGames])=>{
-    const openCount = groupGames.filter(g=>!isLocked(g)).length;
-    const finishedCount = groupGames.filter(hasResult).length;
-    const totalBets = groupGames.reduce((sum,g)=>sum + bets.filter(b=>b.gameId===g.id).length,0);
-    return `<section class="group-section">
-      <div class="group-header">
-        <div>
-          <span class="group-kicker">${phaseKey(groupGames[0])==="groups" ? "Grupo do Mundial" : escapeHtml(phaseLabel(phaseKey(groupGames[0])) )}</span>
-          <h3>${escapeHtml(group)}</h3>
-        </div>
-        <div class="group-meta">
-          <span>${groupGames.length} jogos</span>
-          <span>${openCount} abertos</span>
-          <span>${finishedCount} terminados</span>
-          <span>${totalBets} apostas</span>
-        </div>
-      </div>
-      <div class="group-games">
-      ${groupGames.map(renderGameCard).join("")}
+  const days = [...groupedByDate.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  el.innerHTML = `<div class="calendar-clean">${days.map(([dateKey, dayGames]) => {
+    const label = portugalLongDate(dayGames[0].matchDate);
+    return `<section class="calendar-day">
+      <div class="calendar-date">${escapeHtml(label)}</div>
+      <div class="calendar-matches">
+        ${dayGames.sort((a,b)=>String(a.matchDate).localeCompare(String(b.matchDate))).map(renderCalendarRow).join("")}
       </div>
     </section>`;
-  });
-  el.innerHTML = sections.join("");
+  }).join("")}</div>`;
 }
 function renderGameCard(game){
   const myBet=bets.find(b=>b.gameId===game.id&&b.playerName===activePlayer);
@@ -430,6 +1237,35 @@ function renderGameCard(game){
     </div>
   </article>`;
 }
+
+function renderCalendarRow(game){
+  const myBet = bets.find(b=>b.gameId===game.id && b.playerName===activePlayer);
+  const st = statusOf(game);
+  const locked = isLocked(game);
+  const pts = myBet ? pointsForBet(myBet, game) : 0;
+  const resultText = hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "Por jogar";
+  const betText = !myBet ? "Sem aposta" : !hasResult(game) ? `Aposta ${myBet.homeGuess}-${myBet.awayGuess}` : `Aposta ${myBet.homeGuess}-${myBet.awayGuess} · ${pts} pts`;
+  return `<article class="calendar-match ${st.cls}">
+    <div class="cal-group">${escapeHtml(groupOf(game))}</div>
+    <div class="cal-teams">
+      <span class="cal-team">${flag(game.homeTeam)} <strong>${escapeHtml(game.homeTeam)}</strong></span>
+      <span class="cal-vs">${hasResult(game) ? resultText : "vs"}</span>
+      <span class="cal-team right">${flag(game.awayTeam)} <strong>${escapeHtml(game.awayTeam)}</strong></span>
+    </div>
+    <div class="cal-time">${portugalTimeOnly(game.matchDate)}</div>
+    <div class="cal-status">
+      <span class="badge ${st.cls}">${hasResult(game) ? "Jogado" : (locked ? "Fechado" : "Por jogar")}</span>
+      <small>${betText}</small>
+    </div>
+    <div class="cal-bet">
+      <input id="home_${game.id}" type="number" min="0" placeholder="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}>
+      <span>-</span>
+      <input id="away_${game.id}" type="number" min="0" placeholder="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}>
+      <button class="primary" onclick="window.saveBetFromUI('${game.id}')" ${locked?"disabled":""}>OK</button>
+    </div>
+  </article>`;
+}
+
 function renderRanking(){
   const r = getTotals().get(activePlayer) || {points:0, exact:0, played:0, winner:0};
   $("rankingList").innerHTML = `<div class="ranking-row single-score">
