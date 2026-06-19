@@ -244,3 +244,41 @@ document.querySelectorAll(".filter-chip").forEach(btn=>btn.addEventListener("cli
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active")); document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active")); btn.classList.add("active"); $(btn.dataset.tab).classList.add("active"); }));
 
 await initFirebase(); await loadData();
+
+
+document.addEventListener('click',(e)=>{
+ if(e.target?.id==='copyRankingBtn'){
+   navigator.clipboard.writeText('🏆 Classificação Mundial 2026');
+   alert('Classificação copiada');
+ }
+ if(e.target?.id==='copyTodayBtn'){
+   navigator.clipboard.writeText('⭐ Jogos de Hoje');
+   alert('Jogos de hoje copiados');
+ }
+});
+
+const FLAG_MAP={"Portugal":"🇵🇹","Brasil":"🇧🇷","Argentina":"🇦🇷","França":"🇫🇷","Alemanha":"🇩🇪","Espanha":"🇪🇸","Inglaterra":"🏴","Croácia":"🇭🇷","Canadá":"🇨🇦","México":"🇲🇽","Japão":"🇯🇵","Austrália":"🇦🇺","Estados Unidos":"🇺🇸"};
+function flag(t){return FLAG_MAP[t]||"🏳️";}
+function buildGroupTable(){
+ const tbl={};
+ games.filter(g=>hasResult(g)).forEach(g=>{
+  const grp=groupOf(g); tbl[grp]=tbl[grp]||{};
+  [g.homeTeam,g.awayTeam].forEach(t=>tbl[grp][t]=tbl[grp][t]||{t,p:0,gp:0});
+  tbl[grp][g.homeTeam].gp++; tbl[grp][g.awayTeam].gp++;
+  if(g.homeScore>g.awayScore){tbl[grp][g.homeTeam].p+=3;}
+  else if(g.homeScore<g.awayScore){tbl[grp][g.awayTeam].p+=3;}
+  else {tbl[grp][g.homeTeam].p++; tbl[grp][g.awayTeam].p++;}
+ });
+ return tbl;
+}
+document.addEventListener('click',e=>{
+ if(e.target?.id==='copyRankingBtn'){
+  const txt=[...getTotals().values()].sort((a,b)=>b.points-a.points).map((r,i)=>`${i+1}. ${r.playerName} - ${r.points} pts`).join('\n');
+  navigator.clipboard.writeText('🏆 CLASSIFICAÇÃO\n\n'+txt); alert('Classificação copiada');
+ }
+ if(e.target?.id==='copyTodayBtn'){
+  const d=new Date().toISOString().slice(0,10);
+  const txt=games.filter(g=>String(g.matchDate).slice(0,10)===d).map(g=>`${flag(g.homeTeam)} ${g.homeTeam} vs ${flag(g.awayTeam)} ${g.awayTeam}`).join('\n');
+  navigator.clipboard.writeText('⭐ JOGOS DE HOJE\n\n'+txt); alert('Jogos copiados');
+ }
+});

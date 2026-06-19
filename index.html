@@ -59,7 +59,7 @@
 <div class="wc-overlay">
 <h2>🏆 FIFA WORLD CUP 2026</h2>
 <p>Prognósticos • Classificações • Resultados</p>
-<div class="quick-actions">
+<div class="quick-actions"><button id="copyRankingBtn">📋 Copiar Classificação</button><button id="copyTodayBtn">⭐ Copiar Jogos Hoje</button>
 <button>⭐ Jogos de Hoje</button>
 <button>📋 Copiar WhatsApp</button>
 <button>🏆 Grupos</button>
@@ -78,7 +78,7 @@
 
       <nav class="tabs">
         <button class="tab active" data-tab="gamesTab">⚽ Jogos</button>
-        <button class="tab" data-tab="rankingTab">🏆 Classificação</button>
+        <button class="tab" data-tab="rankingTab">🏆 Classificação</button><button class="tab" data-tab="groupsTab">🌍 Grupos</button>
         <button class="tab" data-tab="adminTab">🛠️ Admin</button>
         <button class="tab" data-tab="rulesTab">📌 Regras</button>
       </nav>
@@ -111,7 +111,7 @@
           </div>
         </div>
         <div id="rankingList" class="ranking-list"></div>
-      </section>
+      </section><section id="groupsTab" class="tab-panel"><div class="glass-card"><h2>🌍 Classificações dos Grupos</h2><div id="groupsTables">Classificações automáticas após inserir resultados.</div></div></section>
 
       <section id="adminTab" class="tab-panel">
         <div id="adminLocked" class="glass-card">
