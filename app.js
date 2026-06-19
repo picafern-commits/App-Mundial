@@ -1327,10 +1327,7 @@ function applyPermissionsToUi() {
   $("adminTab")?.classList.toggle("no-access", !hasPermission("admin"));
 
   // Ações admin
-  document.querySelectorAll("[data-result-game]").forEach(btn => {
-    const inAdmin = btn.closest("#adminTab");
-    if (inAdmin && !hasPermission("editResults")) btn.classList.add("hidden");
-  });
+  document.querySelectorAll("[data-result-game], .result-admin-only").forEach(btn => { btn.classList.toggle("hidden", !hasPermission("editResults")); });
 
   $("openExcelModalBtn")?.classList.toggle("hidden", !hasPermission("importExcel"));
   $("exportResultadosBtn")?.classList.toggle("hidden", !hasPermission("importExcel"));
@@ -1925,7 +1922,7 @@ function renderMatchRow(game) {
       <div class="state ${status.className}">${status.text}</div>
       <div class="bet-note">${escapeHtml(settledText)}</div>
       <div class="calendar-actions">
-        <button class="primary small" type="button" data-result-game="${escapeHtml(game.id)}">${resultButtonText}</button>
+         class="primary small result-admin-only" type="button" data-result-game="${escapeHtml(game.id)}">${resultButtonText}</button>
         <button class="secondary small" type="button" data-bets-game="${escapeHtml(game.id)}">Ver apostas</button>
       </div>
     </article>`;
@@ -2251,7 +2248,7 @@ function renderAdmin() {
     <article class="admin-row"><div class="admin-match"><span class="group-pill">${escapeHtml(game.group)}</span><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))} · ${betsForGame(game.id).length} apostas</small></div>
       <div class="result-inputs modal-result-actions">
         <span class="admin-result-chip">${hasResult(game) ? `Resultado: ${game.homeScore}-${game.awayScore}` : "Sem resultado"}</span>
-        <button class="primary" type="button" data-result-game="${escapeHtml(game.id)}">${hasResult(game) ? "Editar resultado" : "Adicionar resultado"}</button>
+         class="primary result-admin-only" type="button" data-result-game="${escapeHtml(game.id)}">${hasResult(game) ? "Editar resultado" : "Adicionar resultado"}</button>
       </div>
     </article>`).join("");
 }
@@ -3091,6 +3088,7 @@ document.addEventListener("click", event => {
 
   const resultButton = event.target.closest("[data-result-game]");
   if (resultButton) {
+    if (!hasPermission("editResults")) { toast("Sem permissão para adicionar/editar resultados."); return; }
     openResultModal(resultButton.dataset.resultGame);
     return;
   }

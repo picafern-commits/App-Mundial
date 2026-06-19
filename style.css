@@ -2720,3 +2720,9 @@ button{
     align-self:center;
   }
 }
+
+
+/* v56 — Botões de resultado só para Admin */
+.result-admin-only.hidden{
+  display:none!important;
+}
