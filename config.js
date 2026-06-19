@@ -1,6 +1,6 @@
 window.MUNDIAL_CONFIG = {
-  appVersion: "42.0",
-  adminPin: "25959",
+  appVersion: "49.0",
+  adminPin: "1234",
   firebase: {
     apiKey: "AIzaSyCOyW5rfwF8iZxcVN6jxR4VqZ6pNdNmFRA",
     authDomain: "app-mundial2026.firebaseapp.com",
