@@ -41,7 +41,19 @@
       <p class="small-note">Firebase configurado. PIN admin: <strong>1234</strong>.</p>
     </section>
 
-    <main id="mainView" class="hidden">
+    
+<div class="worldcup-tools" style="margin:16px 0;display:flex;gap:10px;flex-wrap:wrap">
+<button id="copyRankingBtn">📋 Copiar Classificação</button>
+<button id="copyTodayBtn">⭐ Copiar Jogos de Hoje</button>
+</div>
+<div class="phase-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+<button>🌍 Grupos</button>
+<button>🎯 Oitavos</button>
+<button>🏆 Quartos</button>
+<button>⭐ Meias</button>
+<button>👑 Final</button>
+</div>
+<main id="mainView" class="hidden">
       <section class="score-overview">
         <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
         <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>

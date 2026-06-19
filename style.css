@@ -385,3 +385,8 @@ body::before{
   .group-games{grid-template-columns:1fr}
   .bet-grid{grid-template-columns:1fr}
 }
+
+.phase-bar button,.worldcup-tools button{
+background:rgba(255,255,255,.12);
+color:white;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
+}
