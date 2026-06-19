@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Filtros Corrigidos</title>
+  <title>Mundial Pontos 2026 · Admin Limpo</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,9 +16,7 @@
       <div class="copy-actions" aria-label="Copiar para WhatsApp">
         <button id="calendarMissingResultsBtn" class="primary" type="button">Por colocar resultado</button>
             <button id="calendarAllGamesBtn" class="secondary" type="button">Todos os jogos</button>
-            <button id="copyTodayBtn" class="secondary" type="button">Copiar jogos de hoje</button>
         <button id="copyScoreBtn" class="secondary" type="button">Copiar pontuação</button>
-            <button id="exportPontosBtn" class="secondary" type="button">Exportar Pontos Excel</button>
       </div>
     </header>
 
@@ -61,13 +59,29 @@
         </div>
 
         <div id="adminUnlocked" class="hidden admin-stack admin-accordion">
-<div class="admin-card">
-            <div class="section-head compact">
+
+          <details class="admin-card admin-collapse">
+            <summary>
+              <div>
+                <h2>Exportar Pontos</h2>
+                <p>Gera o ficheiro Excel com a pontuação atual calculada pela app.</p>
+              </div>
+              <span class="collapse-icon">⌄</span>
+            </summary>
+            <div class="collapse-actions">
+              <button id="exportPontosBtn" class="primary" type="button">Exportar Pontos Excel</button>
+            </div>
+          </details>
+
+<details class="admin-card admin-collapse">
+            <summary>
               <div>
                 <h2>Users do Jogo</h2>
                 <p>Adiciona aqui os nomes de quem vai participar. Também aparecem automaticamente quando importas o Excel.</p>
               </div>
-            </div>
+              <span class="collapse-icon">⌄</span>
+            </summary>
+            <div class="collapse-actions"></div>
             <div class="user-add-row">
               <input id="newUserNameInput" type="text" placeholder="Nome do user. Ex: João" />
               <button id="addUserBtn" class="primary" type="button">Adicionar user</button>

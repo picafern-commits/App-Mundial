@@ -989,3 +989,16 @@ h2 {
 #calendarAllGamesBtn{
   white-space:nowrap;
 }
+
+
+/* v28 admin limpo */
+#copyTodayBtn{display:none!important}
+.admin-accordion > .section-head{
+  display:none!important;
+}
+.admin-collapse{
+  border:1px solid var(--line);
+}
+.admin-collapse > .collapse-actions{
+  margin:0 14px 14px;
+}

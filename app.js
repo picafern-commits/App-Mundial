@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_filtros_pontos_v27";
+const STORAGE_KEY = "mundial_pontos_2026_admin_limpo_v28";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -1117,7 +1117,6 @@ $("calendarAllGamesBtn")?.addEventListener("click", () => {
   renderCalendarFilterState();
 });
 
-$("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
 $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
 $("addUserBtn")?.addEventListener("click", addUser);
 $("newUserNameInput")?.addEventListener("keydown", event => { if (event.key === "Enter") addUser(); });
