@@ -7,43 +7,59 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="ambient-ball ball-one"></div>
+  <div class="ambient-ball ball-two"></div>
+
   <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Jogo de Prognósticos</p>
-        <h1>Mundial Pontos</h1>
+    <header class="hero">
+      <div class="hero-copy">
+        <div class="brand-mark">⚽</div>
+        <div>
+          <p class="eyebrow">Jogo de Prognósticos</p>
+          <h1>Mundial Pontos</h1>
+          <p class="hero-subtitle">Apostas por diversão, pontos automáticos e ranking em tempo real.</p>
+        </div>
       </div>
-      <div class="user-box">
-        <span id="activeUserLabel">Sem jogador</span>
+      <div class="session-card">
+        <span class="session-label">Jogador ativo</span>
+        <strong id="activeUserLabel">Sem jogador</strong>
         <button id="logoutBtn" class="ghost hidden">Sair</button>
       </div>
     </header>
 
-    <section id="loginView" class="card login-card">
+    <section id="loginView" class="glass-card login-card">
+      <div class="login-badge">🏆 Mundial 2026</div>
       <h2>Entrar no jogo</h2>
-      <p>Escreve o teu nome para guardar os teus palpites.</p>
+      <p>Escreve o teu nome para começares a fazer os teus palpites.</p>
       <div class="form-grid one">
         <label>Nome do jogador
           <input id="playerNameInput" type="text" placeholder="Ex: Ricardo" autocomplete="name" />
         </label>
       </div>
-      <button id="enterBtn" class="primary">Entrar</button>
-      <p class="small-note">Para testes, o admin usa o PIN <strong>1234</strong>.</p>
+      <button id="enterBtn" class="primary wide">Entrar no campeonato</button>
+      <p class="small-note">Modo teste ativo até ligares o Firebase. PIN admin: <strong>1234</strong>.</p>
     </section>
 
     <main id="mainView" class="hidden">
+      <section class="score-overview">
+        <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
+        <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>
+        <article class="mini-card"><span>Jogadores</span><strong id="statPlayers">0</strong></article>
+        <article class="mini-card accent"><span>Os teus pontos</span><strong id="statMyPoints">0</strong></article>
+      </section>
+
       <nav class="tabs">
-        <button class="tab active" data-tab="gamesTab">Jogos</button>
-        <button class="tab" data-tab="rankingTab">Classificação</button>
-        <button class="tab" data-tab="adminTab">Admin</button>
-        <button class="tab" data-tab="rulesTab">Regras</button>
+        <button class="tab active" data-tab="gamesTab">⚽ Jogos</button>
+        <button class="tab" data-tab="rankingTab">🏆 Classificação</button>
+        <button class="tab" data-tab="adminTab">🛠️ Admin</button>
+        <button class="tab" data-tab="rulesTab">📌 Regras</button>
       </nav>
 
       <section id="gamesTab" class="tab-panel active">
         <div class="section-head">
           <div>
-            <h2>Fazer apostas</h2>
-            <p>Escolhe o resultado antes do jogo começar.</p>
+            <h2>Fazer prognósticos</h2>
+            <p>Coloca o resultado que achas que vai acontecer. Depois do resultado real, bloqueia.</p>
           </div>
           <button id="refreshBtn" class="secondary">Atualizar</button>
         </div>
@@ -53,18 +69,18 @@
       <section id="rankingTab" class="tab-panel">
         <div class="section-head">
           <div>
-            <h2>Classificação</h2>
-            <p>Ranking calculado pelos pontos ganhos.</p>
+            <h2>Classificação geral</h2>
+            <p>Desempate por número de resultados exatos.</p>
           </div>
         </div>
         <div id="rankingList" class="ranking-list"></div>
       </section>
 
       <section id="adminTab" class="tab-panel">
-        <div id="adminLocked" class="card">
+        <div id="adminLocked" class="glass-card">
           <h2>Área Admin</h2>
-          <p>Insere o PIN para adicionar jogos e lançar resultados.</p>
-          <div class="form-grid one">
+          <p>Insere o PIN para adicionar jogos, lançar resultados e atualizar a pontuação.</p>
+          <div class="form-grid one compact-form">
             <label>PIN Admin
               <input id="adminPinInput" type="password" placeholder="PIN" />
             </label>
@@ -73,8 +89,13 @@
         </div>
 
         <div id="adminUnlocked" class="hidden">
-          <div class="card">
-            <h2>Adicionar jogo</h2>
+          <div class="glass-card">
+            <div class="admin-card-head">
+              <div>
+                <h2>Adicionar jogo</h2>
+                <p>Cria os jogos que vão aparecer para todos os jogadores.</p>
+              </div>
+            </div>
             <div class="form-grid">
               <label>Equipa casa
                 <input id="homeTeamInput" type="text" placeholder="Portugal" />
@@ -92,7 +113,7 @@
           <div class="section-head admin-title">
             <div>
               <h2>Resultados</h2>
-              <p>Quando colocas o resultado real, os pontos são recalculados.</p>
+              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente.</p>
             </div>
           </div>
           <div id="adminGamesList" class="list"></div>
@@ -100,21 +121,16 @@
       </section>
 
       <section id="rulesTab" class="tab-panel">
-        <div class="card">
-          <h2>Regras</h2>
-          <ul class="rules">
-            <li>Acertar a equipa vencedora: <strong>1 ponto</strong>.</li>
-            <li>Acertar o resultado exato: <strong>3 pontos</strong>.</li>
-            <li>Empate conta como resultado sem vencedor.</li>
-            <li>Quando o resultado real é lançado, a app calcula tudo sozinha.</li>
-          </ul>
+        <div class="rules-grid">
+          <article class="glass-card rule-card"><strong>+1</strong><span>Acertar vencedor ou empate, sem acertar o resultado.</span></article>
+          <article class="glass-card rule-card"><strong>+3</strong><span>Acertar o resultado exato.</span></article>
+          <article class="glass-card rule-card"><strong>0</strong><span>Não acertar vencedor, empate ou resultado.</span></article>
         </div>
       </section>
     </main>
   </div>
 
   <div id="toast" class="toast hidden"></div>
-
   <script type="module" src="app.js"></script>
 </body>
 </html>

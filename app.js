@@ -1,4 +1,4 @@
-// Mundial Pontos - versão inicial para GitHub Pages
+// Mundial Pontos - v1.1.0 GitHub Pages
 // Para ligar ao Firebase, preenche firebaseConfig abaixo com os dados do teu projeto.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -161,9 +161,33 @@ function formatDate(value) {
 
 function renderAll() {
   renderSession();
+  renderStats();
   renderGames();
   renderRanking();
   renderAdmin();
+}
+
+function getTotals() {
+  const totals = new Map();
+  bets.forEach(bet => {
+    const game = games.find(g => g.id === bet.gameId);
+    const current = totals.get(bet.playerName) || { playerName: bet.playerName, points: 0, exact: 0 };
+    current.points += pointsForBet(bet, game);
+    if (game && exactBet(bet, game)) current.exact += 1;
+    totals.set(bet.playerName, current);
+  });
+  if (activePlayer && !totals.has(activePlayer)) totals.set(activePlayer, { playerName: activePlayer, points: 0, exact: 0 });
+  return totals;
+}
+
+function renderStats() {
+  const players = new Set(bets.map(b => b.playerName));
+  if (activePlayer) players.add(activePlayer);
+  const myTotal = getTotals().get(activePlayer)?.points || 0;
+  if ($("statGames")) $("statGames").textContent = games.length;
+  if ($("statBets")) $("statBets").textContent = bets.length;
+  if ($("statPlayers")) $("statPlayers").textContent = players.size;
+  if ($("statMyPoints")) $("statMyPoints").textContent = myTotal;
 }
 
 function renderSession() {
@@ -177,7 +201,7 @@ function renderSession() {
 
 function renderGames() {
   const el = $("gamesList");
-  if (!games.length) { el.innerHTML = `<div class="card">Ainda não existem jogos.</div>`; return; }
+  if (!games.length) { el.innerHTML = `<div class="glass-card">Ainda não existem jogos.</div>`; return; }
   el.innerHTML = games.map(game => {
     const myBet = bets.find(b => b.gameId === game.id && b.playerName === activePlayer);
     const resultText = hasResult(game) ? `${game.homeScore} - ${game.awayScore}` : "Por jogar";
@@ -202,21 +226,13 @@ function renderGames() {
 }
 
 function renderRanking() {
-  const totals = new Map();
-  bets.forEach(bet => {
-    const game = games.find(g => g.id === bet.gameId);
-    const current = totals.get(bet.playerName) || { playerName: bet.playerName, points: 0, exact: 0 };
-    current.points += pointsForBet(bet, game);
-    if (game && exactBet(bet, game)) current.exact += 1;
-    totals.set(bet.playerName, current);
-  });
-  if (activePlayer && !totals.has(activePlayer)) totals.set(activePlayer, { playerName: activePlayer, points: 0, exact: 0 });
+  const totals = getTotals();
   const rows = [...totals.values()].sort((a,b) => b.points - a.points || b.exact - a.exact || a.playerName.localeCompare(b.playerName));
   $("rankingList").innerHTML = rows.length ? rows.map((row, i) => `<div class="ranking-row">
     <div class="rank-number">${i + 1}</div>
     <div><strong>${escapeHtml(row.playerName)}</strong><p class="muted">Resultados exatos: ${row.exact}</p></div>
     <div class="points">${row.points} pts</div>
-  </div>`).join("") : `<div class="card">Ainda não existem apostas.</div>`;
+  </div>`).join("") : `<div class="glass-card">Ainda não existem apostas.</div>`;
 }
 
 function renderAdmin() {
@@ -236,7 +252,7 @@ function renderAdmin() {
       <button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button>
       <span class="muted">Apostas: ${bets.filter(b => b.gameId === game.id).length}</span>
     </div>
-  </article>`).join("") || `<div class="card">Ainda não existem jogos.</div>`;
+  </article>`).join("") || `<div class="glass-card">Ainda não existem jogos.</div>`;
 }
 
 function escapeHtml(text) {
