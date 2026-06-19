@@ -662,3 +662,52 @@ h2 {
 .leaderboard-row b { color: var(--gold); font-size: 18px; }
 .match-row { grid-template-columns: 78px minmax(130px, 1fr) 58px minmax(130px, 1fr) 70px 86px minmax(120px, 1fr) 106px; }
 @media (max-width: 820px) { .leaderboard-table { overflow-x: auto; } .leaderboard-row { min-width: 760px; } .modal-card { padding: 14px; } .modal-actions { display: grid; } }
+
+
+/* v17 users + calendario sem pesquisa */
+.toolbar{display:none!important}
+.user-add-row{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto;
+  gap:10px;
+  margin-top:12px;
+}
+.user-add-row input{
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:9px 11px;
+  color:var(--text);
+  background:#060b13;
+}
+.users-list{
+  display:grid;
+  gap:8px;
+  margin-top:12px;
+}
+.user-pill-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.035);
+}
+.user-pill-row strong{
+  display:block;
+  color:var(--text);
+}
+.user-pill-row small{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+}
+.small-empty{
+  padding:10px 12px;
+}
+@media(max-width:640px){
+  .user-add-row{grid-template-columns:1fr}
+  .user-pill-row{align-items:flex-start;flex-direction:column}
+}

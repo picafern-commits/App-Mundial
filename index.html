@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Excel</title>
+  <title>Mundial Pontos 2026 · Users</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -70,6 +70,21 @@
         </div>
 
         <div id="adminUnlocked" class="hidden admin-stack">
+
+          <div class="admin-card">
+            <div class="section-head compact">
+              <div>
+                <h2>Users do Jogo</h2>
+                <p>Adiciona aqui os nomes de quem vai participar. Também aparecem automaticamente quando importas o Excel.</p>
+              </div>
+            </div>
+            <div class="user-add-row">
+              <input id="newUserNameInput" type="text" placeholder="Nome do user. Ex: João" />
+              <button id="addUserBtn" class="primary" type="button">Adicionar user</button>
+            </div>
+            <div id="usersList" class="users-list"></div>
+          </div>
+
           <div class="admin-card">
             <div class="section-head compact">
               <div>

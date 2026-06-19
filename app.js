@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_excel_v16";
+const STORAGE_KEY = "mundial_pontos_2026_users_v17";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -182,6 +182,7 @@ function defaultSettings() {
     extraResults: { mvp: "", topScorer: "", champion: "" },
     extraPredictions: {},
     importedPoints: {},
+    users: [],
     lastImport: null
   };
 }
@@ -226,7 +227,8 @@ function mergeSettings(input = {}) {
     points: { ...base.points, ...(input.points || {}) },
     extraResults: { ...base.extraResults, ...(input.extraResults || {}) },
     extraPredictions: { ...(input.extraPredictions || {}) },
-    importedPoints: { ...(input.importedPoints || {}) }
+    importedPoints: { ...(input.importedPoints || {}) },
+    users: Array.isArray(input.users) ? input.users : []
   };
 }
 
@@ -395,7 +397,8 @@ function extraPointsForPlayer(playerName) {
   return details;
 }
 function allPlayers() {
-  const names = new Set(bets.map(bet => bet.playerName));
+  const names = new Set(appSettings.users || []);
+  bets.map(bet => bet.playerName).forEach(name => names.add(name));
   Object.keys(appSettings.extraPredictions || {}).forEach(name => names.add(name));
   Object.keys(appSettings.importedPoints || {}).forEach(name => names.add(name));
   return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
@@ -426,9 +429,7 @@ function leaderboard() {
 }
 
 function filteredGames() {
-  const query = searchText.trim().toLowerCase();
-  if (!query) return games;
-  return games.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
+  return games;
 }
 function groupByDate(list) {
   return list.reduce((map, game) => {
@@ -439,7 +440,7 @@ function groupByDate(list) {
   }, new Map());
 }
 
-function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderGroups(); renderAdmin(); renderSettingsForm(); }
+function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderGroups(); renderAdmin(); renderSettingsForm(); renderUsers(); }
 
 function renderCalendar() {
   const container = $("gamesList");
@@ -765,6 +766,11 @@ async function confirmExcelImport() {
   });
   appSettings.extraPredictions = { ...(appSettings.extraPredictions || {}), ...(pendingExcelImport.extras || {}) };
   appSettings.importedPoints = pendingExcelImport.importedPoints || appSettings.importedPoints || {};
+  const importedUsers = new Set(appSettings.users || []);
+  pendingExcelImport.bets.forEach(bet => importedUsers.add(bet.playerName));
+  Object.keys(pendingExcelImport.extras || {}).forEach(name => importedUsers.add(name));
+  Object.keys(pendingExcelImport.importedPoints || {}).forEach(name => importedUsers.add(name));
+  appSettings.users = [...importedUsers].filter(Boolean).sort((a, b) => a.localeCompare(b));
   appSettings.lastImport = { at: new Date().toISOString(), bets: pendingExcelImport.bets.length, players: new Set(pendingExcelImport.bets.map(bet => bet.playerName)).size, results: pendingExcelImport.results.length };
   await persistAllBets(pendingExcelImport.bets, replace);
   await persistAllGames();
@@ -789,6 +795,49 @@ async function saveExtraResults() {
   appSettings.extraResults = { mvp: $("finalMvpInput").value.trim(), topScorer: $("finalTopScorerInput").value.trim(), champion: $("finalChampionInput").value.trim() };
   await persistSettings(); renderAll(); toast("Resultados especiais guardados.");
 }
+
+async function addUser() {
+  const input = $("newUserNameInput");
+  const name = input?.value.trim();
+  if (!name) return toast("Escreve o nome do user.");
+  const users = new Set(appSettings.users || []);
+  users.add(name);
+  appSettings.users = [...users].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  input.value = "";
+  await persistSettings();
+  renderAll();
+  toast("User adicionado.");
+}
+
+async function removeUser(name) {
+  if (!confirm(`Remover ${name} da lista de users? As apostas importadas não são apagadas.`)) return;
+  appSettings.users = (appSettings.users || []).filter(user => user !== name);
+  await persistSettings();
+  renderAll();
+  toast("User removido da lista.");
+}
+
+function renderUsers() {
+  const el = $("usersList");
+  if (!el) return;
+  const users = allPlayers();
+  if (!users.length) {
+    el.innerHTML = `<div class="empty small-empty">Ainda não existem users. Adiciona manualmente ou importa o Excel.</div>`;
+    return;
+  }
+  el.innerHTML = users.map(name => {
+    const stats = playerStats(name);
+    const isManual = (appSettings.users || []).includes(name);
+    return `<div class="user-pill-row">
+      <div>
+        <strong>${escapeHtml(name)}</strong>
+        <small>${stats.points} pts · ${stats.totalBets} apostas${isManual ? " · user manual" : " · via Excel"}</small>
+      </div>
+      <button class="secondary small" type="button" onclick="window.removeUserFromUI('${escapeHtml(name).replace(/'/g, "\\'")}')">Remover</button>
+    </div>`;
+  }).join("");
+}
+
 function showGameBets(gameId) {
   const game = games.find(item => item.id === gameId);
   if (!game) return;
@@ -809,7 +858,6 @@ document.querySelectorAll(".tab").forEach(button => {
     $(button.dataset.tab).classList.add("active");
   });
 });
-$("searchInput").addEventListener("input", event => { searchText = event.target.value; renderCalendar(); });
 $("unlockAdminBtn").addEventListener("click", () => {
   if ($("adminPinInput").value !== ADMIN_PIN) return toast("PIN errado.");
   isAdmin = true; localStorage.setItem("mundial_admin_unlocked", "1"); renderAll();
@@ -817,6 +865,8 @@ $("unlockAdminBtn").addEventListener("click", () => {
 $("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
 $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
 $("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação dos grupos copiada."));
+$("addUserBtn")?.addEventListener("click", addUser);
+$("newUserNameInput")?.addEventListener("keydown", event => { if (event.key === "Enter") addUser(); });
 $("openExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.remove("hidden"));
 $("closeExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.add("hidden"));
 $("excelModal")?.addEventListener("click", event => { if (event.target.id === "excelModal") $("excelModal").classList.add("hidden"); });
