@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_modal_resultados_v21";
+const STORAGE_KEY = "mundial_pontos_2026_botoes_calendario_v22";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -466,6 +466,8 @@ function renderMatchRow(game) {
   const scoreText = hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "VS";
   const gameBets = betsForGame(game.id);
   const settledText = hasResult(game) ? `${gameBets.length} apostas · pontos atribuídos` : `${gameBets.length} apostas importadas`;
+  const resultButtonText = hasResult(game) ? "Editar resultado" : "Adicionar resultado";
+
   return `
     <article class="match-row ${status.className}">
       <div class="group-pill">${escapeHtml(game.group)}</div>
@@ -475,7 +477,10 @@ function renderMatchRow(game) {
       <div class="time">${timePortugal(game.matchDate)}</div>
       <div class="state ${status.className}">${status.text}</div>
       <div class="bet-note">${escapeHtml(settledText)}</div>
-      <button class="secondary small" type="button" onclick="window.showGameBets('${game.id}')">Ver apostas</button>
+      <div class="calendar-actions">
+        <button class="primary small" type="button" data-result-game="${escapeHtml(game.id)}">${resultButtonText}</button>
+        <button class="secondary small" type="button" data-bets-game="${escapeHtml(game.id)}">Ver apostas</button>
+      </div>
     </article>`;
 }
 function renderScore() {
@@ -998,9 +1003,24 @@ async function clearResultFromModal() {
 }
 
 window.showGameBets = showGameBets;
+window.openResultModal = openResultModal;
 window.saveBetFromUI = id => saveBet(id, $("home_" + id)?.value ?? "", $("away_" + id)?.value ?? "");
 window.setResultFromUI = id => setResult(id, $("res_home_" + id).value, $("res_away_" + id).value);
 window.clearResultFromUI = id => clearResult(id);
+
+
+document.addEventListener("click", event => {
+  const resultButton = event.target.closest("[data-result-game]");
+  if (resultButton) {
+    openResultModal(resultButton.dataset.resultGame);
+    return;
+  }
+
+  const betsButton = event.target.closest("[data-bets-game]");
+  if (betsButton) {
+    showGameBets(betsButton.dataset.betsGame);
+  }
+});
 
 document.querySelectorAll(".tab").forEach(button => {
   button.addEventListener("click", () => {
