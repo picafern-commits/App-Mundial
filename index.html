@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos</title>
+  <title>Mundial Pontos v1.2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -17,7 +17,7 @@
         <div>
           <p class="eyebrow">Jogo de Prognósticos</p>
           <h1>Mundial Pontos</h1>
-          <p class="hero-subtitle">Apostas por diversão, pontos automáticos e ranking em tempo real.</p>
+          <p class="hero-subtitle">Prognósticos do Mundial 2026, apostas bloqueadas à hora do jogo e ranking automático.</p>
         </div>
       </div>
       <div class="session-card">
@@ -45,6 +45,8 @@
         <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
         <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>
         <article class="mini-card"><span>Jogadores</span><strong id="statPlayers">0</strong></article>
+        <article class="mini-card"><span>Terminados</span><strong id="statFinished">0</strong></article>
+        <article class="mini-card"><span>Abertos</span><strong id="statOpen">0</strong></article>
         <article class="mini-card accent"><span>Os teus pontos</span><strong id="statMyPoints">0</strong></article>
       </section>
 
@@ -59,9 +61,18 @@
         <div class="section-head">
           <div>
             <h2>Fazer prognósticos</h2>
-            <p>Coloca o resultado que achas que vai acontecer. Depois do resultado real, bloqueia.</p>
+            <p>Coloca o resultado que achas que vai acontecer. A aposta fecha automaticamente quando chega a hora do jogo.</p>
           </div>
           <button id="refreshBtn" class="secondary">Atualizar</button>
+        </div>
+        <div class="toolbar">
+          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa ou estádio..." />
+          <div class="filter-row">
+            <button class="filter-chip active" data-filter="all">Todos</button>
+            <button class="filter-chip" data-filter="open">Abertos</button>
+            <button class="filter-chip" data-filter="locked">Fechados</button>
+            <button class="filter-chip" data-filter="finished">Terminados</button>
+          </div>
         </div>
         <div id="gamesList" class="list"></div>
       </section>
@@ -106,14 +117,20 @@
               <label>Data / hora
                 <input id="matchDateInput" type="datetime-local" />
               </label>
+              <label>Estádio / local
+                <input id="venueInput" type="text" placeholder="Ex: Houston Stadium" />
+              </label>
             </div>
-            <button id="addGameBtn" class="primary">Adicionar jogo</button>
+            <div class="admin-actions">
+              <button id="addGameBtn" class="primary">Adicionar jogo</button>
+              <button id="resetSeedBtn" class="secondary">Repor lista Mundial 2026</button>
+            </div>
           </div>
 
           <div class="section-head admin-title">
             <div>
               <h2>Resultados</h2>
-              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente.</p>
+              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente. Na próxima fase isto fica ligado a API/Firebase.</p>
             </div>
           </div>
           <div id="adminGamesList" class="list"></div>
@@ -125,6 +142,7 @@
           <article class="glass-card rule-card"><strong>+1</strong><span>Acertar vencedor ou empate, sem acertar o resultado.</span></article>
           <article class="glass-card rule-card"><strong>+3</strong><span>Acertar o resultado exato.</span></article>
           <article class="glass-card rule-card"><strong>0</strong><span>Não acertar vencedor, empate ou resultado.</span></article>
+          <article class="glass-card rule-card"><strong>🔒</strong><span>Apostas fecham automaticamente quando chega a hora do jogo.</span></article>
         </div>
       </section>
     </main>
