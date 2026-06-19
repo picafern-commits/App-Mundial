@@ -398,3 +398,14 @@ background:linear-gradient(135deg,rgba(0,120,40,.25),rgba(180,0,0,.25));}
 background:linear-gradient(90deg,#0a7a3d,#b40000);font-weight:700}
 .mini-card.accent{background:linear-gradient(135deg,#0a7a3d,#b40000)}
 .tabs{position:sticky;top:10px;z-index:5}
+
+.wc-banner{height:260px;border-radius:30px;margin-bottom:20px;
+background:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.45)),
+url('https://images.unsplash.com/photo-1547347298-4074fc3086f0?q=80&w=1200') center/cover;
+display:flex;align-items:end;padding:24px}
+.wc-overlay h2{font-size:42px;margin:0}
+.quick-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.quick-actions button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:white;padding:12px 16px;border-radius:14px}
+.game-card{transition:.25s}
+.game-card:hover{transform:translateY(-4px) scale(1.01)}
+.score-overview{position:sticky;top:0;z-index:4;background:rgba(8,16,31,.7);backdrop-filter:blur(12px);padding:10px;border-radius:20px}
