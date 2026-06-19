@@ -1183,3 +1183,12 @@ h2 {
 .import-status-box.error strong{
   color:#ff9a9a;
 }
+
+
+/* v35 refresh/apostas corrigido */
+.import-status-box.success strong::before{
+  content:"✓ ";
+}
+.import-status-box.error strong::before{
+  content:"⚠ ";
+}

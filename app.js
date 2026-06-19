@@ -249,24 +249,36 @@ function mergeSettings(input = {}) {
 function getLocalData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings() };
+    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings(), savedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return data;
   }
   try {
     const parsed = JSON.parse(raw);
+    const parsedSettings = parsed.settings || parsed.appSettings || defaultSettings();
     return {
       games: Array.isArray(parsed.games) && parsed.games.length ? parsed.games : clone(SEED_GAMES),
       bets: Array.isArray(parsed.bets) ? parsed.bets : [],
-      settings: mergeSettings(parsed.settings)
+      settings: mergeSettings(parsedSettings),
+      savedAt: parsed.savedAt || ""
     };
   } catch {
-    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings() };
+    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings(), savedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return data;
   }
 }
-function saveLocalData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ games, bets, settings: appSettings })); }
+
+function saveLocalData(reason = "") {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    games,
+    bets,
+    settings: appSettings,
+    appSettings,
+    savedAt: new Date().toISOString(),
+    reason
+  }));
+}
 
 async function initFirebase() {
   const config = APP_CONFIG.firebase || {};
@@ -284,14 +296,40 @@ async function initFirebase() {
   }
 }
 
+
+function applyLocalSnapshotIfBetter(context = "") {
+  try {
+    const local = getLocalData();
+    const localBets = normalizeBets(local.bets || []);
+    const localGames = normalizeGames(local.games || []);
+    const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
+
+    const localHasMoreBets = localBets.length > bets.length;
+    const localHasUsersAndRemoteEmpty = (localSettings.users || []).length > (appSettings.users || []).length && bets.length === 0;
+    const localHasResults = localGames.some(hasResult) && !games.some(hasResult);
+
+    if (localHasMoreBets || localHasUsersAndRemoteEmpty || localHasResults) {
+      games = localGames;
+      bets = localBets;
+      appSettings = localSettings;
+      if (storageMode === "firebase") {
+        setTimeout(() => forceSaveAll(`recuperado local ${context}`), 250);
+      }
+    }
+  } catch (error) {
+    console.warn("Não foi possível comparar dados locais.", error);
+  }
+}
+
 async function loadData() {
   if (!db || !firebaseApi) {
     const local = getLocalData();
     games = normalizeGames(local.games);
     bets = normalizeBets(local.bets);
     appSettings = mergeSettings(local.settings);
+    applyLocalSnapshotIfBetter("modo local");
     rescueLocalBetsIfNeeded();
-  renderAll();
+    renderAll();
     return;
   }
   try {
@@ -312,6 +350,7 @@ async function loadData() {
     appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : defaultSettings());
     games = normalizeGames(games);
     storageMode = "firebase";
+    applyLocalSnapshotIfBetter("apos firebase");
     renderAll();
   } catch (error) {
     console.warn("Erro no Firebase. A usar dados locais.", error);
@@ -320,6 +359,7 @@ async function loadData() {
     games = normalizeGames(local.games);
     bets = normalizeBets(local.bets);
     appSettings = mergeSettings(local.settings);
+    applyLocalSnapshotIfBetter("firebase falhou");
     renderAll();
     toast("Firebase falhou. A app continua em modo local.");
   }
@@ -340,54 +380,84 @@ function normalizeBets(list) {
 }
 
 async function persistGame(game) {
-  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  saveLocalData("persistGame local-primeiro");
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
   try {
     const { doc, setDoc } = firebaseApi;
     await setDoc(doc(db, "games", game.id), game, { merge: true });
+    saveLocalData("persistGame firebase-ok");
   } catch (error) {
     console.warn(error);
     storageMode = "local";
-    saveLocalData();
+    saveLocalData("persistGame firebase-fallback");
     toast("Firebase falhou. Resultado guardado localmente.");
   }
 }
+
 async function persistAllGames() {
-  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
-  const { doc, setDoc } = firebaseApi;
-  await Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
-}
-async function persistBet(bet) {
-  bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
-  bets.push(bet);
-  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  saveLocalData("persistAllGames local-primeiro");
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
   try {
     const { doc, setDoc } = firebaseApi;
-    await setDoc(doc(db, "bets", bet.id), bet, { merge: true });
+    await Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
+    saveLocalData("persistAllGames firebase-ok");
   } catch (error) {
     console.warn(error);
     storageMode = "local";
-    saveLocalData();
+    saveLocalData("persistAllGames firebase-fallback");
+  }
+}
+
+async function persistBet(bet) {
+  bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
+  bets.push(bet);
+  saveLocalData("persistBet local-primeiro");
+
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "bets", bet.id), bet, { merge: true });
+    saveLocalData("persistBet firebase-ok");
+  } catch (error) {
+    console.warn(error);
+    storageMode = "local";
+    saveLocalData("persistBet firebase-fallback");
     toast("Firebase falhou. Aposta guardada localmente.");
   }
 }
+
 async function persistAllBets(importedBets, replaceImported = true) {
   if (replaceImported) bets = bets.filter(bet => bet.source !== "Resultados.xlsx");
   const byKey = new Map(bets.map(bet => [`${bet.playerId}_${bet.gameId}`, bet]));
   importedBets.forEach(bet => byKey.set(`${bet.playerId}_${bet.gameId}`, bet));
   bets = [...byKey.values()];
-  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
-  const { doc, setDoc } = firebaseApi;
-  await Promise.all(importedBets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })));
-}
-async function persistSettings() {
-  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  saveLocalData("persistAllBets local-primeiro");
+
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+
   try {
     const { doc, setDoc } = firebaseApi;
-    await setDoc(doc(db, "settings", "main"), appSettings, { merge: true });
+    await Promise.all(bets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })));
+    saveLocalData("persistAllBets firebase-ok");
   } catch (error) {
     console.warn(error);
     storageMode = "local";
-    saveLocalData();
+    saveLocalData("persistAllBets firebase-fallback");
+    toast("Firebase falhou. Apostas guardadas localmente.");
+  }
+}
+
+async function persistSettings() {
+  saveLocalData("persistSettings local-primeiro");
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "settings", "main"), appSettings, { merge: true });
+    saveLocalData("persistSettings firebase-ok");
+  } catch (error) {
+    console.warn(error);
+    storageMode = "local";
+    saveLocalData("persistSettings firebase-fallback");
     toast("Firebase falhou. Configurações guardadas localmente.");
   }
 }
@@ -477,39 +547,41 @@ function groupByDate(list) {
 
 
 async function forceSaveAll(reason = "") {
+  saveLocalData(reason);
+
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+
   try {
-    await saveAll();
-    // Garante cópia local mesmo quando Firebase está ativo/lento.
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      games,
-      bets,
-      appSettings,
-      savedAt: new Date().toISOString(),
-      reason
-    }));
+    const { collection, doc, getDocs, writeBatch } = firebaseApi;
+    const batch = writeBatch(db);
+
+    games.forEach(game => {
+      batch.set(doc(db, "games", game.id), game, { merge: true });
+    });
+
+    bets.forEach(bet => {
+      batch.set(doc(db, "bets", bet.id), bet, { merge: true });
+    });
+
+    batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
+    await batch.commit();
+    saveLocalData(`${reason} firebase-ok`);
   } catch (error) {
-    console.error("Erro ao guardar dados:", error);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      games,
-      bets,
-      appSettings,
-      savedAt: new Date().toISOString(),
-      reason: `${reason} fallback`
-    }));
+    console.warn("Firebase falhou ao guardar tudo. Dados ficam locais.", error);
+    storageMode = "local";
+    saveLocalData(`${reason} firebase-fallback`);
   }
 }
 
 
 function rescueLocalBetsIfNeeded() {
   try {
-    if (bets.length) return;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (Array.isArray(data?.bets) && data.bets.length) {
-      bets = data.bets;
-      if (Array.isArray(data.games) && data.games.length) games = data.games;
-      if (data.appSettings) appSettings = mergeSettings(data.appSettings);
+    const local = getLocalData();
+    if (!bets.length && Array.isArray(local.bets) && local.bets.length) {
+      bets = normalizeBets(local.bets);
+    }
+    if (local.settings || local.appSettings) {
+      appSettings = mergeSettings(local.settings || local.appSettings);
     }
   } catch (error) {
     console.warn("Não foi possível recuperar apostas locais.", error);
@@ -1116,13 +1188,17 @@ async function confirmExcelImport() {
   Object.keys(pendingExcelImport.importedPoints || {}).forEach(name => importedUsers.add(name));
   appSettings.users = [...importedUsers].filter(Boolean).sort((a, b) => a.localeCompare(b));
   appSettings.lastImport = { at: new Date().toISOString(), bets: pendingExcelImport.bets.length, players: new Set(pendingExcelImport.bets.map(bet => bet.playerName)).size, results: pendingExcelImport.results.length };
-  await persistAllBets(pendingExcelImport.bets, replace);
+  const importResult = pendingExcelImport;
+  await persistAllBets(importResult.bets, replace);
   await persistAllGames();
   await persistSettings();
+  await forceSaveAll("confirmar import excel");
+  importStatusFromResult(importResult);
   pendingExcelImport = null;
   $("excelModal").classList.add("hidden");
   $("confirmExcelImportBtn").disabled = true;
   renderAll();
+  setImportStatus("success", "Excel importado e guardado", "As apostas foram gravadas. Podes atualizar a página sem perder os dados.");
   toast("Excel importado. Classificação recalculada.");
 }
 async function savePointsSettings() {
@@ -1470,15 +1546,7 @@ document.addEventListener("click", event => {
 });
 
 window.addEventListener("beforeunload", () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      games,
-      bets,
-      appSettings,
-      savedAt: new Date().toISOString(),
-      reason: "beforeunload"
-    }));
-  } catch {}
+  try { saveLocalData("beforeunload"); } catch {}
 });
 
 await initFirebase();
