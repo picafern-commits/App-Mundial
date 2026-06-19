@@ -15,3 +15,7 @@ protegida por autenticacao anonima do Firebase.
 Nesta versao, os botoes de guardar nao ficam a espera do Firebase. A app grava
 primeiro no browser e tenta sincronizar em segundo plano. Se aparecer
 "sincronizacao pendente", confirma os passos 1 a 4 acima e volta a abrir a app.
+
+A sincronizacao em segundo plano grava em lotes pequenos e nao le a colecao
+inteira de apostas, para evitar erros de "tempo esgotado" quando houver muitos
+registos no Firestore.
