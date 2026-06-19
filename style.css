@@ -1233,3 +1233,9 @@ button:disabled{
 .firebase-status-box.success::after{
   content:"";
 }
+
+
+/* v39 Firebase load robusto */
+.firebase-status-box{
+  overflow-wrap:anywhere;
+}
