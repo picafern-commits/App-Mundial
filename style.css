@@ -409,3 +409,10 @@ display:flex;align-items:end;padding:24px}
 .game-card{transition:.25s}
 .game-card:hover{transform:translateY(-4px) scale(1.01)}
 .score-overview{position:sticky;top:0;z-index:4;background:rgba(8,16,31,.7);backdrop-filter:blur(12px);padding:10px;border-radius:20px}
+
+.premium-hub{margin:20px 0}
+.hero-world{padding:32px;border-radius:32px;background:linear-gradient(135deg,#0a7a3d,#8b0000);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.hero-world h2{font-size:38px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px}
+.hub-card{padding:18px;border-radius:20px;background:rgba(255,255,255,.15);backdrop-filter:blur(8px);font-weight:700;text-align:center}
+.game-card,.match-card{border:1px solid rgba(255,215,0,.2)!important;box-shadow:0 10px 30px rgba(0,0,0,.25)}
