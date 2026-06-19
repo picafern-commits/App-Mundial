@@ -11,3 +11,7 @@ Para a app gravar no Firebase:
 Nota: o PIN desta app protege apenas a interface. Como e uma app esttica no browser,
 as regras do Firestore nao conseguem validar esse PIN. Por isso a escrita fica
 protegida por autenticacao anonima do Firebase.
+
+Nesta versao, os botoes de guardar nao ficam a espera do Firebase. A app grava
+primeiro no browser e tenta sincronizar em segundo plano. Se aparecer
+"sincronizacao pendente", confirma os passos 1 a 4 acima e volta a abrir a app.

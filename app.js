@@ -2,6 +2,7 @@ const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const STORAGE_KEY = "mundial_pontos_2026_import_id_jogo_v32";
 const PENDING_FIREBASE_KEY = `${STORAGE_KEY}_pending_games_v1`;
+const PENDING_FULL_SYNC_KEY = `${STORAGE_KEY}_pending_full_sync_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -16,6 +17,7 @@ let calendarViewMode = "missing";
 let selectedEditUser = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 let pendingExcelImport = null;
+let fullSyncTimer = null;
 
 const MATCH_ROWS = [
   ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
@@ -365,6 +367,50 @@ function clearPendingGame(gameId) {
   setPendingGameIds(pendingGameIds().filter(id => id !== gameId));
 }
 
+function hasFullSyncPending() {
+  return localStorage.getItem(PENDING_FULL_SYNC_KEY) === "1";
+}
+
+function markFullSyncPending() {
+  localStorage.setItem(PENDING_FULL_SYNC_KEY, "1");
+}
+
+function clearFullSyncPending() {
+  localStorage.removeItem(PENDING_FULL_SYNC_KEY);
+}
+
+function scheduleFullSync(reason = "sincronizar dados", delay = 500) {
+  markFullSyncPending();
+  saveLocalData(`${reason} pendente`);
+
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    setFirebaseStatus("error", "Firebase: dados guardados localmente; sincronizacao pendente");
+    return;
+  }
+
+  if (fullSyncTimer) clearTimeout(fullSyncTimer);
+  fullSyncTimer = setTimeout(() => {
+    fullSyncTimer = null;
+    retryPendingFullSync(reason).catch(console.warn);
+  }, delay);
+}
+
+async function retryPendingFullSync(reason = "sincronizar pendentes") {
+  if (!hasFullSyncPending()) return;
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+
+  try {
+    setFirebaseStatus("loading", "Firebase: a sincronizar dados pendentes...");
+    await syncFirebaseFull(reason);
+    clearFullSyncPending();
+    setFirebaseStatus("success", "Firebase: dados pendentes sincronizados");
+  } catch (error) {
+    console.warn("Sincronizacao completa ainda pendente:", error);
+    markFullSyncPending();
+    setFirebaseStatus("error", `Firebase: sincronizacao pendente (${shortFirebaseError(error)})`);
+  }
+}
+
 async function retryPendingGameSaves(reason = "reenviar pendentes") {
   if (!db || !firebaseApi || storageMode !== "firebase") return;
   const ids = pendingGameIds();
@@ -538,6 +584,7 @@ async function loadData() {
       setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
     }
     setTimeout(() => retryPendingGameSaves("arranque").catch(console.warn), 700);
+    setTimeout(() => retryPendingFullSync("arranque").catch(console.warn), 1000);
   } catch (error) {
     console.error("Erro ao carregar Firebase:", error);
     games = normalizeGames(local.games);
@@ -570,23 +617,21 @@ async function persistGame(game) {
 async function persistAllGames() {
   saveLocalData("guardar todos jogos local");
 
-  if (!db || !firebaseApi || storageMode !== "firebase") return;
-
-  const { doc, writeBatch } = firebaseApi;
-  const batch = writeBatch(db);
+  /*
+   * As gravacoes completas ficam em segundo plano para a interface nao bloquear
+   * quando o Firestore esta lento, offline ou sem permissoes.
+   */
   games.forEach(game => {
     if (hasResult(game) && !game.updatedAt) stampGame(game, "migração resultado existente");
-    batch.set(doc(db, "games", game.id), game, { merge: true });
   });
-  await withTimeout(batch.commit(), 15000, "guardar jogos");
-  saveLocalData("guardar todos jogos firebase-ok");
+  scheduleFullSync("guardar jogos", 300);
 }
 
 async function persistBet(bet) {
   bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
   bets.push(bet);
   saveLocalData("persistBet local-primeiro");
-  await forceSaveAll("guardar aposta");
+  scheduleFullSync("guardar aposta", 300);
 }
 
 async function persistAllBets(importedBets, replaceImported = true) {
@@ -594,11 +639,13 @@ async function persistAllBets(importedBets, replaceImported = true) {
   const byKey = new Map(bets.map(bet => [`${bet.playerId}_${bet.gameId}`, bet]));
   importedBets.forEach(bet => byKey.set(`${bet.playerId}_${bet.gameId}`, bet));
   bets = [...byKey.values()];
-  await saveBetsFastToFirebase("importar apostas");
+  saveLocalData("importar apostas local");
+  scheduleFullSync("importar apostas", 300);
 }
 
 async function persistSettings() {
-  await saveSettingsFastToFirebase("guardar configurações");
+  saveLocalData("guardar configuracoes local");
+  scheduleFullSync("guardar configuracoes", 300);
 }
 
 function betsForGame(gameId) { return bets.filter(bet => bet.gameId === gameId); }
@@ -780,40 +827,50 @@ async function saveUserBetsFastToFirebase(playerId, previousBetIds, playerBets, 
   return true;
 }
 
+async function commitFirestoreOperations(operations, reason = "sincronizar dados") {
+  if (!operations.length) return;
+  const { writeBatch } = firebaseApi;
+  for (let i = 0; i < operations.length; i += 450) {
+    const batch = writeBatch(db);
+    operations.slice(i, i + 450).forEach(operation => operation(batch));
+    await withTimeout(batch.commit(), 15000, `${reason} (${Math.floor(i / 450) + 1})`);
+  }
+}
+
 async function syncFirebaseFull(reason = "") {
   if (!db || !firebaseApi || storageMode !== "firebase") {
     saveLocalData(`${reason} local-only`);
     return false;
   }
 
-  const { collection, doc, getDocs, writeBatch } = firebaseApi;
-  const batch = writeBatch(db);
+  const { collection, doc, getDocs } = firebaseApi;
 
   const gameIds = new Set(games.map(game => game.id));
   const betIds = new Set(bets.map(bet => bet.id));
+  const operations = [];
 
   games.forEach(game => {
-    batch.set(doc(db, "games", game.id), game, { merge: true });
+    operations.push(batch => batch.set(doc(db, "games", game.id), game, { merge: true }));
   });
 
   bets.forEach(bet => {
-    batch.set(doc(db, "bets", bet.id), bet, { merge: true });
+    operations.push(batch => batch.set(doc(db, "bets", bet.id), bet, { merge: true }));
   });
 
-  batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
+  operations.push(batch => batch.set(doc(db, "settings", "main"), appSettings, { merge: true }));
 
-  const remoteBets = await getDocs(collection(db, "bets"));
+  const remoteBets = await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas remotas");
   remoteBets.forEach(item => {
-    if (!betIds.has(item.id)) batch.delete(item.ref);
+    if (!betIds.has(item.id)) operations.push(batch => batch.delete(item.ref));
   });
 
   // Jogos não costumam ser apagados, mas se algum lixo antigo existir no Firebase, remove.
-  const remoteGames = await getDocs(collection(db, "games"));
+  const remoteGames = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos remotos");
   remoteGames.forEach(item => {
-    if (!gameIds.has(item.id)) batch.delete(item.ref);
+    if (!gameIds.has(item.id)) operations.push(batch => batch.delete(item.ref));
   });
 
-  await batch.commit();
+  await commitFirestoreOperations(operations, reason || "sincronizar dados");
   saveLocalData(`${reason} firebase-full-ok`);
   setFirebaseStatus("success", "Firebase: dados guardados e sincronizados");
   return true;
@@ -822,20 +879,7 @@ async function syncFirebaseFull(reason = "") {
 async function forceSaveAll(reason = "") {
   saveLocalData(reason);
 
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    setFirebaseStatus("error", "Firebase: não está ligado — dados guardados localmente");
-    return;
-  }
-
-  try {
-    await saveSettingsFastToFirebase(`${reason} settings`);
-    await saveBetsFastToFirebase(`${reason} bets`);
-    setFirebaseStatus("success", "Firebase: dados guardados");
-  } catch (error) {
-    console.error("Erro ao guardar no Firebase:", error);
-    setFirebaseStatus("error", `Firebase: erro ao guardar (${error.message || "erro"})`);
-    throw error;
-  }
+  scheduleFullSync(reason || "guardar dados", 300);
 }
 
 
@@ -1093,33 +1137,24 @@ async function saveEditedUserBets() {
     appSettings.users.push(playerName);
   }
 
-  const btn = $("saveUserBetsBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "A guardar...";
-  }
+  saveLocalData("editar apostas utilizador local");
+  renderAll();
+  toast(`Apostas de ${playerName} guardadas.`);
 
-  try {
-    const saved = await saveUserBetsFastToFirebase(playerId, previousPlayerBetIds, newPlayerBets);
-    renderAll();
-    if (saved) {
-      setFirebaseStatus("success", `Firebase: apostas de ${playerName} guardadas`);
-      toast(`Apostas de ${playerName} guardadas.`);
-    } else {
+  saveUserBetsFastToFirebase(playerId, previousPlayerBetIds, newPlayerBets)
+    .then(saved => {
+      if (saved) {
+        setFirebaseStatus("success", `Firebase: apostas de ${playerName} guardadas`);
+        return;
+      }
+      scheduleFullSync("editar apostas utilizador", 800);
       setFirebaseStatus("error", "Firebase: nao ligado - apostas guardadas localmente");
-      toast(`Apostas de ${playerName} guardadas localmente.`);
-    }
-  } catch (error) {
-    console.error("Falhou guardar apostas do utilizador no Firebase:", error);
-    saveLocalData("editar apostas utilizador pendente firebase");
-    setFirebaseStatus("error", `Firebase: erro ao guardar apostas (${shortFirebaseError(error)})`);
-    toast(`Apostas de ${playerName} guardadas localmente.`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "Guardar alterações";
-    }
-  }
+    })
+    .catch(error => {
+      console.error("Falhou guardar apostas do utilizador no Firebase:", error);
+      scheduleFullSync("editar apostas utilizador", 1200);
+      setFirebaseStatus("error", `Firebase: erro ao guardar apostas (${shortFirebaseError(error)})`);
+    });
 }
 
 function clearUserGameRow(button) {
