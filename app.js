@@ -1,10 +1,16 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const STORAGE_KEY = "mundial_pontos_2026_import_id_jogo_v32";
+const PENDING_FIREBASE_KEY = `${STORAGE_KEY}_pending_games_v1`;
+const PENDING_FULL_SYNC_KEY = `${STORAGE_KEY}_pending_full_sync_v1`;
+const PENDING_DELETE_BETS_KEY = `${STORAGE_KEY}_pending_delete_bets_v1`;
+const PENDING_BETS_KEY = `${STORAGE_KEY}_pending_bets_v1`;
+const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
 let firebaseApi = null;
+let firebaseAuth = null;
 let storageMode = "local";
 let games = [];
 let bets = [];
@@ -14,6 +20,7 @@ let calendarViewMode = "missing";
 let selectedEditUser = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 let pendingExcelImport = null;
+let fullSyncTimer = null;
 
 const MATCH_ROWS = [
   ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
@@ -290,6 +297,207 @@ function withTimeout(promise, ms = 12000, label = "operação") {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+function firebaseTimestampToMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function gameUpdatedMillis(game) {
+  return Math.max(
+    firebaseTimestampToMillis(game?.updatedAt),
+    firebaseTimestampToMillis(game?.firebaseUpdatedAt)
+  );
+}
+
+function stampGame(game, reason = "") {
+  game.updatedAt = new Date().toISOString();
+  game.updatedReason = reason;
+  return game;
+}
+
+function mergeGamesByNewest(remoteGames = [], localGames = []) {
+  const byId = new Map(clone(SEED_GAMES).map(game => [game.id, game]));
+  const remoteById = new Map(normalizeGames(remoteGames).map(game => [game.id, game]));
+  const localById = new Map(normalizeGames(localGames).map(game => [game.id, game]));
+
+  byId.forEach((seed, id) => {
+    const remote = remoteById.get(id);
+    const local = localById.get(id);
+    if (!remote && !local) return;
+    if (!remote) { byId.set(id, { ...seed, ...local }); return; }
+    if (!local) { byId.set(id, { ...seed, ...remote }); return; }
+
+    const remoteTime = gameUpdatedMillis(remote);
+    const localTime = gameUpdatedMillis(local);
+    if (localTime > remoteTime) {
+      byId.set(id, { ...seed, ...remote, ...local });
+      return;
+    }
+    if (remoteTime > localTime) {
+      byId.set(id, { ...seed, ...local, ...remote });
+      return;
+    }
+
+    if (hasResult(local) && !hasResult(remote)) byId.set(id, { ...seed, ...remote, ...local });
+    else byId.set(id, { ...seed, ...local, ...remote });
+  });
+
+  return [...byId.values()].sort((a, b) => String(a.matchDate).localeCompare(String(b.matchDate)));
+}
+
+function pendingGameIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(PENDING_FIREBASE_KEY) || "[]");
+    return Array.isArray(ids) ? ids.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPendingGameIds(ids) {
+  localStorage.setItem(PENDING_FIREBASE_KEY, JSON.stringify([...new Set(ids)].filter(Boolean)));
+}
+
+function markGamePending(gameId) {
+  setPendingGameIds([...pendingGameIds(), gameId]);
+}
+
+function clearPendingGame(gameId) {
+  setPendingGameIds(pendingGameIds().filter(id => id !== gameId));
+}
+
+function pendingBetIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(PENDING_BETS_KEY) || "[]");
+    return Array.isArray(ids) ? ids.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPendingBetIds(ids) {
+  localStorage.setItem(PENDING_BETS_KEY, JSON.stringify([...new Set(ids)].filter(Boolean)));
+}
+
+function markBetsPending(ids) {
+  if (!ids.length) return;
+  setPendingBetIds([...pendingBetIds(), ...ids]);
+}
+
+function clearPendingBets(ids) {
+  const done = new Set(ids);
+  setPendingBetIds(pendingBetIds().filter(id => !done.has(id)));
+}
+
+function pendingDeleteBetIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(PENDING_DELETE_BETS_KEY) || "[]");
+    return Array.isArray(ids) ? ids.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPendingDeleteBetIds(ids) {
+  localStorage.setItem(PENDING_DELETE_BETS_KEY, JSON.stringify([...new Set(ids)].filter(Boolean)));
+}
+
+function markBetsForDelete(ids) {
+  if (!ids.length) return;
+  setPendingDeleteBetIds([...pendingDeleteBetIds(), ...ids]);
+}
+
+function clearPendingDeleteBets(ids) {
+  const done = new Set(ids);
+  setPendingDeleteBetIds(pendingDeleteBetIds().filter(id => !done.has(id)));
+}
+
+function markSettingsPending() {
+  localStorage.setItem(PENDING_SETTINGS_KEY, "1");
+}
+
+function hasSettingsPending() {
+  return localStorage.getItem(PENDING_SETTINGS_KEY) === "1";
+}
+
+function clearSettingsPending() {
+  localStorage.removeItem(PENDING_SETTINGS_KEY);
+}
+
+function hasFullSyncPending() {
+  return localStorage.getItem(PENDING_FULL_SYNC_KEY) === "1";
+}
+
+function markFullSyncPending() {
+  localStorage.setItem(PENDING_FULL_SYNC_KEY, "1");
+}
+
+function clearFullSyncPending() {
+  localStorage.removeItem(PENDING_FULL_SYNC_KEY);
+}
+
+function scheduleFullSync(reason = "sincronizar dados", delay = 500) {
+  markFullSyncPending();
+  saveLocalData(`${reason} pendente`);
+
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    setFirebaseStatus("error", "Firebase: dados guardados localmente; sincronizacao pendente");
+    return;
+  }
+
+  if (fullSyncTimer) clearTimeout(fullSyncTimer);
+  fullSyncTimer = setTimeout(() => {
+    fullSyncTimer = null;
+    retryPendingFullSync(reason).catch(console.warn);
+  }, delay);
+}
+
+async function retryPendingFullSync(reason = "sincronizar pendentes") {
+  if (!hasFullSyncPending()) return;
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+
+  try {
+    setFirebaseStatus("loading", "Firebase: a sincronizar dados pendentes...");
+    await syncFirebaseFull(reason);
+    clearFullSyncPending();
+    setFirebaseStatus("success", "Firebase: dados pendentes sincronizados");
+  } catch (error) {
+    console.warn("Sincronizacao completa ainda pendente:", error);
+    markFullSyncPending();
+    setFirebaseStatus("error", `Firebase: sincronizacao pendente (${shortFirebaseError(error)})`);
+  }
+}
+
+async function retryPendingGameSaves(reason = "reenviar pendentes") {
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+  const ids = pendingGameIds();
+  if (!ids.length) return;
+
+  setFirebaseStatus("loading", `Firebase: a sincronizar ${ids.length} resultado(s) pendente(s)...`);
+  for (const gameId of ids) {
+    const game = games.find(item => item.id === gameId);
+    if (!game) {
+      clearPendingGame(gameId);
+      continue;
+    }
+    try {
+      await saveGameFastToFirebase(game, { status: false, reason });
+      clearPendingGame(gameId);
+    } catch (error) {
+      console.warn("Resultado pendente ainda nao sincronizou:", gameId, error);
+      break;
+    }
+  }
+
+  const left = pendingGameIds().length;
+  if (left) setFirebaseStatus("error", `Firebase: ${left} resultado(s) ainda pendente(s)`);
+  else setFirebaseStatus("success", "Firebase: resultados pendentes sincronizados");
+}
+
 function setFirebaseStatus(type, message) {
   const box = $("firebaseStatusBox");
   if (!box) return;
@@ -303,6 +511,7 @@ async function initFirebase() {
   if (!config.apiKey || !config.projectId) {
     db = null;
     firebaseApi = null;
+    firebaseAuth = null;
     storageMode = "local";
     setFirebaseStatus("error", "Firebase: configuração em falta no config.js");
     return false;
@@ -311,9 +520,13 @@ async function initFirebase() {
   try {
     setFirebaseStatus("loading", "Firebase: a ligar...");
     const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+    const authModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
     const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
 
     const app = appModule.initializeApp(config);
+    firebaseAuth = authModule.getAuth(app);
+    await withTimeout(authModule.signInAnonymously(firebaseAuth), 12000, "autenticar no Firebase");
+
     db = firestoreModule.getFirestore(app);
     firebaseApi = firestoreModule;
     storageMode = "firebase";
@@ -324,6 +537,7 @@ async function initFirebase() {
     console.error("Firebase não ligou:", error);
     db = null;
     firebaseApi = null;
+    firebaseAuth = null;
     storageMode = "local";
     setFirebaseStatus("error", `Firebase: não ligou — ${error.message || "erro"}`);
     return false;
@@ -392,20 +606,28 @@ async function loadData() {
     setFirebaseStatus("loading", "Firebase: a carregar dados...");
     const { collection, doc, getDocs, setDoc } = firebaseApi;
 
-    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
-    const betsSnap = await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
-    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
-
     const localGames = normalizeGames(local.games || []);
     const localBets = normalizeBets(local.bets || []);
     const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
+
+    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
+    const betsSnap = localBets.length
+      ? { docs: [], skipped: true }
+      : await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
+    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
 
     const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
     const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
     const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
 
     if (remoteGames.length) {
-      games = (typeof mergeGamesByNewest === "function") ? mergeGamesByNewest(remoteGames, localGames) : normalizeGames(remoteGames);
+      localGames.forEach(localGame => {
+        const remoteGame = remoteGames.find(item => item.id === localGame.id);
+        if (hasResult(localGame) && (!remoteGame || !hasResult(remoteGame) || gameUpdatedMillis(localGame) > gameUpdatedMillis(remoteGame))) {
+          markGamePending(localGame.id);
+        }
+      });
+      games = mergeGamesByNewest(remoteGames, localGames);
     } else {
       games = localGames.length ? localGames : clone(SEED_GAMES);
       setTimeout(() => {
@@ -421,9 +643,11 @@ async function loadData() {
     setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas carregadas`);
     renderAll();
 
-    if (!remoteBets.length && localBets.length) {
+    if (!betsSnap.skipped && !remoteBets.length && localBets.length && pendingBetIds().length) {
       setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
     }
+    setTimeout(() => retryPendingGameSaves("arranque").catch(console.warn), 700);
+    setTimeout(() => retryPendingFullSync("arranque").catch(console.warn), 1000);
   } catch (error) {
     console.error("Erro ao carregar Firebase:", error);
     games = normalizeGames(local.games);
@@ -456,78 +680,83 @@ async function persistGame(game) {
 async function persistAllGames() {
   saveLocalData("guardar todos jogos local");
 
-  if (!db || !firebaseApi || storageMode !== "firebase") return;
-
-  const { doc, writeBatch } = firebaseApi;
-  const batch = writeBatch(db);
+  /*
+   * As gravacoes completas ficam em segundo plano para a interface nao bloquear
+   * quando o Firestore esta lento, offline ou sem permissoes.
+   */
   games.forEach(game => {
     if (hasResult(game) && !game.updatedAt) stampGame(game, "migração resultado existente");
-    batch.set(doc(db, "games", game.id), game, { merge: true });
   });
-  await withTimeout(batch.commit(), 15000, "guardar jogos");
-  saveLocalData("guardar todos jogos firebase-ok");
+  games.forEach(game => markGamePending(game.id));
+  scheduleFullSync("guardar jogos", 300);
 }
 
 async function persistBet(bet) {
   bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
   bets.push(bet);
+  markBetsPending([bet.id]);
   saveLocalData("persistBet local-primeiro");
-  await forceSaveAll("guardar aposta");
+  scheduleFullSync("guardar aposta", 300);
 }
 
 async function persistAllBets(importedBets, replaceImported = true) {
-  if (replaceImported) bets = bets.filter(bet => bet.source !== "Resultados.xlsx");
+  if (replaceImported) {
+    const removedIds = bets.filter(bet => bet.source === "Resultados.xlsx").map(bet => bet.id);
+    markBetsForDelete(removedIds);
+    bets = bets.filter(bet => bet.source !== "Resultados.xlsx");
+  }
   const byKey = new Map(bets.map(bet => [`${bet.playerId}_${bet.gameId}`, bet]));
   importedBets.forEach(bet => byKey.set(`${bet.playerId}_${bet.gameId}`, bet));
   bets = [...byKey.values()];
-  await saveBetsFastToFirebase("importar apostas");
+  markBetsPending(importedBets.map(bet => bet.id));
+  saveLocalData("importar apostas local");
+  scheduleFullSync("importar apostas", 300);
 }
 
 async function persistSettings() {
-  await saveSettingsFastToFirebase("guardar configurações");
+  markSettingsPending();
+  saveLocalData("guardar configuracoes local");
+  scheduleFullSync("guardar configuracoes", 300);
 }
 
 function betsForGame(gameId) { return bets.filter(bet => bet.gameId === gameId); }
+
+function isExactBet(bet, game) {
+  if (!bet || !game || !hasResult(game)) return false;
+  return Number(bet.homeGuess) === Number(game.homeScore) &&
+    Number(bet.awayGuess) === Number(game.awayScore);
+}
+
+function isOutcomeBet(bet, game) {
+  if (!bet || !game || !hasResult(game)) return false;
+  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore);
+}
+
 function pointsForBet(bet, game) {
   if (!bet || !game || !hasResult(game)) return 0;
 
-  const exactPoints = Number(appSettings?.points?.exact) || 0;
-  const winnerPoints = Number(appSettings?.points?.winner) || 0;
+  const exactPoints = Number(appSettings?.points?.exact) || 3;
+  const winnerPoints = Number(appSettings?.points?.winner) || 1;
 
-  const homeGuess = Number(bet.homeGuess);
-  const awayGuess = Number(bet.awayGuess);
-  const homeScore = Number(game.homeScore);
-  const awayScore = Number(game.awayScore);
+  // Regra 1: resultado exato certo recebe 3 pontos.
+  // Regra 2: se acertar o resultado exato, não acumula o ponto do vencedor/empate.
+  if (isExactBet(bet, game)) return exactPoints;
 
-  const exact = homeGuess === homeScore && awayGuess === awayScore;
-  if (exact) return exactPoints;
+  // Regra 3: se não acertou o resultado, mas acertou vencedor/empate, recebe 1 ponto.
+  if (isOutcomeBet(bet, game)) return winnerPoints;
 
-  if (!winnerPoints) return 0;
-
-  const guessedOutcome = outcome(homeGuess, awayGuess);
-  const realOutcome = outcome(homeScore, awayScore);
-
-  return guessedOutcome === realOutcome ? winnerPoints : 0;
+  return 0;
 }
 function extraPointsForPlayer(playerName) {
-  const prediction = appSettings?.extraPredictions?.[playerName] || {};
-  const results = appSettings?.extraResults || {};
-  const points = appSettings?.points || {};
-  let total = 0;
-
-  if (prediction.mvp && results.mvp && normalizeComparable(prediction.mvp) === normalizeComparable(results.mvp)) {
-    total += Number(points.mvp) || 0;
-  }
-
-  if (prediction.topScorer && results.topScorer && normalizeComparable(prediction.topScorer) === normalizeComparable(results.topScorer)) {
-    total += Number(points.topScorer) || 0;
-  }
-
-  if (prediction.champion && results.champion && normalizeComparable(prediction.champion) === normalizeComparable(results.champion)) {
-    total += Number(points.champion) || 0;
-  }
-
-  return total;
+  const predictions = appSettings.extraPredictions?.[playerName] || {};
+  const results = appSettings.extraResults || {};
+  const points = appSettings.points || defaultSettings().points;
+  const details = { mvp: 0, topScorer: 0, champion: 0, total: 0 };
+  if (results.mvp && predictions.mvp && normalizeComparable(results.mvp) === normalizeComparable(predictions.mvp)) details.mvp = Number(points.mvp) || 0;
+  if (results.topScorer && predictions.topScorer && normalizeComparable(results.topScorer) === normalizeComparable(predictions.topScorer)) details.topScorer = Number(points.topScorer) || 0;
+  if (results.champion && predictions.champion && normalizeComparable(results.champion) === normalizeComparable(predictions.champion)) details.champion = Number(points.champion) || 0;
+  details.total = details.mvp + details.topScorer + details.champion;
+  return details;
 }
 function allPlayers() {
   const names = new Set(appSettings.users || []);
@@ -537,48 +766,52 @@ function allPlayers() {
   return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
 }
 function playerStats(playerName) {
-  const playerId = playerIdFromName(playerName);
-  const playerBets = bets.filter(bet => bet.playerId === playerId);
-  const settledGames = games.filter(hasResult);
-  const settledIds = new Set(settledGames.map(game => game.id));
-
+  const playerBets = bets.filter(bet => bet.playerName === playerName);
   const stats = {
     playerName,
-    playerId,
+    points: 0,
+    gamePoints: 0,
+    extraPoints: 0,
+    importedPoints: appSettings.importedPoints?.[playerName] ?? null,
+    totalBets: playerBets.length,
     settled: 0,
     exact: 0,
     winner: 0,
     misses: 0,
-    gamePoints: 0,
-    extraPoints: extraPointsForPlayer(playerName),
-    points: 0,
-    importedPoints: appSettings?.importedPoints?.[playerName] ?? null
+    mvp: 0,
+    topScorer: 0,
+    champion: 0
   };
 
   playerBets.forEach(bet => {
-    if (!settledIds.has(bet.gameId)) return;
-
     const game = games.find(item => item.id === bet.gameId);
     if (!game || !hasResult(game)) return;
 
-    stats.settled += 1;
-
     const points = pointsForBet(bet, game);
     stats.gamePoints += points;
+    stats.settled += 1;
 
-    const isExact =
-      Number(bet.homeGuess) === Number(game.homeScore) &&
-      Number(bet.awayGuess) === Number(game.awayScore);
-
-    if (isExact) stats.exact += 1;
-    else if (points > 0) stats.winner += 1;
-    else stats.misses += 1;
+    if (isExactBet(bet, game)) {
+      stats.exact += 1;
+    } else if (isOutcomeBet(bet, game)) {
+      stats.winner += 1;
+    } else {
+      stats.misses += 1;
+    }
   });
 
-  // Total da página Pontuação: sempre calculado pela app.
-  // Não usa o total importado do Excel.
+  const extras = extraPointsForPlayer(playerName);
+  stats.mvp = extras.mvp;
+  stats.topScorer = extras.topScorer;
+  stats.champion = extras.champion;
+  stats.extraPoints = extras.total;
+
+  // Total mostrado na página Pontuação: sempre calculado pela app.
+  // Não usa pontos importados do Excel.
   stats.points = stats.gamePoints + stats.extraPoints;
+  stats.calculatedTotal = stats.points;
   stats.accuracy = stats.settled ? Math.round((stats.exact / stats.settled) * 100) : 0;
+  stats.diffExcel = stats.importedPoints === null ? null : stats.points - Number(stats.importedPoints);
 
   return stats;
 }
@@ -588,7 +821,7 @@ function leaderboard() {
     .sort((a, b) =>
       b.points - a.points ||
       b.exact - a.exact ||
-      b.gamePoints - a.gamePoints ||
+      b.winner - a.winner ||
       a.playerName.localeCompare(b.playerName, "pt")
     );
 }
@@ -616,7 +849,7 @@ function groupByDate(list) {
 
 
 
-async function saveGameFastToFirebase(game) {
+async function saveGameFastToFirebase(game, options = {}) {
   saveLocalData("saveGameFast local");
 
   if (!db || !firebaseApi || storageMode !== "firebase") {
@@ -624,39 +857,34 @@ async function saveGameFastToFirebase(game) {
     throw new Error("Firebase não está ligado");
   }
 
-  const { doc, setDoc, getDoc, serverTimestamp } = firebaseApi;
+  const { doc, setDoc, serverTimestamp } = firebaseApi;
   const gameRef = doc(db, "games", game.id);
 
+  const localUpdatedAt = game.updatedAt || new Date().toISOString();
   const payload = {
     ...game,
     homeScore: game.homeScore === "" || game.homeScore === undefined ? null : game.homeScore,
     awayScore: game.awayScore === "" || game.awayScore === undefined ? null : game.awayScore,
-    updatedAt: game.updatedAt || new Date().toISOString(),
-    firebaseUpdatedAt: serverTimestamp()
+    updatedAt: localUpdatedAt
   };
+  const firebasePayload = { ...payload, firebaseUpdatedAt: serverTimestamp() };
 
-  setFirebaseStatus("loading", `Firebase: a guardar ${game.homeTeam} - ${game.awayTeam}...`);
-
-  await withTimeout(setDoc(gameRef, payload, { merge: true }), 15000, "guardar resultado no Firebase");
-
-  const confirmSnap = await withTimeout(getDoc(gameRef), 15000, "confirmar resultado no Firebase");
-  if (!confirmSnap.exists()) {
-    throw new Error("documento não apareceu no Firebase");
+  if (options.status !== false) {
+    setFirebaseStatus("loading", `Firebase: a guardar ${game.homeTeam} - ${game.awayTeam}...`);
   }
 
-  const saved = confirmSnap.data();
-  const savedHome = Number(saved.homeScore);
-  const savedAway = Number(saved.awayScore);
-
-  if (Number(payload.homeScore) !== savedHome || Number(payload.awayScore) !== savedAway) {
-    throw new Error(`confirmação falhou: Firebase tem ${saved.homeScore}-${saved.awayScore}`);
-  }
+  await withTimeout(setDoc(gameRef, firebasePayload, { merge: true }), 20000, options.reason || "guardar resultado no Firebase");
+  clearPendingGame(game.id);
 
   const idx = games.findIndex(item => item.id === game.id);
-  if (idx !== -1) games[idx] = { ...games[idx], ...saved, id: game.id };
+  if (idx !== -1) games[idx] = { ...games[idx], ...payload, firebaseUpdatedAt: new Date().toISOString(), id: game.id };
 
-  saveLocalData("saveGameFast firebase-confirmado");
-  setFirebaseStatus("success", `Firebase: resultado guardado e confirmado (${savedHome}-${savedAway})`);
+  saveLocalData("saveGameFast firebase-ok");
+  if (options.status !== false) {
+    const savedHome = payload.homeScore === null ? "-" : payload.homeScore;
+    const savedAway = payload.awayScore === null ? "-" : payload.awayScore;
+    setFirebaseStatus("success", `Firebase: resultado guardado (${savedHome}-${savedAway})`);
+  }
   return true;
 }
 
@@ -667,6 +895,7 @@ async function saveSettingsFastToFirebase(reason = "settings") {
 
   const { doc, setDoc } = firebaseApi;
   await withTimeout(setDoc(doc(db, "settings", "main"), appSettings, { merge: true }), 12000, reason);
+  clearSettingsPending();
   saveLocalData(`${reason} firebase-ok`);
   return true;
 }
@@ -677,19 +906,57 @@ async function saveBetsFastToFirebase(reason = "bets") {
   if (!db || !firebaseApi || storageMode !== "firebase") return false;
 
   const { doc, setDoc, writeBatch } = firebaseApi;
+  const ids = pendingBetIds();
+  const betsToSave = ids.length ? bets.filter(bet => ids.includes(bet.id)) : bets;
 
   // Lotes pequenos para não deixar a app presa.
   const chunks = [];
-  for (let i = 0; i < bets.length; i += 350) chunks.push(bets.slice(i, i + 350));
+  for (let i = 0; i < betsToSave.length; i += 250) chunks.push(betsToSave.slice(i, i + 250));
 
   for (const chunk of chunks) {
     const batch = writeBatch(db);
     chunk.forEach(bet => batch.set(doc(db, "bets", bet.id), bet, { merge: true }));
-    await withTimeout(batch.commit(), 15000, reason);
+    await withTimeout(batch.commit(), 30000, reason);
   }
 
+  clearPendingBets(betsToSave.map(bet => bet.id));
   saveLocalData(`${reason} firebase-ok`);
   return true;
+}
+
+async function saveUserBetsFastToFirebase(playerId, previousBetIds, playerBets, reason = "editar apostas utilizador") {
+  saveLocalData(`${reason} local`);
+
+  if (!db || !firebaseApi || storageMode !== "firebase") return false;
+
+  const { doc, writeBatch } = firebaseApi;
+  const nextBetIds = new Set(playerBets.map(bet => bet.id));
+  const batch = writeBatch(db);
+
+  previousBetIds.forEach(id => {
+    if (!nextBetIds.has(id)) batch.delete(doc(db, "bets", id));
+  });
+  playerBets.forEach(bet => {
+    batch.set(doc(db, "bets", bet.id), bet, { merge: true });
+  });
+  batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
+
+  await withTimeout(batch.commit(), 30000, reason);
+  clearPendingBets(playerBets.map(bet => bet.id));
+  clearPendingDeleteBets(previousBetIds.filter(id => !nextBetIds.has(id)));
+  clearSettingsPending();
+  saveLocalData(`${reason} firebase-ok`);
+  return true;
+}
+
+async function commitFirestoreOperations(operations, reason = "sincronizar dados") {
+  if (!operations.length) return;
+  const { writeBatch } = firebaseApi;
+  for (let i = 0; i < operations.length; i += 250) {
+    const batch = writeBatch(db);
+    operations.slice(i, i + 250).forEach(operation => operation(batch));
+    await withTimeout(batch.commit(), 30000, `${reason} (${Math.floor(i / 250) + 1})`);
+  }
 }
 
 async function syncFirebaseFull(reason = "") {
@@ -698,34 +965,34 @@ async function syncFirebaseFull(reason = "") {
     return false;
   }
 
-  const { collection, doc, getDocs, writeBatch } = firebaseApi;
-  const batch = writeBatch(db);
+  const { doc } = firebaseApi;
 
-  const gameIds = new Set(games.map(game => game.id));
-  const betIds = new Set(bets.map(bet => bet.id));
+  const operations = [];
+  const syncGameIds = pendingGameIds();
+  const syncBetIds = pendingBetIds();
 
-  games.forEach(game => {
-    batch.set(doc(db, "games", game.id), game, { merge: true });
+  games.filter(game => syncGameIds.includes(game.id)).forEach(game => {
+    operations.push(batch => batch.set(doc(db, "games", game.id), game, { merge: true }));
   });
 
-  bets.forEach(bet => {
-    batch.set(doc(db, "bets", bet.id), bet, { merge: true });
+  bets.filter(bet => syncBetIds.includes(bet.id)).forEach(bet => {
+    operations.push(batch => batch.set(doc(db, "bets", bet.id), bet, { merge: true }));
   });
 
-  batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
+  if (hasSettingsPending()) {
+    operations.push(batch => batch.set(doc(db, "settings", "main"), appSettings, { merge: true }));
+  }
 
-  const remoteBets = await getDocs(collection(db, "bets"));
-  remoteBets.forEach(item => {
-    if (!betIds.has(item.id)) batch.delete(item.ref);
+  const deleteBetIds = pendingDeleteBetIds();
+  deleteBetIds.forEach(id => {
+    operations.push(batch => batch.delete(doc(db, "bets", id)));
   });
 
-  // Jogos não costumam ser apagados, mas se algum lixo antigo existir no Firebase, remove.
-  const remoteGames = await getDocs(collection(db, "games"));
-  remoteGames.forEach(item => {
-    if (!gameIds.has(item.id)) batch.delete(item.ref);
-  });
-
-  await batch.commit();
+  await commitFirestoreOperations(operations, reason || "sincronizar dados");
+  syncGameIds.forEach(clearPendingGame);
+  clearPendingBets(syncBetIds);
+  clearPendingDeleteBets(deleteBetIds);
+  clearSettingsPending();
   saveLocalData(`${reason} firebase-full-ok`);
   setFirebaseStatus("success", "Firebase: dados guardados e sincronizados");
   return true;
@@ -734,20 +1001,7 @@ async function syncFirebaseFull(reason = "") {
 async function forceSaveAll(reason = "") {
   saveLocalData(reason);
 
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    setFirebaseStatus("error", "Firebase: não está ligado — dados guardados localmente");
-    return;
-  }
-
-  try {
-    await saveSettingsFastToFirebase(`${reason} settings`);
-    await saveBetsFastToFirebase(`${reason} bets`);
-    setFirebaseStatus("success", "Firebase: dados guardados");
-  } catch (error) {
-    console.error("Erro ao guardar no Firebase:", error);
-    setFirebaseStatus("error", `Firebase: erro ao guardar (${error.message || "erro"})`);
-    throw error;
-  }
+  scheduleFullSync(reason || "guardar dados", 300);
 }
 
 
@@ -805,23 +1059,12 @@ function renderMatchRow(game) {
 }
 function renderScore() {
   const rows = leaderboard();
-  const target = $("scoreSummary") || $("scoreBoard") || $("leaderboard");
-  if (!target) return;
-
-  if (!rows.length) {
-    target.innerHTML = `<div class="empty">Ainda não existem pontos para mostrar. Importa apostas e coloca resultados dos jogos.</div>`;
-    return;
-  }
-
-  target.innerHTML = `
+  if (!rows.length) { $("scoreSummary").innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`; return; }
+  $("scoreSummary").innerHTML = `
     <div class="leaderboard-table simple-score-table">
       <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Total</span></div>
       ${rows.map((row, index) => `
-        <div class="leaderboard-row">
-          <span>${index + 1}</span>
-          <strong>${escapeHtml(row.playerName)}</strong>
-          <b class="total-highlight">${row.points}</b>
-        </div>
+        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><b class="total-highlight">${row.points}</b></div>
       `).join("")}
     </div>`;
 }
@@ -976,6 +1219,7 @@ async function saveEditedUserBets() {
 
   const playerId = playerIdFromName(playerName);
   const now = new Date().toISOString();
+  const previousPlayerBetIds = bets.filter(item => item.playerId === playerId).map(item => item.id);
   const otherBets = bets.filter(item => item.playerId !== playerId);
   const newPlayerBets = [];
 
@@ -1015,8 +1259,30 @@ async function saveEditedUserBets() {
     appSettings.users.push(playerName);
   }
 
-  await forceSaveAll("editar apostas utilizador");
+  const nextPlayerBetIds = new Set(newPlayerBets.map(bet => bet.id));
+  const removedPlayerBetIds = previousPlayerBetIds.filter(id => !nextPlayerBetIds.has(id));
+  markBetsPending(newPlayerBets.map(bet => bet.id));
+  markBetsForDelete(removedPlayerBetIds);
+  markSettingsPending();
+
+  saveLocalData("editar apostas utilizador local");
+  renderAll();
   toast(`Apostas de ${playerName} guardadas.`);
+
+  saveUserBetsFastToFirebase(playerId, previousPlayerBetIds, newPlayerBets)
+    .then(saved => {
+      if (saved) {
+        setFirebaseStatus("success", `Firebase: apostas de ${playerName} guardadas`);
+        return;
+      }
+      scheduleFullSync("editar apostas utilizador", 800);
+      setFirebaseStatus("error", "Firebase: nao ligado - apostas guardadas localmente");
+    })
+    .catch(error => {
+      console.error("Falhou guardar apostas do utilizador no Firebase:", error);
+      scheduleFullSync("editar apostas utilizador", 1200);
+      setFirebaseStatus("error", `Firebase: erro ao guardar apostas (${shortFirebaseError(error)})`);
+    });
 }
 
 function clearUserGameRow(button) {
@@ -1061,63 +1327,53 @@ async function setResult(gameId, homeScore, awayScore) {
     return false;
   }
 
-  const previous = { homeScore: game.homeScore, awayScore: game.awayScore, updatedAt: game.updatedAt };
-
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
-  game.updatedAt = new Date().toISOString();
-  game.updatedReason = "resultado guardado";
+  stampGame(game, "resultado guardado");
+  markGamePending(game.id);
 
   saveLocalData("resultado editado local antes firebase");
   renderAll();
+  toast("Resultado guardado. A sincronizar Firebase...");
 
-  try {
-    await persistGame(game);
+  persistGame(game).then(() => {
     renderAll();
     toast("Resultado guardado no Firebase.");
-    return true;
-  } catch (error) {
+  }).catch(error => {
     console.error("Falhou guardar resultado no Firebase:", error);
-    game.homeScore = previous.homeScore ?? null;
-    game.awayScore = previous.awayScore ?? null;
-    game.updatedAt = previous.updatedAt || "";
-    saveLocalData("rollback resultado firebase falhou");
-    renderAll();
-    setFirebaseStatus("error", `Firebase: NÃO guardou o resultado — ${error.message || "erro"}`);
-    toast("Erro: o resultado NÃO foi guardado no Firebase.");
-    return false;
-  }
+    markGamePending(game.id);
+    saveLocalData("resultado pendente firebase");
+    setFirebaseStatus("error", `Firebase: resultado pendente (${shortFirebaseError(error)})`);
+    toast("Resultado ficou guardado localmente e será reenviado.");
+  });
+
+  return true;
 }
 async function clearResult(gameId) {
   const game = games.find(item => item.id === gameId);
   if (!game) return false;
 
-  const previous = { homeScore: game.homeScore, awayScore: game.awayScore, updatedAt: game.updatedAt };
-
   game.homeScore = null;
   game.awayScore = null;
-  game.updatedAt = new Date().toISOString();
-  game.updatedReason = "resultado limpo";
+  stampGame(game, "resultado limpo");
+  markGamePending(game.id);
 
   saveLocalData("resultado limpo local antes firebase");
   renderAll();
+  toast("Resultado limpo. A sincronizar Firebase...");
 
-  try {
-    await persistGame(game);
+  persistGame(game).then(() => {
     renderAll();
     toast("Resultado limpo no Firebase.");
-    return true;
-  } catch (error) {
+  }).catch(error => {
     console.error("Falhou limpar resultado no Firebase:", error);
-    game.homeScore = previous.homeScore ?? null;
-    game.awayScore = previous.awayScore ?? null;
-    game.updatedAt = previous.updatedAt || "";
-    saveLocalData("rollback limpar resultado firebase falhou");
-    renderAll();
-    setFirebaseStatus("error", `Firebase: NÃO limpou o resultado — ${error.message || "erro"}`);
-    toast("Erro: o resultado NÃO foi limpo no Firebase.");
-    return false;
-  }
+    markGamePending(game.id);
+    saveLocalData("limpar resultado pendente firebase");
+    setFirebaseStatus("error", `Firebase: limpeza pendente (${shortFirebaseError(error)})`);
+    toast("Alteração ficou guardada localmente e será reenviada.");
+  });
+
+  return true;
 }
 
 function todayGames() { const key = todayKey(); return games.filter(game => dateKey(game.matchDate) === key); }
@@ -1640,9 +1896,11 @@ function resultImpactPreview(game, homeScore, awayScore) {
   }
 
   const tempGame = { ...game, homeScore: Number(homeScore), awayScore: Number(awayScore) };
-  const exact = gameBets.filter(bet => pointsForBet(bet, tempGame) > 0).length;
+  const exact = gameBets.filter(bet => isExactBet(bet, tempGame)).length;
+  const winner = gameBets.filter(bet => !isExactBet(bet, tempGame) && isOutcomeBet(bet, tempGame)).length;
   const totalPoints = gameBets.reduce((sum, bet) => sum + pointsForBet(bet, tempGame), 0);
-  return `${gameBets.length} apostas · ${exact} resultados exatos · ${totalPoints} pontos atribuídos`;
+
+  return `${gameBets.length} apostas · ${exact} resultados exatos · ${winner} vencedor/empate · ${totalPoints} pontos atribuídos`;
 }
 
 function updateResultPreview() {
