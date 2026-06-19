@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026</title>
+  <title>Mundial Pontos 2026 - Excel</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
         <p class="eyebrow">Calendário da Fase de Grupos</p>
         <h1>Mundial Pontos 2026</h1>
       </div>
-      <div class="copy-actions" aria-label="Copiar para WhatsApp">
+      <div class="copy-actions" aria-label="Copiar / Importar">
         <button id="copyTodayBtn" class="secondary" type="button">Copiar jogos de hoje</button>
         <button id="copyScoreBtn" class="secondary" type="button">Copiar classificação</button>
         <button id="copyGroupsBtn" class="secondary" type="button">Copiar grupos</button>
@@ -22,7 +22,7 @@
 
     <nav class="tabs" aria-label="Navegação principal">
       <button class="tab active" type="button" data-tab="calendarTab">Calendário</button>
-      <button class="tab" type="button" data-tab="scoreTab">Pontuação</button>
+      <button class="tab" type="button" data-tab="scoreTab">Classificação</button>
       <button class="tab" type="button" data-tab="groupsTab">Grupos</button>
       <button class="tab" type="button" data-tab="adminTab">Admin</button>
     </nav>
@@ -42,12 +42,11 @@
       <section id="scoreTab" class="tab-panel">
         <div class="section-head">
           <div>
-            <h2>Classificação</h2>
-            <p>Pontos por jogador, calculados a partir das apostas importadas.</p>
+            <h2>Classificação dos users</h2>
+            <p>Pontos calculados automaticamente a partir dos resultados oficiais e das apostas importadas por Excel.</p>
           </div>
         </div>
         <div id="scoreSummary" class="score-summary"></div>
-        <div id="rankingList" class="ranking-list"></div>
       </section>
 
       <section id="groupsTab" class="tab-panel">
@@ -73,30 +72,10 @@
         <div id="adminUnlocked" class="hidden">
           <div class="section-head compact">
             <div>
-              <h2>Apostas</h2>
+              <h2>Resultados e Import Excel</h2>
               <p id="storageStatus">A carregar dados...</p>
             </div>
-          </div>
-          <div class="import-panel">
-            <div>
-              <h3>Carregar Excel de apostas</h3>
-              <p>Usa as colunas jogador, jogo_id, grupo, casa, fora, aposta_casa e aposta_fora.</p>
-            </div>
-            <div class="import-actions">
-              <label class="secondary file-button">
-                Carregar Excel/CSV
-                <input id="betsFileInput" type="file" accept=".xlsx,.xls,.csv,.tsv" hidden />
-              </label>
-              <a class="secondary link-button" href="modelo-apostas-mundial-2026.xlsx" download>Modelo Excel</a>
-            </div>
-            <p id="importStatus" class="import-status">Nenhum ficheiro carregado ainda.</p>
-          </div>
-
-          <div class="section-head compact results-title">
-            <div>
-              <h2>Resultados</h2>
-              <p>Lança os resultados finais para recalcular a classificação.</p>
-            </div>
+            <button id="openImportBtn" class="secondary" type="button">Importar Excel dos users</button>
           </div>
           <div id="adminGamesList" class="admin-list"></div>
         </div>
@@ -104,9 +83,50 @@
     </main>
   </div>
 
+
+  <div id="excelModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="excelModalTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="excelModalTitle">Importar Excel dos users</h2>
+          <p>Importa as apostas de todos os participantes para calcular a classificação.</p>
+        </div>
+        <button id="closeImportBtn" class="secondary" type="button">Fechar</button>
+      </div>
+
+      <div class="import-help">
+        <strong>Colunas aceites no Excel:</strong>
+        <span>Jogador/Nome/User</span>
+        <span>Equipa Casa + Equipa Fora <em>ou</em> Jogo</span>
+        <span>Aposta Casa</span>
+        <span>Aposta Fora</span>
+        <span class="optional">Opcional: Resultado Casa + Resultado Fora</span>
+      </div>
+
+      <div class="import-grid">
+        <label class="file-drop">
+          <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+          <span>Selecionar Excel</span>
+          <small>.xlsx, .xls ou .csv</small>
+        </label>
+        <label class="replace-check">
+          <input id="replaceBetsCheck" type="checkbox" checked />
+          Substituir apostas importadas anteriores
+        </label>
+      </div>
+
+      <div id="importPreview" class="import-preview">Ainda não foi selecionado nenhum ficheiro.</div>
+
+      <div class="modal-actions">
+        <button id="downloadTemplateBtn" class="secondary" type="button">Descarregar modelo Excel</button>
+        <button id="confirmImportBtn" class="primary" type="button" disabled>Importar apostas</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

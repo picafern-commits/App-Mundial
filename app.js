@@ -1,8 +1,7 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_simple_v1";
-const MANUAL_PLAYER_ID = "manual";
-const MANUAL_PLAYER_NAME = "Aposta manual";
+const STORAGE_KEY = "mundial_pontos_2026_excel_v2";
+const PLAYER_ID = "single";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -12,6 +11,7 @@ let games = [];
 let bets = [];
 let searchText = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
+let pendingImport = null;
 
 const MATCH_ROWS = [
   ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
@@ -342,30 +342,8 @@ async function persistBet(bet) {
   }
 }
 
-async function persistImportedBets(importedBets) {
-  importedBets.forEach(bet => {
-    bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
-    bets.push(bet);
-  });
-
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    saveLocalData();
-    return;
-  }
-
-  try {
-    const { doc, setDoc } = firebaseApi;
-    await Promise.all(importedBets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })));
-  } catch (error) {
-    console.warn(error);
-    storageMode = "local";
-    saveLocalData();
-    toast("Firebase falhou. Apostas guardadas localmente.");
-  }
-}
-
 function getBet(gameId) {
-  return bets.find(bet => bet.gameId === gameId && bet.playerId === MANUAL_PLAYER_ID);
+  return bets.find(bet => bet.gameId === gameId && bet.playerId === PLAYER_ID);
 }
 
 function pointsForBet(bet, game) {
@@ -374,56 +352,39 @@ function pointsForBet(bet, game) {
   return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0;
 }
 
-function playerNameOf(bet) {
-  return bet.playerName || bet.player || bet.name || (bet.playerId === MANUAL_PLAYER_ID ? MANUAL_PLAYER_NAME : bet.playerId) || "Sem nome";
-}
+function statsForBetList(list) {
+  const stats = { points: 0, totalBets: list.length, settled: 0, exact: 0, winner: 0, misses: 0 };
 
-function rankingRows() {
-  const table = new Map();
-  bets.forEach(bet => {
-    const playerName = playerNameOf(bet).trim() || "Sem nome";
-    const playerId = bet.playerId || normalizeKey(playerName);
-    const current = table.get(playerId) || {
-      playerId,
-      playerName,
-      points: 0,
-      totalBets: 0,
-      settled: 0,
-      exact: 0,
-      winner: 0,
-      misses: 0,
-      accuracy: 0
-    };
-
-    current.totalBets += 1;
+  list.forEach(bet => {
     const game = games.find(item => item.id === bet.gameId);
-    if (!game || !hasResult(game)) {
-      table.set(playerId, current);
-      return;
-    }
+    if (!game || !hasResult(game)) return;
 
     const points = pointsForBet(bet, game);
-    current.points += points;
-    current.settled += 1;
-    if (points === 3) current.exact += 1;
-    else if (points === 1) current.winner += 1;
-    else current.misses += 1;
-    table.set(playerId, current);
+    stats.points += points;
+    stats.settled += 1;
+    if (points === 3) stats.exact += 1;
+    else if (points === 1) stats.winner += 1;
+    else stats.misses += 1;
   });
 
-  return [...table.values()]
-    .map(row => ({ ...row, accuracy: row.settled ? Math.round(((row.exact + row.winner) / row.settled) * 100) : 0 }))
-    .sort((a, b) => b.points - a.points || b.exact - a.exact || b.winner - a.winner || a.playerName.localeCompare(b.playerName));
+  stats.accuracy = stats.settled ? Math.round(((stats.exact + stats.winner) / stats.settled) * 100) : 0;
+  return stats;
 }
 
-function overallStats() {
-  const ranking = rankingRows();
-  return {
-    players: ranking.length,
-    totalBets: bets.length,
-    settledBets: ranking.reduce((sum, row) => sum + row.settled, 0),
-    leader: ranking[0] || null
-  };
+function scoreStats() {
+  return statsForBetList(bets);
+}
+
+function leaderboardRows() {
+  const byPlayer = new Map();
+  bets.forEach(bet => {
+    const name = bet.playerName || bet.userName || bet.playerId || "Sem nome";
+    if (!byPlayer.has(name)) byPlayer.set(name, []);
+    byPlayer.get(name).push(bet);
+  });
+
+  return [...byPlayer.entries()].map(([name, list]) => ({ name, ...statsForBetList(list) }))
+    .sort((a, b) => b.points - a.points || b.exact - a.exact || b.winner - a.winner || a.name.localeCompare(b.name));
 }
 
 function filteredGames() {
@@ -496,28 +457,27 @@ function renderMatchRow(game) {
 }
 
 function renderScore() {
-  const stats = overallStats();
-  const ranking = rankingRows();
-  $("scoreSummary").innerHTML = `
-    <div class="score-card main-score">
-      <span>1.º lugar</span>
-      <strong>${stats.leader ? escapeHtml(stats.leader.playerName) : "-"}</strong>
-    </div>
-    <div class="score-card"><span>Pontos do líder</span><strong>${stats.leader?.points ?? 0}</strong></div>
-    <div class="score-card"><span>Jogadores</span><strong>${stats.players}</strong></div>
-    <div class="score-card"><span>Apostas carregadas</span><strong>${stats.totalBets}</strong></div>
-    <div class="score-card"><span>Apostas já pontuadas</span><strong>${stats.settledBets}</strong></div>
-  `;
+  const rows = leaderboardRows();
+  const totals = scoreStats();
 
-  $("rankingList").innerHTML = ranking.length ? `
-    <div class="ranking-table">
-      <div class="ranking-row head">
-        <span>#</span><span>Jogador</span><span>Pts</span><span>Apostas</span><span>Exatos</span><span>V/E certo</span><span>Acerto</span>
-      </div>
-      ${ranking.map((row, index) => `
-        <div class="ranking-row">
+  if (!rows.length) {
+    $("scoreSummary").innerHTML = `<div class="empty">Ainda não existem apostas importadas. Vai ao Admin e importa o Excel dos users.</div>`;
+    return;
+  }
+
+  $("scoreSummary").innerHTML = `
+    <div class="score-top-grid">
+      <div class="score-card main-score"><span>Total de users</span><strong>${rows.length}</strong></div>
+      <div class="score-card"><span>Apostas importadas</span><strong>${totals.totalBets}</strong></div>
+      <div class="score-card"><span>Jogos com pontuação</span><strong>${totals.settled}</strong></div>
+      <div class="score-card"><span>Resultados exatos</span><strong>${totals.exact}</strong></div>
+    </div>
+    <div class="leaderboard">
+      <div class="leader-row head"><span>#</span><span>User</span><span>Pts</span><span>Apostas</span><span>Exatos</span><span>Venc.</span><span>%</span></div>
+      ${rows.map((row, index) => `
+        <div class="leader-row ${index < 3 ? "podium" : ""}">
           <span>${index + 1}</span>
-          <strong>${escapeHtml(row.playerName)}</strong>
+          <strong>${escapeHtml(row.name)}</strong>
           <b>${row.points}</b>
           <span>${row.totalBets}</span>
           <span>${row.exact}</span>
@@ -526,7 +486,7 @@ function renderScore() {
         </div>
       `).join("")}
     </div>
-  ` : `<div class="empty">Ainda não há apostas carregadas.</div>`;
+  `;
 }
 
 function blankTeam(team) {
@@ -612,7 +572,7 @@ function renderAdminState() {
   $("adminLocked").classList.toggle("hidden", isAdmin);
   $("adminUnlocked").classList.toggle("hidden", !isAdmin);
   const status = storageMode === "firebase" ? "Firebase online" : "Modo local";
-  $("storageStatus").textContent = `${status}. Ao carregar apostas ou guardar resultados, a classificação é recalculada automaticamente.`;
+  $("storageStatus").textContent = `${status}. Ao guardar resultado, os pontos são recalculados automaticamente.`;
 }
 
 function renderAdmin() {
@@ -647,9 +607,8 @@ async function saveBet(gameId, homeGuess, awayGuess) {
   if (homeGuess === "" || awayGuess === "") return toast("Preenche os dois campos da aposta.");
 
   const bet = {
-    id: `${MANUAL_PLAYER_ID}_${gameId}`,
-    playerId: MANUAL_PLAYER_ID,
-    playerName: MANUAL_PLAYER_NAME,
+    id: `${PLAYER_ID}_${gameId}`,
+    playerId: PLAYER_ID,
     gameId,
     homeGuess: Number(homeGuess),
     awayGuess: Number(awayGuess),
@@ -690,12 +649,10 @@ function todayGames() {
 }
 
 function scoreText() {
-  const ranking = rankingRows();
-  if (!ranking.length) return "⭐ Classificação Mundial 2026\n\nAinda não há apostas carregadas.";
+  const rows = leaderboardRows();
+  if (!rows.length) return "🏆 Classificação Mundial 2026\n\nAinda não existem apostas importadas.";
 
-  return "⭐ Classificação Mundial 2026\n\n" + ranking.map((row, index) =>
-    `${index + 1}. ${row.playerName} - ${row.points} pts (${row.exact} exatos, ${row.winner} vencedor/empate certo)`
-  ).join("\n");
+  return "🏆 Classificação Mundial 2026\n\n" + rows.map((row, index) => `${index + 1}. ${row.name} - ${row.points} pts (${row.exact} exatos)`).join("\n");
 }
 
 function todayText() {
@@ -724,143 +681,6 @@ function groupByGroup(list) {
   }, new Map());
 }
 
-function normalizeKey(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function rowValue(row, aliases) {
-  const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeKey(key), value]));
-  for (const alias of aliases) {
-    const value = normalized[normalizeKey(alias)];
-    if (value !== undefined && value !== null && String(value).trim() !== "") return String(value).trim();
-  }
-  return "";
-}
-
-function parseDelimited(text, separator) {
-  const rows = [];
-  let current = "";
-  let row = [];
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"' && quoted && next === '"') {
-      current += '"';
-      i += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === separator && !quoted) {
-      row.push(current);
-      current = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") i += 1;
-      row.push(current);
-      if (row.some(cell => String(cell).trim() !== "")) rows.push(row);
-      row = [];
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  row.push(current);
-  if (row.some(cell => String(cell).trim() !== "")) rows.push(row);
-  if (!rows.length) return [];
-
-  const headers = rows[0].map(header => String(header).trim());
-  return rows.slice(1).map(values => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])));
-}
-
-async function readBetRows(file) {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".csv") || name.endsWith(".tsv")) {
-    const text = await file.text();
-    return parseDelimited(text, name.endsWith(".tsv") ? "\t" : ",");
-  }
-
-  if (!window.XLSX) {
-    throw new Error("A biblioteca Excel ainda não carregou. Tenta novamente ou usa CSV.");
-  }
-
-  const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
-}
-
-function findGameForBetRow(row) {
-  const gameId = rowValue(row, ["jogo_id", "id_jogo", "game_id", "gameId", "id"]);
-  if (gameId) {
-    const byId = games.find(game => normalizeKey(game.id) === normalizeKey(gameId));
-    if (byId) return byId;
-  }
-
-  const home = rowValue(row, ["casa", "equipa_casa", "equipa casa", "home", "homeTeam"]);
-  const away = rowValue(row, ["fora", "equipa_fora", "equipa fora", "away", "awayTeam"]);
-  const group = rowValue(row, ["grupo", "group"]);
-  if (!home || !away) return null;
-
-  return games.find(game =>
-    normalizeKey(game.homeTeam) === normalizeKey(home) &&
-    normalizeKey(game.awayTeam) === normalizeKey(away) &&
-    (!group || normalizeKey(game.group) === normalizeKey(group))
-  ) || null;
-}
-
-function betFromRow(row) {
-  const playerName = rowValue(row, ["jogador", "nome", "player", "player_name", "participante"]);
-  const homeGuess = rowValue(row, ["aposta_casa", "aposta casa", "casa_aposta", "golos_casa", "home_guess", "homeGuess"]);
-  const awayGuess = rowValue(row, ["aposta_fora", "aposta fora", "fora_aposta", "golos_fora", "away_guess", "awayGuess"]);
-  const game = findGameForBetRow(row);
-
-  if (!playerName || !game || homeGuess === "" || awayGuess === "") return null;
-  if (Number.isNaN(Number(homeGuess)) || Number.isNaN(Number(awayGuess))) return null;
-
-  const playerId = normalizeKey(playerName);
-  return {
-    id: `${playerId}_${game.id}`,
-    playerId,
-    playerName,
-    gameId: game.id,
-    homeGuess: Number(homeGuess),
-    awayGuess: Number(awayGuess),
-    importedAt: new Date().toISOString()
-  };
-}
-
-async function importBetsFile(file) {
-  if (!file) return;
-  const status = $("importStatus");
-
-  try {
-    const rows = await readBetRows(file);
-    const imported = rows.map(betFromRow).filter(Boolean);
-    const skipped = rows.length - imported.length;
-
-    if (!imported.length) {
-      status.textContent = "Não encontrei apostas válidas no ficheiro.";
-      toast("Não encontrei apostas válidas.");
-      return;
-    }
-
-    await persistImportedBets(imported);
-    renderAll();
-    status.textContent = `${imported.length} apostas carregadas. ${skipped ? `${skipped} linhas ignoradas.` : "Nenhuma linha ignorada."}`;
-    toast("Apostas carregadas e classificação atualizada.");
-  } catch (error) {
-    console.error(error);
-    status.textContent = error.message || "Não foi possível carregar o ficheiro.";
-    toast("Erro ao carregar o ficheiro.");
-  }
-}
-
 async function copyText(text, message) {
   try {
     await navigator.clipboard.writeText(text);
@@ -876,6 +696,196 @@ function toast(message) {
   element.classList.remove("hidden");
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => element.classList.add("hidden"), 2600);
+}
+
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getCell(row, names) {
+  const normalized = Object.entries(row).map(([key, value]) => [normalizeText(key), value]);
+  for (const name of names) {
+    const target = normalizeText(name);
+    const found = normalized.find(([key]) => key === target || key.includes(target) || target.includes(key));
+    if (found) return found[1];
+  }
+  return "";
+}
+
+function matchGameFromRow(row) {
+  const gameId = String(getCell(row, ["id", "gameId", "id jogo", "jogo id"])).trim();
+  if (gameId) {
+    const byId = games.find(game => game.id === gameId);
+    if (byId) return byId;
+  }
+
+  const home = String(getCell(row, ["equipa casa", "casa", "home", "home team", "equipa 1", "seleção casa"])).trim();
+  const away = String(getCell(row, ["equipa fora", "fora", "away", "away team", "equipa 2", "seleção fora"])).trim();
+  const gameText = String(getCell(row, ["jogo", "partida", "match"])).trim();
+
+  if (home && away) {
+    const h = normalizeText(home);
+    const a = normalizeText(away);
+    return games.find(game => normalizeText(game.homeTeam) === h && normalizeText(game.awayTeam) === a)
+      || games.find(game => normalizeText(game.homeTeam) === a && normalizeText(game.awayTeam) === h);
+  }
+
+  if (gameText) {
+    const t = normalizeText(gameText);
+    return games.find(game => t.includes(normalizeText(game.homeTeam)) && t.includes(normalizeText(game.awayTeam)));
+  }
+
+  return null;
+}
+
+function numberOrBlank(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const n = Number(String(value).replace(",", "."));
+  return Number.isFinite(n) ? n : "";
+}
+
+function parseExcelRows(rows) {
+  const parsed = [];
+  const errors = [];
+  const resultUpdates = new Map();
+
+  rows.forEach((row, index) => {
+    const playerName = String(getCell(row, ["jogador", "nome", "user", "utilizador", "participante"])).trim();
+    const homeGuess = numberOrBlank(getCell(row, ["aposta casa", "resultado casa", "prognostico casa", "prognóstico casa", "casa aposta", "home guess"]));
+    const awayGuess = numberOrBlank(getCell(row, ["aposta fora", "resultado fora", "prognostico fora", "prognóstico fora", "fora aposta", "away guess"]));
+    const game = matchGameFromRow(row);
+
+    if (!playerName && homeGuess === "" && awayGuess === "") return;
+    if (!playerName) return errors.push(`Linha ${index + 2}: falta o nome/user.`);
+    if (!game) return errors.push(`Linha ${index + 2}: não consegui encontrar o jogo.`);
+    if (homeGuess === "" || awayGuess === "") return errors.push(`Linha ${index + 2}: falta a aposta completa.`);
+
+    const playerId = `excel_${normalizeText(playerName).replace(/\s+/g, "_")}`;
+    parsed.push({
+      id: `${playerId}_${game.id}`,
+      playerId,
+      playerName,
+      gameId: game.id,
+      homeGuess,
+      awayGuess,
+      source: "excel",
+      updatedAt: new Date().toISOString()
+    });
+
+    const realHome = numberOrBlank(getCell(row, ["real casa", "resultado real casa", "final casa", "score casa"]));
+    const realAway = numberOrBlank(getCell(row, ["real fora", "resultado real fora", "final fora", "score fora"]));
+    if (realHome !== "" && realAway !== "") resultUpdates.set(game.id, { homeScore: realHome, awayScore: realAway });
+  });
+
+  return { bets: parsed, errors, resultUpdates };
+}
+
+function previewImport(parsed) {
+  pendingImport = parsed;
+  const box = $("importPreview");
+  const confirm = $("confirmImportBtn");
+  if (!parsed) {
+    box.textContent = "Ainda não foi selecionado nenhum ficheiro.";
+    confirm.disabled = true;
+    return;
+  }
+
+  const players = new Set(parsed.bets.map(bet => bet.playerName));
+  const gamesFound = new Set(parsed.bets.map(bet => bet.gameId));
+  confirm.disabled = !parsed.bets.length;
+  box.innerHTML = `
+    <div><strong>${parsed.bets.length}</strong> apostas válidas</div>
+    <div><strong>${players.size}</strong> users encontrados</div>
+    <div><strong>${gamesFound.size}</strong> jogos com apostas</div>
+    <div><strong>${parsed.resultUpdates.size}</strong> resultados reais no Excel</div>
+    ${parsed.errors.length ? `<details open><summary>${parsed.errors.length} avisos/erros</summary><ul>${parsed.errors.slice(0, 30).map(error => `<li>${escapeHtml(error)}</li>`).join("")}</ul></details>` : ""}
+  `;
+}
+
+async function handleExcelFile(file) {
+  if (!file) return;
+  if (!window.XLSX) return toast("Biblioteca Excel não carregou. Verifica a ligação à internet.");
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+  previewImport(parseExcelRows(rows));
+}
+
+async function confirmImport() {
+  if (!pendingImport || !pendingImport.bets.length) return toast("Não há apostas válidas para importar.");
+
+  const replace = $("replaceBetsCheck")?.checked;
+  const previousExcelBets = bets.filter(bet => bet.source === "excel");
+  if (replace) bets = bets.filter(bet => bet.source !== "excel");
+
+  pendingImport.bets.forEach(imported => {
+    bets = bets.filter(bet => !(bet.gameId === imported.gameId && bet.playerId === imported.playerId));
+    bets.push(imported);
+  });
+
+  pendingImport.resultUpdates.forEach((result, gameId) => {
+    const game = games.find(item => item.id === gameId);
+    if (game) {
+      game.homeScore = result.homeScore;
+      game.awayScore = result.awayScore;
+    }
+  });
+
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    saveLocalData();
+  } else {
+    const { doc, setDoc, deleteDoc } = firebaseApi;
+    const deleteOldExcel = replace
+      ? previousExcelBets.map(bet => deleteDoc(doc(db, "bets", bet.id)).catch(() => null))
+      : [];
+    await Promise.all([
+      ...deleteOldExcel,
+      ...pendingImport.bets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })),
+      ...[...pendingImport.resultUpdates.entries()].map(([gameId, result]) => {
+        const game = games.find(item => item.id === gameId);
+        return game ? setDoc(doc(db, "games", game.id), game, { merge: true }) : null;
+      }).filter(Boolean)
+    ]);
+  }
+
+  renderAll();
+  closeImportModal();
+  toast("Excel importado. Classificação atualizada.");
+}
+
+function openImportModal() {
+  $("excelModal")?.classList.remove("hidden");
+}
+
+function closeImportModal() {
+  $("excelModal")?.classList.add("hidden");
+  if ($("excelInput")) $("excelInput").value = "";
+  previewImport(null);
+}
+
+function downloadTemplate() {
+  if (!window.XLSX) return toast("Biblioteca Excel não carregou.");
+  const rows = games.map(game => ({
+    Jogador: "Nome do user",
+    Grupo: game.group,
+    "Equipa Casa": game.homeTeam,
+    "Equipa Fora": game.awayTeam,
+    "Aposta Casa": "",
+    "Aposta Fora": "",
+    "Real Casa": game.homeScore ?? "",
+    "Real Fora": game.awayScore ?? ""
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Apostas");
+  XLSX.writeFile(wb, "modelo-apostas-mundial-2026.xlsx");
 }
 
 window.saveBetFromUI = id => saveBet(id, $(`home_${id}`).value, $(`away_${id}`).value);
@@ -904,12 +914,18 @@ $("unlockAdminBtn").addEventListener("click", () => {
 });
 
 $("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
-$("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
+$("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Pontuação copiada."));
 $("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação copiada."));
-$("betsFileInput").addEventListener("change", event => {
-  importBetsFile(event.target.files?.[0]);
-  event.target.value = "";
+
+
+$("openImportBtn")?.addEventListener("click", openImportModal);
+$("closeImportBtn")?.addEventListener("click", closeImportModal);
+$("excelModal")?.addEventListener("click", event => {
+  if (event.target.id === "excelModal") closeImportModal();
 });
+$("excelInput")?.addEventListener("change", event => handleExcelFile(event.target.files?.[0]));
+$("confirmImportBtn")?.addEventListener("click", confirmImport);
+$("downloadTemplateBtn")?.addEventListener("click", downloadTemplate);
 
 await initFirebase();
 await loadData();
