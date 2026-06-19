@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 - Excel</title>
+  <title>Mundial Pontos 2026 · Excel</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,16 +13,16 @@
         <p class="eyebrow">Calendário da Fase de Grupos</p>
         <h1>Mundial Pontos 2026</h1>
       </div>
-      <div class="copy-actions" aria-label="Copiar / Importar">
+      <div class="copy-actions" aria-label="Copiar para WhatsApp">
         <button id="copyTodayBtn" class="secondary" type="button">Copiar jogos de hoje</button>
-        <button id="copyScoreBtn" class="secondary" type="button">Copiar classificação</button>
+        <button id="copyScoreBtn" class="secondary" type="button">Copiar pontuação</button>
         <button id="copyGroupsBtn" class="secondary" type="button">Copiar grupos</button>
       </div>
     </header>
 
     <nav class="tabs" aria-label="Navegação principal">
       <button class="tab active" type="button" data-tab="calendarTab">Calendário</button>
-      <button class="tab" type="button" data-tab="scoreTab">Classificação</button>
+      <button class="tab" type="button" data-tab="scoreTab">Pontuação</button>
       <button class="tab" type="button" data-tab="groupsTab">Grupos</button>
       <button class="tab" type="button" data-tab="adminTab">Admin</button>
     </nav>
@@ -42,11 +42,11 @@
       <section id="scoreTab" class="tab-panel">
         <div class="section-head">
           <div>
-            <h2>Classificação dos users</h2>
-            <p>Pontos calculados automaticamente a partir dos resultados oficiais e das apostas importadas por Excel.</p>
+            <h2>Pontuação</h2>
+            <p>Classificação geral calculada com as apostas importadas do Excel.</p>
           </div>
         </div>
-        <div id="scoreSummary" class="score-summary"></div>
+        <div id="scoreSummary" class="score-summary leaderboard"></div>
       </section>
 
       <section id="groupsTab" class="tab-panel">
@@ -69,13 +69,71 @@
           </div>
         </div>
 
-        <div id="adminUnlocked" class="hidden">
+        <div id="adminUnlocked" class="hidden admin-stack">
+          <div class="admin-card">
+            <div class="section-head compact">
+              <div>
+                <h2>Importar Excel</h2>
+                <p>Usa os ficheiros <strong>Resultados.xlsx</strong> e <strong>Pontos.xlsx</strong> como base.</p>
+              </div>
+              <button id="openExcelModalBtn" class="primary" type="button">Importar Excel</button>
+            </div>
+            <div id="importSummary" class="import-summary">Ainda não foi feita importação nesta sessão.</div>
+          </div>
+
+          <div class="admin-card">
+            <div class="section-head compact">
+              <div>
+                <h2>Sistema de Pontos</h2>
+                <p>O Admin pode editar quantos pontos vale cada campo.</p>
+              </div>
+              <button id="savePointsSettingsBtn" class="primary" type="button">Guardar pontos</button>
+            </div>
+            <div class="points-settings-grid">
+              <label>Resultado exato
+                <input id="pointsExactInput" type="number" min="0" step="1" />
+              </label>
+              <label>Vencedor / empate certo
+                <input id="pointsWinnerInput" type="number" min="0" step="1" />
+              </label>
+              <label>MVP
+                <input id="pointsMvpInput" type="number" min="0" step="1" />
+              </label>
+              <label>Melhor marcador
+                <input id="pointsTopScorerInput" type="number" min="0" step="1" />
+              </label>
+              <label>Equipa vencedora
+                <input id="pointsChampionInput" type="number" min="0" step="1" />
+              </label>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <div class="section-head compact">
+              <div>
+                <h2>Resultados especiais</h2>
+                <p>Mete aqui os vencedores finais para atribuir pontos extra aos users.</p>
+              </div>
+              <button id="saveExtraResultsBtn" class="primary" type="button">Guardar extras</button>
+            </div>
+            <div class="points-settings-grid">
+              <label>MVP final
+                <input id="finalMvpInput" type="text" placeholder="Ex: Vitinha" />
+              </label>
+              <label>Melhor marcador final
+                <input id="finalTopScorerInput" type="text" placeholder="Ex: Ronaldo" />
+              </label>
+              <label>Equipa vencedora final
+                <input id="finalChampionInput" type="text" placeholder="Ex: Portugal" />
+              </label>
+            </div>
+          </div>
+
           <div class="section-head compact">
             <div>
-              <h2>Resultados e Import Excel</h2>
+              <h2>Resultados dos jogos</h2>
               <p id="storageStatus">A carregar dados...</p>
             </div>
-            <button id="openImportBtn" class="secondary" type="button">Importar Excel dos users</button>
           </div>
           <div id="adminGamesList" class="admin-list"></div>
         </div>
@@ -88,38 +146,35 @@
     <div class="modal-card">
       <div class="modal-head">
         <div>
-          <h2 id="excelModalTitle">Importar Excel dos users</h2>
-          <p>Importa as apostas de todos os participantes para calcular a classificação.</p>
+          <h2 id="excelModalTitle">Importar Excel dos Users</h2>
+          <p>Importa o ficheiro de apostas (<strong>Resultados.xlsx</strong>) e, se quiseres, o ficheiro de pontos/resultados (<strong>Pontos.xlsx</strong>).</p>
         </div>
-        <button id="closeImportBtn" class="secondary" type="button">Fechar</button>
+        <button id="closeExcelModalBtn" class="icon-button" type="button" aria-label="Fechar">×</button>
       </div>
 
-      <div class="import-help">
-        <strong>Colunas aceites no Excel:</strong>
-        <span>Jogador/Nome/User</span>
-        <span>Equipa Casa + Equipa Fora <em>ou</em> Jogo</span>
-        <span>Aposta Casa</span>
-        <span>Aposta Fora</span>
-        <span class="optional">Opcional: Resultado Casa + Resultado Fora</span>
-      </div>
-
-      <div class="import-grid">
-        <label class="file-drop">
-          <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" hidden />
-          <span>Selecionar Excel</span>
-          <small>.xlsx, .xls ou .csv</small>
+      <div class="modal-grid">
+        <label>Excel Resultados
+          <input id="resultadosExcelInput" type="file" accept=".xlsx,.xls,.csv" />
+          <small>Apostas dos users por jogo.</small>
         </label>
-        <label class="replace-check">
-          <input id="replaceBetsCheck" type="checkbox" checked />
-          Substituir apostas importadas anteriores
+        <label>Excel Pontos
+          <input id="pontosExcelInput" type="file" accept=".xlsx,.xls,.csv" />
+          <small>Pontos/resultados já obtidos até agora.</small>
         </label>
       </div>
 
-      <div id="importPreview" class="import-preview">Ainda não foi selecionado nenhum ficheiro.</div>
+      <label class="check-row">
+        <input id="replaceExcelBetsInput" type="checkbox" checked />
+        Substituir apostas importadas anteriormente
+      </label>
+
+      <div id="excelPreview" class="excel-preview">
+        Seleciona os ficheiros e carrega em “Pré-visualizar”.
+      </div>
 
       <div class="modal-actions">
-        <button id="downloadTemplateBtn" class="secondary" type="button">Descarregar modelo Excel</button>
-        <button id="confirmImportBtn" class="primary" type="button" disabled>Importar apostas</button>
+        <button id="previewExcelBtn" class="secondary" type="button">Pré-visualizar</button>
+        <button id="confirmExcelImportBtn" class="primary" type="button" disabled>Confirmar importação</button>
       </div>
     </div>
   </div>

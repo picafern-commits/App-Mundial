@@ -1,7 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_excel_v2";
-const PLAYER_ID = "single";
+const STORAGE_KEY = "mundial_pontos_2026_excel_v16";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -9,9 +8,10 @@ let firebaseApi = null;
 let storageMode = "local";
 let games = [];
 let bets = [];
+let appSettings = defaultSettings();
 let searchText = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
-let pendingImport = null;
+let pendingExcelImport = null;
 
 const MATCH_ROWS = [
   ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
@@ -139,15 +139,31 @@ const FLAGS = {
   "Colômbia": "🇨🇴"
 };
 
+const TEAM_ALIASES = {
+  "mexico": "México", "africa do sul": "África do Sul", "áfrica do sul": "África do Sul",
+  "coreia do sul": "Coreia do Sul", "republica checa": "Chéquia", "república checa": "Chéquia", "chequia": "Chéquia", "chéquia": "Chéquia",
+  "canada": "Canadá", "bosnia": "Bósnia", "bósnia": "Bósnia", "bosnia-herzegovina": "Bósnia", "bósnia-herzegovina": "Bósnia",
+  "qatar": "Qatar", "suica": "Suíça", "suiça": "Suíça", "suíça": "Suíça", "brasil": "Brasil", "marrocos": "Marrocos",
+  "haiti": "Haiti", "escocia": "Escócia", "escócia": "Escócia", "australia": "Austrália", "austrália": "Austrália",
+  "turquia": "Turquia", "alemanha": "Alemanha", "curacao": "Curaçao", "curaçao": "Curaçao",
+  "paises baixos": "Países Baixos", "países baixos": "Países Baixos", "japao": "Japão", "japão": "Japão",
+  "costa do marfim": "Costa do Marfim", "equador": "Equador", "suecia": "Suécia", "suécia": "Suécia",
+  "tunisia": "Tunísia", "tunísia": "Tunísia", "espanha": "Espanha", "cabo verde": "Cabo Verde",
+  "belgica": "Bélgica", "bélgica": "Bélgica", "egito": "Egito", "arabia saudita": "Arábia Saudita", "arábia saudita": "Arábia Saudita",
+  "uruguai": "Uruguai", "irao": "Irão", "irão": "Irão", "nova zelandia": "Nova Zelândia", "nova zelândia": "Nova Zelândia",
+  "franca": "França", "frança": "França", "senegal": "Senegal", "iraque": "Iraque", "noruega": "Noruega",
+  "argentina": "Argentina", "argelia": "Argélia", "argélia": "Argélia", "austria": "Áustria", "áustria": "Áustria",
+  "jordania": "Jordânia", "jordânia": "Jordânia", "rd congo": "RD Congo", "r.d. congo": "RD Congo",
+  "republica democratica do congo": "RD Congo", "inglaterra": "Inglaterra", "croacia": "Croácia", "croácia": "Croácia",
+  "gana": "Gana", "panama": "Panamá", "panamá": "Panamá", "uzbequistao": "Uzbequistão", "uzbequistão": "Uzbequistão",
+  "colombia": "Colômbia", "colômbia": "Colômbia"
+};
+
 const SEED_GAMES = MATCH_ROWS.map(([group, homeTeam, awayTeam, matchDate], index) => ({
   id: `wc2026-group-${String(index + 1).padStart(3, "0")}`,
-  group,
-  homeTeam,
-  awayTeam,
-  matchDate,
+  group, homeTeam, awayTeam, matchDate,
   phase: "Fase de grupos",
-  homeScore: null,
-  awayScore: null
+  homeScore: null, awayScore: null
 }));
 
 const $ = id => document.getElementById(id);
@@ -155,15 +171,23 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const hasResult = game => game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined;
 const flag = team => FLAGS[team] || "🏳️";
 const outcome = (home, away) => Number(home) > Number(away) ? "home" : Number(home) < Number(away) ? "away" : "draw";
+const normalizeKey = value => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normalizeComparable = value => normalizeKey(value);
+const canonicalTeam = value => TEAM_ALIASES[normalizeKey(value)] || String(value ?? "").trim();
+const playerIdFromName = name => `player_${normalizeKey(name).replace(/\s+/g, "_") || "sem_nome"}`;
+
+function defaultSettings() {
+  return {
+    points: { exact: 3, winner: 1, mvp: 5, topScorer: 5, champion: 10 },
+    extraResults: { mvp: "", topScorer: "", champion: "" },
+    extraPredictions: {},
+    importedPoints: {},
+    lastImport: null
+  };
+}
 
 function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>'"]/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;"
-  })[char]);
+  return String(value ?? "").replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 }
 
 function parsePortugalDate(value) {
@@ -174,79 +198,63 @@ function parsePortugalDate(value) {
 
 function dateKey(value) {
   const date = parsePortugalDate(value);
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: PORTUGAL_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PORTUGAL_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
-
-function todayKey() {
-  return dateKey(new Date());
-}
-
+function todayKey() { return dateKey(new Date()); }
 function dateHeader(value) {
   const date = parsePortugalDate(value);
-  const parts = new Intl.DateTimeFormat("pt-PT", {
-    timeZone: PORTUGAL_TZ,
-    day: "numeric",
-    month: "long",
-    weekday: "long"
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, day: "numeric", month: "long", weekday: "long" }).formatToParts(date);
   const day = parts.find(part => part.type === "day")?.value || "";
   const month = parts.find(part => part.type === "month")?.value || "";
   const weekday = parts.find(part => part.type === "weekday")?.value || "";
   return `${day} de ${month} (${weekday})`;
 }
-
 function timePortugal(value) {
-  return new Intl.DateTimeFormat("pt-PT", {
-    timeZone: PORTUGAL_TZ,
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(parsePortugalDate(value));
+  return new Intl.DateTimeFormat("pt-PT", { timeZone: PORTUGAL_TZ, hour: "2-digit", minute: "2-digit" }).format(parsePortugalDate(value));
 }
-
 function statusOf(game) {
   if (hasResult(game)) return { text: "Jogado", className: "played" };
   if (parsePortugalDate(game.matchDate).getTime() <= Date.now()) return { text: "Fechado", className: "closed" };
   return { text: "Por jogar", className: "open" };
 }
+function isLocked(game) { return statusOf(game).className !== "open"; }
 
-function isLocked(game) {
-  return statusOf(game).className !== "open";
+function mergeSettings(input = {}) {
+  const base = defaultSettings();
+  return {
+    ...base, ...input,
+    points: { ...base.points, ...(input.points || {}) },
+    extraResults: { ...base.extraResults, ...(input.extraResults || {}) },
+    extraPredictions: { ...(input.extraPredictions || {}) },
+    importedPoints: { ...(input.importedPoints || {}) }
+  };
 }
 
 function getLocalData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    const data = { games: clone(SEED_GAMES), bets: [] };
+    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return data;
   }
-
   try {
     const parsed = JSON.parse(raw);
     return {
       games: Array.isArray(parsed.games) && parsed.games.length ? parsed.games : clone(SEED_GAMES),
-      bets: Array.isArray(parsed.bets) ? parsed.bets : []
+      bets: Array.isArray(parsed.bets) ? parsed.bets : [],
+      settings: mergeSettings(parsed.settings)
     };
   } catch {
-    const data = { games: clone(SEED_GAMES), bets: [] };
+    const data = { games: clone(SEED_GAMES), bets: [], settings: defaultSettings() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return data;
   }
 }
-
-function saveLocalData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ games, bets }));
-}
+function saveLocalData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ games, bets, settings: appSettings })); }
 
 async function initFirebase() {
   const config = APP_CONFIG.firebase || {};
   if (!config.apiKey || !config.projectId) return;
-
   try {
     const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
     const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
@@ -264,15 +272,16 @@ async function loadData() {
   if (!db || !firebaseApi) {
     const local = getLocalData();
     games = normalizeGames(local.games);
-    bets = local.bets;
+    bets = normalizeBets(local.bets);
+    appSettings = mergeSettings(local.settings);
     renderAll();
     return;
   }
-
   try {
     const { collection, doc, getDocs, query, orderBy, setDoc } = firebaseApi;
     const gamesSnap = await getDocs(query(collection(db, "games"), orderBy("matchDate", "asc")));
     const betsSnap = await getDocs(collection(db, "bets"));
+    const settingsSnap = await getDocs(collection(db, "settings"));
 
     if (gamesSnap.empty) {
       games = clone(SEED_GAMES);
@@ -281,7 +290,9 @@ async function loadData() {
       games = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
     }
 
-    bets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+    bets = normalizeBets(betsSnap.docs.map(item => ({ id: item.id, ...item.data() })));
+    const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
+    appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : defaultSettings());
     games = normalizeGames(games);
     storageMode = "firebase";
     renderAll();
@@ -290,7 +301,8 @@ async function loadData() {
     storageMode = "local";
     const local = getLocalData();
     games = normalizeGames(local.games);
-    bets = local.bets;
+    bets = normalizeBets(local.bets);
+    appSettings = mergeSettings(local.settings);
     renderAll();
     toast("Firebase falhou. A app continua em modo local.");
   }
@@ -298,19 +310,20 @@ async function loadData() {
 
 function normalizeGames(list) {
   const byId = new Map(clone(SEED_GAMES).map(game => [game.id, game]));
-  (list || []).forEach(game => {
-    if (!game?.id) return;
-    byId.set(game.id, { ...byId.get(game.id), ...game });
-  });
+  (list || []).forEach(game => { if (game?.id) byId.set(game.id, { ...byId.get(game.id), ...game }); });
   return [...byId.values()].sort((a, b) => String(a.matchDate).localeCompare(String(b.matchDate)));
+}
+function normalizeBets(list) {
+  return (list || [])
+    .filter(bet => bet && bet.gameId && (bet.playerName || bet.playerId))
+    .map(bet => {
+      const playerName = String(bet.playerName || bet.playerId || "Sem nome").trim();
+      return { ...bet, playerName, playerId: bet.playerId || playerIdFromName(playerName), homeGuess: Number(bet.homeGuess), awayGuess: Number(bet.awayGuess) };
+    });
 }
 
 async function persistGame(game) {
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    saveLocalData();
-    return;
-  }
-
+  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
   try {
     const { doc, setDoc } = firebaseApi;
     await setDoc(doc(db, "games", game.id), game, { merge: true });
@@ -321,16 +334,15 @@ async function persistGame(game) {
     toast("Firebase falhou. Resultado guardado localmente.");
   }
 }
-
+async function persistAllGames() {
+  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  const { doc, setDoc } = firebaseApi;
+  await Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })));
+}
 async function persistBet(bet) {
   bets = bets.filter(item => !(item.gameId === bet.gameId && item.playerId === bet.playerId));
   bets.push(bet);
-
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    saveLocalData();
-    return;
-  }
-
+  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
   try {
     const { doc, setDoc } = firebaseApi;
     await setDoc(doc(db, "bets", bet.id), bet, { merge: true });
@@ -341,50 +353,76 @@ async function persistBet(bet) {
     toast("Firebase falhou. Aposta guardada localmente.");
   }
 }
-
-function getBet(gameId) {
-  return bets.find(bet => bet.gameId === gameId && bet.playerId === PLAYER_ID);
+async function persistAllBets(importedBets, replaceImported = true) {
+  if (replaceImported) bets = bets.filter(bet => bet.source !== "Resultados.xlsx");
+  const byKey = new Map(bets.map(bet => [`${bet.playerId}_${bet.gameId}`, bet]));
+  importedBets.forEach(bet => byKey.set(`${bet.playerId}_${bet.gameId}`, bet));
+  bets = [...byKey.values()];
+  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  const { doc, setDoc } = firebaseApi;
+  await Promise.all(importedBets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })));
+}
+async function persistSettings() {
+  if (!db || !firebaseApi || storageMode !== "firebase") { saveLocalData(); return; }
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "settings", "main"), appSettings, { merge: true });
+  } catch (error) {
+    console.warn(error);
+    storageMode = "local";
+    saveLocalData();
+    toast("Firebase falhou. Configurações guardadas localmente.");
+  }
 }
 
+function betsForGame(gameId) { return bets.filter(bet => bet.gameId === gameId); }
 function pointsForBet(bet, game) {
   if (!bet || !game || !hasResult(game)) return 0;
-  if (Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore)) return 3;
-  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0;
+  const exactPoints = Number(appSettings.points.exact) || 0;
+  const winnerPoints = Number(appSettings.points.winner) || 0;
+  if (Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore)) return exactPoints;
+  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? winnerPoints : 0;
 }
-
-function statsForBetList(list) {
-  const stats = { points: 0, totalBets: list.length, settled: 0, exact: 0, winner: 0, misses: 0 };
-
-  list.forEach(bet => {
+function extraPointsForPlayer(playerName) {
+  const predictions = appSettings.extraPredictions?.[playerName] || {};
+  const results = appSettings.extraResults || {};
+  const points = appSettings.points || defaultSettings().points;
+  const details = { mvp: 0, topScorer: 0, champion: 0, total: 0 };
+  if (results.mvp && predictions.mvp && normalizeComparable(results.mvp) === normalizeComparable(predictions.mvp)) details.mvp = Number(points.mvp) || 0;
+  if (results.topScorer && predictions.topScorer && normalizeComparable(results.topScorer) === normalizeComparable(predictions.topScorer)) details.topScorer = Number(points.topScorer) || 0;
+  if (results.champion && predictions.champion && normalizeComparable(results.champion) === normalizeComparable(predictions.champion)) details.champion = Number(points.champion) || 0;
+  details.total = details.mvp + details.topScorer + details.champion;
+  return details;
+}
+function allPlayers() {
+  const names = new Set(bets.map(bet => bet.playerName));
+  Object.keys(appSettings.extraPredictions || {}).forEach(name => names.add(name));
+  Object.keys(appSettings.importedPoints || {}).forEach(name => names.add(name));
+  return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
+}
+function playerStats(playerName) {
+  const playerBets = bets.filter(bet => bet.playerName === playerName);
+  const stats = { playerName, points: 0, gamePoints: 0, extraPoints: 0, importedPoints: appSettings.importedPoints?.[playerName] ?? null, totalBets: playerBets.length, settled: 0, exact: 0, winner: 0, misses: 0, mvp: 0, topScorer: 0, champion: 0 };
+  playerBets.forEach(bet => {
     const game = games.find(item => item.id === bet.gameId);
     if (!game || !hasResult(game)) return;
-
     const points = pointsForBet(bet, game);
-    stats.points += points;
+    stats.gamePoints += points;
     stats.settled += 1;
-    if (points === 3) stats.exact += 1;
-    else if (points === 1) stats.winner += 1;
+    if (points === Number(appSettings.points.exact)) stats.exact += 1;
+    else if (points === Number(appSettings.points.winner)) stats.winner += 1;
     else stats.misses += 1;
   });
-
+  const extras = extraPointsForPlayer(playerName);
+  stats.mvp = extras.mvp; stats.topScorer = extras.topScorer; stats.champion = extras.champion;
+  stats.extraPoints = extras.total;
+  stats.points = stats.gamePoints + stats.extraPoints;
   stats.accuracy = stats.settled ? Math.round(((stats.exact + stats.winner) / stats.settled) * 100) : 0;
+  stats.diffExcel = stats.importedPoints === null ? null : stats.points - Number(stats.importedPoints);
   return stats;
 }
-
-function scoreStats() {
-  return statsForBetList(bets);
-}
-
-function leaderboardRows() {
-  const byPlayer = new Map();
-  bets.forEach(bet => {
-    const name = bet.playerName || bet.userName || bet.playerId || "Sem nome";
-    if (!byPlayer.has(name)) byPlayer.set(name, []);
-    byPlayer.get(name).push(bet);
-  });
-
-  return [...byPlayer.entries()].map(([name, list]) => ({ name, ...statsForBetList(list) }))
-    .sort((a, b) => b.points - a.points || b.exact - a.exact || b.winner - a.winner || a.name.localeCompare(b.name));
+function leaderboard() {
+  return allPlayers().map(playerStats).sort((a, b) => b.points - a.points || b.exact - a.exact || a.playerName.localeCompare(b.playerName));
 }
 
 function filteredGames() {
@@ -392,7 +430,6 @@ function filteredGames() {
   if (!query) return games;
   return games.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
 }
-
 function groupByDate(list) {
   return list.reduce((map, game) => {
     const key = dateKey(game.matchDate);
@@ -402,41 +439,22 @@ function groupByDate(list) {
   }, new Map());
 }
 
-function renderAll() {
-  renderAdminState();
-  renderCalendar();
-  renderScore();
-  renderGroups();
-  renderAdmin();
-}
+function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderGroups(); renderAdmin(); renderSettingsForm(); }
 
 function renderCalendar() {
   const container = $("gamesList");
   const groups = groupByDate(filteredGames());
   const days = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-
-  if (!days.length) {
-    container.innerHTML = `<div class="empty">Não há jogos para essa pesquisa.</div>`;
-    return;
-  }
-
+  if (!days.length) { container.innerHTML = `<div class="empty">Não há jogos para essa pesquisa.</div>`; return; }
   container.innerHTML = days.map(([, dayGames]) => `
-    <section class="day-block">
-      <h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3>
-      <div class="match-list">
-        ${dayGames.map(renderMatchRow).join("")}
-      </div>
-    </section>
+    <section class="day-block"><h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3><div class="match-list">${dayGames.map(renderMatchRow).join("")}</div></section>
   `).join("");
 }
-
 function renderMatchRow(game) {
-  const bet = getBet(game.id);
   const status = statusOf(game);
-  const locked = isLocked(game);
   const scoreText = hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "VS";
-  const betText = bet ? `${bet.homeGuess}-${bet.awayGuess}${hasResult(game) ? ` · ${pointsForBet(bet, game)} pts` : ""}` : "Sem aposta";
-
+  const gameBets = betsForGame(game.id);
+  const settledText = hasResult(game) ? `${gameBets.length} apostas · pontos atribuídos` : `${gameBets.length} apostas importadas`;
   return `
     <article class="match-row ${status.className}">
       <div class="group-pill">${escapeHtml(game.group)}</div>
@@ -445,197 +463,103 @@ function renderMatchRow(game) {
       <div class="team away"><span>${flag(game.awayTeam)}</span><strong>${escapeHtml(game.awayTeam)}</strong></div>
       <div class="time">${timePortugal(game.matchDate)}</div>
       <div class="state ${status.className}">${status.text}</div>
-      <div class="bet-note">${escapeHtml(betText)}</div>
-      <div class="bet-inputs">
-        <input id="home_${game.id}" type="number" min="0" inputmode="numeric" value="${bet?.homeGuess ?? ""}" ${locked ? "disabled" : ""} aria-label="Aposta ${escapeHtml(game.homeTeam)}" />
-        <span>-</span>
-        <input id="away_${game.id}" type="number" min="0" inputmode="numeric" value="${bet?.awayGuess ?? ""}" ${locked ? "disabled" : ""} aria-label="Aposta ${escapeHtml(game.awayTeam)}" />
-        <button class="primary small" type="button" onclick="window.saveBetFromUI('${game.id}')" ${locked ? "disabled" : ""}>OK</button>
-      </div>
-    </article>
-  `;
+      <div class="bet-note">${escapeHtml(settledText)}</div>
+      <button class="secondary small" type="button" onclick="window.showGameBets('${game.id}')">Ver apostas</button>
+    </article>`;
 }
-
 function renderScore() {
-  const rows = leaderboardRows();
-  const totals = scoreStats();
-
-  if (!rows.length) {
-    $("scoreSummary").innerHTML = `<div class="empty">Ainda não existem apostas importadas. Vai ao Admin e importa o Excel dos users.</div>`;
-    return;
-  }
-
+  const rows = leaderboard();
+  if (!rows.length) { $("scoreSummary").innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`; return; }
   $("scoreSummary").innerHTML = `
-    <div class="score-top-grid">
-      <div class="score-card main-score"><span>Total de users</span><strong>${rows.length}</strong></div>
-      <div class="score-card"><span>Apostas importadas</span><strong>${totals.totalBets}</strong></div>
-      <div class="score-card"><span>Jogos com pontuação</span><strong>${totals.settled}</strong></div>
-      <div class="score-card"><span>Resultados exatos</span><strong>${totals.exact}</strong></div>
-    </div>
-    <div class="leaderboard">
-      <div class="leader-row head"><span>#</span><span>User</span><span>Pts</span><span>Apostas</span><span>Exatos</span><span>Venc.</span><span>%</span></div>
+    <div class="leaderboard-table">
+      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Venc.</span><span>Extras</span><span>Total</span><span>Excel</span></div>
       ${rows.map((row, index) => `
-        <div class="leader-row ${index < 3 ? "podium" : ""}">
-          <span>${index + 1}</span>
-          <strong>${escapeHtml(row.name)}</strong>
-          <b>${row.points}</b>
-          <span>${row.totalBets}</span>
-          <span>${row.exact}</span>
-          <span>${row.winner}</span>
-          <span>${row.accuracy}%</span>
-        </div>
+        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.winner}</span><span>${row.extraPoints}</span><b>${row.points}</b><span>${row.importedPoints === null ? "—" : `${row.importedPoints}${row.diffExcel ? ` (${row.diffExcel > 0 ? "+" : ""}${row.diffExcel})` : ""}`}</span></div>
       `).join("")}
-    </div>
-  `;
+    </div>`;
 }
 
-function blankTeam(team) {
-  return { team, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0 };
-}
-
-function groupSortName(group) {
-  const letter = String(group).match(/Grupo ([A-Z])/i)?.[1] || "Z";
-  return letter;
-}
-
+function blankTeam(team) { return { team, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, gd: 0, points: 0 }; }
+function groupSortName(group) { return String(group).match(/Grupo ([A-Z])/i)?.[1] || "Z"; }
 function buildStandings() {
   const tables = new Map();
-
   games.forEach(game => {
     if (!tables.has(game.group)) tables.set(game.group, new Map());
     const table = tables.get(game.group);
-    [game.homeTeam, game.awayTeam].forEach(team => {
-      if (!table.has(team)) table.set(team, blankTeam(team));
-    });
-
+    [game.homeTeam, game.awayTeam].forEach(team => { if (!table.has(team)) table.set(team, blankTeam(team)); });
     if (!hasResult(game)) return;
-
-    const home = table.get(game.homeTeam);
-    const away = table.get(game.awayTeam);
-    const hs = Number(game.homeScore);
-    const as = Number(game.awayScore);
-
-    home.played += 1;
-    away.played += 1;
-    home.gf += hs;
-    home.ga += as;
-    away.gf += as;
-    away.ga += hs;
-    home.gd = home.gf - home.ga;
-    away.gd = away.gf - away.ga;
-
-    if (hs > as) {
-      home.wins += 1;
-      away.losses += 1;
-      home.points += 3;
-    } else if (hs < as) {
-      away.wins += 1;
-      home.losses += 1;
-      away.points += 3;
-    } else {
-      home.draws += 1;
-      away.draws += 1;
-      home.points += 1;
-      away.points += 1;
-    }
+    const home = table.get(game.homeTeam), away = table.get(game.awayTeam);
+    const hs = Number(game.homeScore), as = Number(game.awayScore);
+    home.played += 1; away.played += 1;
+    home.gf += hs; home.ga += as; away.gf += as; away.ga += hs;
+    home.gd = home.gf - home.ga; away.gd = away.gf - away.ga;
+    if (hs > as) { home.wins += 1; away.losses += 1; home.points += 3; }
+    else if (hs < as) { away.wins += 1; home.losses += 1; away.points += 3; }
+    else { home.draws += 1; away.draws += 1; home.points += 1; away.points += 1; }
   });
-
-  return [...tables.entries()]
-    .sort((a, b) => groupSortName(a[0]).localeCompare(groupSortName(b[0])))
-    .map(([group, table]) => ({
-      group,
-      rows: [...table.values()].sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.team.localeCompare(b.team))
-    }));
+  return [...tables.entries()].sort((a, b) => groupSortName(a[0]).localeCompare(groupSortName(b[0]))).map(([group, table]) => ({ group, rows: [...table.values()].sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.team.localeCompare(b.team)) }));
 }
-
 function renderGroups() {
   $("groupsTables").innerHTML = buildStandings().map(({ group, rows }) => `
-    <section class="group-table">
-      <h3>${escapeHtml(group)}</h3>
-      <div class="table">
-        <div class="table-row head"><span>#</span><span>Seleção</span><span>J</span><span>DG</span><span>Pts</span></div>
-        ${rows.map((row, index) => `
-          <div class="table-row">
-            <span>${index + 1}</span>
-            <strong>${flag(row.team)} ${escapeHtml(row.team)}</strong>
-            <span>${row.played}</span>
-            <span>${row.gd}</span>
-            <b>${row.points}</b>
-          </div>
-        `).join("")}
-      </div>
-    </section>
-  `).join("");
+    <section class="group-table"><h3>${escapeHtml(group)}</h3><div class="table">
+      <div class="table-row head"><span>#</span><span>Seleção</span><span>J</span><span>DG</span><span>Pts</span></div>
+      ${rows.map((row, index) => `<div class="table-row"><span>${index + 1}</span><strong>${flag(row.team)} ${escapeHtml(row.team)}</strong><span>${row.played}</span><span>${row.gd}</span><b>${row.points}</b></div>`).join("")}
+    </div></section>`).join("");
 }
 
 function renderAdminState() {
   $("adminLocked").classList.toggle("hidden", isAdmin);
   $("adminUnlocked").classList.toggle("hidden", !isAdmin);
   const status = storageMode === "firebase" ? "Firebase online" : "Modo local";
-  $("storageStatus").textContent = `${status}. Ao guardar resultado, os pontos são recalculados automaticamente.`;
+  $("storageStatus").textContent = `${status}. Importa Excel ou lança resultados manuais.`;
 }
-
+function renderSettingsForm() {
+  if (!$("pointsExactInput")) return;
+  $("pointsExactInput").value = appSettings.points.exact;
+  $("pointsWinnerInput").value = appSettings.points.winner;
+  $("pointsMvpInput").value = appSettings.points.mvp;
+  $("pointsTopScorerInput").value = appSettings.points.topScorer;
+  $("pointsChampionInput").value = appSettings.points.champion;
+  $("finalMvpInput").value = appSettings.extraResults.mvp || "";
+  $("finalTopScorerInput").value = appSettings.extraResults.topScorer || "";
+  $("finalChampionInput").value = appSettings.extraResults.champion || "";
+  if (appSettings.lastImport) {
+    $("importSummary").innerHTML = `<strong>Última importação:</strong> ${escapeHtml(new Date(appSettings.lastImport.at).toLocaleString("pt-PT"))} · ${appSettings.lastImport.bets || 0} apostas · ${appSettings.lastImport.players || 0} users · ${appSettings.lastImport.results || 0} resultados.`;
+  }
+}
 function renderAdmin() {
   const container = $("adminGamesList");
-  if (!isAdmin) {
-    container.innerHTML = "";
-    return;
-  }
-
+  if (!isAdmin) { container.innerHTML = ""; return; }
   container.innerHTML = games.map(game => `
-    <article class="admin-row">
-      <div class="admin-match">
-        <span class="group-pill">${escapeHtml(game.group)}</span>
-        <strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong>
-        <small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))}</small>
-      </div>
-      <div class="result-inputs">
-        <input id="res_home_${game.id}" type="number" min="0" inputmode="numeric" value="${game.homeScore ?? ""}" aria-label="Resultado ${escapeHtml(game.homeTeam)}" />
-        <span>-</span>
-        <input id="res_away_${game.id}" type="number" min="0" inputmode="numeric" value="${game.awayScore ?? ""}" aria-label="Resultado ${escapeHtml(game.awayTeam)}" />
-        <button class="primary" type="button" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button>
-        <button class="secondary" type="button" onclick="window.clearResultFromUI('${game.id}')">Limpar resultado</button>
-      </div>
-    </article>
-  `).join("");
+    <article class="admin-row"><div class="admin-match"><span class="group-pill">${escapeHtml(game.group)}</span><strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong><small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))} · ${betsForGame(game.id).length} apostas</small></div>
+      <div class="result-inputs"><input id="res_home_${game.id}" type="number" min="0" inputmode="numeric" value="${game.homeScore ?? ""}" aria-label="Resultado ${escapeHtml(game.homeTeam)}" /><span>-</span><input id="res_away_${game.id}" type="number" min="0" inputmode="numeric" value="${game.awayScore ?? ""}" aria-label="Resultado ${escapeHtml(game.awayTeam)}" /><button class="primary" type="button" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" type="button" onclick="window.clearResultFromUI('${game.id}')">Limpar resultado</button></div>
+    </article>`).join("");
 }
 
-async function saveBet(gameId, homeGuess, awayGuess) {
+async function saveBet(gameId, homeGuess, awayGuess, playerName = "Manual") {
   const game = games.find(item => item.id === gameId);
   if (!game) return;
   if (isLocked(game)) return toast("Apostas fechadas para este jogo.");
   if (homeGuess === "" || awayGuess === "") return toast("Preenche os dois campos da aposta.");
-
-  const bet = {
-    id: `${PLAYER_ID}_${gameId}`,
-    playerId: PLAYER_ID,
-    gameId,
-    homeGuess: Number(homeGuess),
-    awayGuess: Number(awayGuess),
-    updatedAt: new Date().toISOString()
-  };
-
+  const playerId = playerIdFromName(playerName);
+  const bet = { id: `${playerId}_${gameId}`, playerId, playerName, gameId, homeGuess: Number(homeGuess), awayGuess: Number(awayGuess), source: "manual", updatedAt: new Date().toISOString() };
   await persistBet(bet);
   renderAll();
   toast("Aposta guardada.");
 }
-
 async function setResult(gameId, homeScore, awayScore) {
   if (homeScore === "" || awayScore === "") return toast("Preenche o resultado completo.");
   const game = games.find(item => item.id === gameId);
   if (!game) return;
-
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
   await persistGame(game);
   renderAll();
   toast("Resultado guardado. Pontos recalculados.");
 }
-
 async function clearResult(gameId) {
   const game = games.find(item => item.id === gameId);
   if (!game) return;
-
   game.homeScore = null;
   game.awayScore = null;
   await persistGame(game);
@@ -643,53 +567,34 @@ async function clearResult(gameId) {
   toast("Resultado limpo.");
 }
 
-function todayGames() {
-  const key = todayKey();
-  return games.filter(game => dateKey(game.matchDate) === key);
-}
-
+function todayGames() { const key = todayKey(); return games.filter(game => dateKey(game.matchDate) === key); }
 function scoreText() {
-  const rows = leaderboardRows();
-  if (!rows.length) return "🏆 Classificação Mundial 2026\n\nAinda não existem apostas importadas.";
-
-  return "🏆 Classificação Mundial 2026\n\n" + rows.map((row, index) => `${index + 1}. ${row.name} - ${row.points} pts (${row.exact} exatos)`).join("\n");
+  const rows = leaderboard();
+  if (!rows.length) return "⭐ Classificação Mundial 2026\n\nAinda não há apostas importadas.";
+  return "⭐ Classificação Mundial 2026\n\n" + rows.map((row, index) => `${index + 1}. ${row.playerName} - ${row.points} pts`).join("\n");
 }
-
 function todayText() {
   const list = todayGames();
   if (!list.length) return "⭐ Jogos de Hoje\n\nHoje não há jogos registados.";
-
   const grouped = [...groupByGroup(list).entries()];
   return "⭐ Jogos de Hoje\n\n" + grouped.map(([group, rows]) => {
     const lines = rows.map(game => `${flag(game.homeTeam)} ${game.homeTeam} vs ${flag(game.awayTeam)} ${game.awayTeam} - ${timePortugal(game.matchDate)}`);
     return `${group}\n${lines.join("\n")}`;
   }).join("\n\n");
 }
-
 function groupsText() {
   return "⭐ Classificação dos Grupos\n\n" + buildStandings().map(({ group, rows }) => {
     const lines = rows.map((row, index) => `${index + 1}. ${flag(row.team)} ${row.team} - ${row.points} pts`);
     return `${group}\n${lines.join("\n")}`;
   }).join("\n\n");
 }
-
 function groupByGroup(list) {
-  return list.reduce((map, game) => {
-    if (!map.has(game.group)) map.set(game.group, []);
-    map.get(game.group).push(game);
-    return map;
-  }, new Map());
+  return list.reduce((map, game) => { if (!map.has(game.group)) map.set(game.group, []); map.get(game.group).push(game); return map; }, new Map());
 }
-
 async function copyText(text, message) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast(message);
-  } catch {
-    window.prompt("Copia o texto:", text);
-  }
+  try { await navigator.clipboard.writeText(text); toast(message); }
+  catch { window.prompt("Copia o texto:", text); }
 }
-
 function toast(message) {
   const element = $("toast");
   element.textContent = message;
@@ -698,198 +603,202 @@ function toast(message) {
   toast.timer = setTimeout(() => element.classList.add("hidden"), 2600);
 }
 
-
-function normalizeText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function parseScore(value) {
+  if (value === null || value === undefined) return null;
+  const match = String(value).trim().match(/(\d+)\s*[-–:]\s*(\d+)/);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2])];
 }
-
-function getCell(row, names) {
-  const normalized = Object.entries(row).map(([key, value]) => [normalizeText(key), value]);
-  for (const name of names) {
-    const target = normalizeText(name);
-    const found = normalized.find(([key]) => key === target || key.includes(target) || target.includes(key));
-    if (found) return found[1];
-  }
-  return "";
+function splitMatchLabel(label) {
+  const raw = String(label || "").trim();
+  if (!raw) return null;
+  const scoreMatch = raw.match(/\s+(\d+\s*[-–:]\s*\d+)\s*$/);
+  const score = scoreMatch ? parseScore(scoreMatch[1]) : null;
+  const cleanLabel = scoreMatch ? raw.slice(0, scoreMatch.index).trim() : raw;
+  const parts = cleanLabel.split(/\s+-\s+/);
+  if (parts.length < 2) return null;
+  return { home: canonicalTeam(parts[0]), away: canonicalTeam(parts.slice(1).join(" - ")), score };
 }
-
-function matchGameFromRow(row) {
-  const gameId = String(getCell(row, ["id", "gameId", "id jogo", "jogo id"])).trim();
-  if (gameId) {
-    const byId = games.find(game => game.id === gameId);
-    if (byId) return byId;
+function findGameByTeams(home, away, group = "") {
+  const h = normalizeComparable(canonicalTeam(home));
+  const a = normalizeComparable(canonicalTeam(away));
+  const g = normalizeComparable(group);
+  return games.find(game => normalizeComparable(game.homeTeam) === h && normalizeComparable(game.awayTeam) === a && (!g || normalizeComparable(game.group) === g))
+    || games.find(game => normalizeComparable(game.homeTeam) === h && normalizeComparable(game.awayTeam) === a);
+}
+async function readWorkbookFile(file) {
+  if (!window.XLSX) throw new Error("Biblioteca Excel ainda não carregou. Verifica ligação à internet.");
+  const buffer = await file.arrayBuffer();
+  if (file.name.toLowerCase().endsWith(".csv")) {
+    const text = new TextDecoder("utf-8").decode(buffer);
+    return XLSX.read(text, { type: "string" });
   }
-
-  const home = String(getCell(row, ["equipa casa", "casa", "home", "home team", "equipa 1", "seleção casa"])).trim();
-  const away = String(getCell(row, ["equipa fora", "fora", "away", "away team", "equipa 2", "seleção fora"])).trim();
-  const gameText = String(getCell(row, ["jogo", "partida", "match"])).trim();
-
-  if (home && away) {
-    const h = normalizeText(home);
-    const a = normalizeText(away);
-    return games.find(game => normalizeText(game.homeTeam) === h && normalizeText(game.awayTeam) === a)
-      || games.find(game => normalizeText(game.homeTeam) === a && normalizeText(game.awayTeam) === h);
+  return XLSX.read(buffer, { type: "array" });
+}
+function firstSheetRows(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, blankrows: false });
+}
+function cellText(value) { return String(value ?? "").trim(); }
+function findPlayersRow(rows) {
+  for (let r = 0; r < rows.length; r += 1) {
+    const row = rows[r] || [];
+    const idx = row.findIndex(cell => normalizeKey(cell) === "jogadores");
+    if (idx !== -1) {
+      const players = [];
+      for (let c = idx + 1; c < row.length; c += 1) {
+        const name = cellText(row[c]);
+        if (name) players.push({ name, col: c });
+      }
+      return { rowIndex: r, labelCol: idx, players };
+    }
   }
-
-  if (gameText) {
-    const t = normalizeText(gameText);
-    return games.find(game => t.includes(normalizeText(game.homeTeam)) && t.includes(normalizeText(game.awayTeam)));
-  }
-
   return null;
 }
-
-function numberOrBlank(value) {
-  if (value === null || value === undefined || value === "") return "";
-  const n = Number(String(value).replace(",", "."));
-  return Number.isFinite(n) ? n : "";
-}
-
-function parseExcelRows(rows) {
-  const parsed = [];
+function parseResultadosWorkbookRows(rows) {
+  const info = findPlayersRow(rows);
+  if (!info) return { bets: [], extras: {}, errors: ["Não encontrei a linha Jogadores no ficheiro Resultados."] };
+  const importedBets = [];
+  const extras = {};
   const errors = [];
-  const resultUpdates = new Map();
-
-  rows.forEach((row, index) => {
-    const playerName = String(getCell(row, ["jogador", "nome", "user", "utilizador", "participante"])).trim();
-    const homeGuess = numberOrBlank(getCell(row, ["aposta casa", "resultado casa", "prognostico casa", "prognóstico casa", "casa aposta", "home guess"]));
-    const awayGuess = numberOrBlank(getCell(row, ["aposta fora", "resultado fora", "prognostico fora", "prognóstico fora", "fora aposta", "away guess"]));
-    const game = matchGameFromRow(row);
-
-    if (!playerName && homeGuess === "" && awayGuess === "") return;
-    if (!playerName) return errors.push(`Linha ${index + 2}: falta o nome/user.`);
-    if (!game) return errors.push(`Linha ${index + 2}: não consegui encontrar o jogo.`);
-    if (homeGuess === "" || awayGuess === "") return errors.push(`Linha ${index + 2}: falta a aposta completa.`);
-
-    const playerId = `excel_${normalizeText(playerName).replace(/\s+/g, "_")}`;
-    parsed.push({
-      id: `${playerId}_${game.id}`,
-      playerId,
-      playerName,
-      gameId: game.id,
-      homeGuess,
-      awayGuess,
-      source: "excel",
-      updatedAt: new Date().toISOString()
-    });
-
-    const realHome = numberOrBlank(getCell(row, ["real casa", "resultado real casa", "final casa", "score casa"]));
-    const realAway = numberOrBlank(getCell(row, ["real fora", "resultado real fora", "final fora", "score fora"]));
-    if (realHome !== "" && realAway !== "") resultUpdates.set(game.id, { homeScore: realHome, awayScore: realAway });
-  });
-
-  return { bets: parsed, errors, resultUpdates };
-}
-
-function previewImport(parsed) {
-  pendingImport = parsed;
-  const box = $("importPreview");
-  const confirm = $("confirmImportBtn");
-  if (!parsed) {
-    box.textContent = "Ainda não foi selecionado nenhum ficheiro.";
-    confirm.disabled = true;
-    return;
-  }
-
-  const players = new Set(parsed.bets.map(bet => bet.playerName));
-  const gamesFound = new Set(parsed.bets.map(bet => bet.gameId));
-  confirm.disabled = !parsed.bets.length;
-  box.innerHTML = `
-    <div><strong>${parsed.bets.length}</strong> apostas válidas</div>
-    <div><strong>${players.size}</strong> users encontrados</div>
-    <div><strong>${gamesFound.size}</strong> jogos com apostas</div>
-    <div><strong>${parsed.resultUpdates.size}</strong> resultados reais no Excel</div>
-    ${parsed.errors.length ? `<details open><summary>${parsed.errors.length} avisos/erros</summary><ul>${parsed.errors.slice(0, 30).map(error => `<li>${escapeHtml(error)}</li>`).join("")}</ul></details>` : ""}
-  `;
-}
-
-async function handleExcelFile(file) {
-  if (!file) return;
-  if (!window.XLSX) return toast("Biblioteca Excel não carregou. Verifica a ligação à internet.");
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: "array" });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
-  previewImport(parseExcelRows(rows));
-}
-
-async function confirmImport() {
-  if (!pendingImport || !pendingImport.bets.length) return toast("Não há apostas válidas para importar.");
-
-  const replace = $("replaceBetsCheck")?.checked;
-  const previousExcelBets = bets.filter(bet => bet.source === "excel");
-  if (replace) bets = bets.filter(bet => bet.source !== "excel");
-
-  pendingImport.bets.forEach(imported => {
-    bets = bets.filter(bet => !(bet.gameId === imported.gameId && bet.playerId === imported.playerId));
-    bets.push(imported);
-  });
-
-  pendingImport.resultUpdates.forEach((result, gameId) => {
-    const game = games.find(item => item.id === gameId);
-    if (game) {
-      game.homeScore = result.homeScore;
-      game.awayScore = result.awayScore;
+  let currentGroup = "";
+  for (let r = info.rowIndex + 1; r < rows.length; r += 1) {
+    const row = rows[r] || [];
+    const label = cellText(row[info.labelCol]);
+    if (!label) continue;
+    if (/^grupo\s+/i.test(label)) { currentGroup = label; continue; }
+    const labelKey = normalizeKey(label);
+    if (labelKey.includes("mvp") || labelKey.includes("melhor marcador") || labelKey.includes("equipa vencedora") || labelKey.includes("campeao") || labelKey.includes("campea")) {
+      const field = labelKey.includes("mvp") ? "mvp" : labelKey.includes("melhor marcador") ? "topScorer" : "champion";
+      info.players.forEach(player => {
+        const value = cellText(row[player.col]);
+        if (!value) return;
+        if (!extras[player.name]) extras[player.name] = {};
+        extras[player.name][field] = value;
+      });
+      continue;
     }
-  });
-
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    saveLocalData();
-  } else {
-    const { doc, setDoc, deleteDoc } = firebaseApi;
-    const deleteOldExcel = replace
-      ? previousExcelBets.map(bet => deleteDoc(doc(db, "bets", bet.id)).catch(() => null))
-      : [];
-    await Promise.all([
-      ...deleteOldExcel,
-      ...pendingImport.bets.map(bet => setDoc(doc(db, "bets", bet.id), bet, { merge: true })),
-      ...[...pendingImport.resultUpdates.entries()].map(([gameId, result]) => {
-        const game = games.find(item => item.id === gameId);
-        return game ? setDoc(doc(db, "games", game.id), game, { merge: true }) : null;
-      }).filter(Boolean)
-    ]);
+    const parsedMatch = splitMatchLabel(label);
+    if (!parsedMatch) continue;
+    const game = findGameByTeams(parsedMatch.home, parsedMatch.away, currentGroup);
+    if (!game) { errors.push(`Jogo não encontrado: ${currentGroup} · ${label}`); continue; }
+    info.players.forEach(player => {
+      const score = parseScore(row[player.col]);
+      if (!score) return;
+      const playerId = playerIdFromName(player.name);
+      importedBets.push({ id: `${playerId}_${game.id}`, playerId, playerName: player.name, gameId: game.id, homeGuess: score[0], awayGuess: score[1], source: "Resultados.xlsx", updatedAt: new Date().toISOString() });
+    });
   }
-
+  return { bets: importedBets, extras, errors };
+}
+function parsePontosWorkbookRows(rows) {
+  const info = findPlayersRow(rows);
+  if (!info) return { results: [], importedPoints: {}, errors: ["Não encontrei a linha Jogadores no ficheiro Pontos."] };
+  const results = [];
+  const importedPoints = {};
+  const errors = [];
+  let currentGroup = "";
+  info.players.forEach(player => importedPoints[player.name] = 0);
+  for (let r = info.rowIndex + 1; r < rows.length; r += 1) {
+    const row = rows[r] || [];
+    const label = cellText(row[info.labelCol]);
+    if (!label) continue;
+    if (/^grupo\s+/i.test(label)) { currentGroup = label; continue; }
+    const parsedMatch = splitMatchLabel(label);
+    if (parsedMatch?.score) {
+      const game = findGameByTeams(parsedMatch.home, parsedMatch.away, currentGroup);
+      if (game) results.push({ gameId: game.id, homeScore: parsedMatch.score[0], awayScore: parsedMatch.score[1] });
+      else errors.push(`Resultado sem jogo encontrado: ${currentGroup} · ${label}`);
+    }
+    info.players.forEach(player => {
+      const value = Number(String(row[player.col] ?? "").replace(",", "."));
+      if (Number.isFinite(value)) importedPoints[player.name] += value;
+    });
+  }
+  return { results, importedPoints, errors };
+}
+async function previewExcelImport() {
+  const resultadosFile = $("resultadosExcelInput").files?.[0];
+  const pontosFile = $("pontosExcelInput").files?.[0];
+  if (!resultadosFile && !pontosFile) { toast("Seleciona pelo menos um ficheiro Excel."); return; }
+  const preview = $("excelPreview");
+  preview.innerHTML = "A ler ficheiros...";
+  const combined = { bets: [], extras: {}, results: [], importedPoints: {}, errors: [] };
+  try {
+    if (resultadosFile) {
+      const workbook = await readWorkbookFile(resultadosFile);
+      const parsed = parseResultadosWorkbookRows(firstSheetRows(workbook));
+      combined.bets.push(...parsed.bets);
+      combined.extras = { ...combined.extras, ...parsed.extras };
+      combined.errors.push(...parsed.errors);
+    }
+    if (pontosFile) {
+      const workbook = await readWorkbookFile(pontosFile);
+      const parsed = parsePontosWorkbookRows(firstSheetRows(workbook));
+      combined.results.push(...parsed.results);
+      combined.importedPoints = parsed.importedPoints;
+      combined.errors.push(...parsed.errors);
+    }
+    const players = new Set(combined.bets.map(bet => bet.playerName));
+    Object.keys(combined.extras).forEach(name => players.add(name));
+    Object.keys(combined.importedPoints).forEach(name => players.add(name));
+    pendingExcelImport = combined;
+    preview.innerHTML = `
+      <div class="preview-grid"><div><strong>${combined.bets.length}</strong><span>apostas lidas</span></div><div><strong>${players.size}</strong><span>users</span></div><div><strong>${combined.results.length}</strong><span>resultados de jogos</span></div><div><strong>${Object.keys(combined.extras).length}</strong><span>extras</span></div></div>
+      ${combined.errors.length ? `<details open><summary>${combined.errors.length} avisos</summary><ul>${combined.errors.slice(0, 80).map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul></details>` : `<p class="ok-line">Sem erros críticos encontrados.</p>`}
+    `;
+    $("confirmExcelImportBtn").disabled = false;
+  } catch (error) {
+    console.error(error);
+    preview.innerHTML = `<p class="error-line">Erro a ler Excel: ${escapeHtml(error.message || error)}</p>`;
+    $("confirmExcelImportBtn").disabled = true;
+  }
+}
+async function confirmExcelImport() {
+  if (!pendingExcelImport) return toast("Faz primeiro a pré-visualização.");
+  const replace = $("replaceExcelBetsInput").checked;
+  pendingExcelImport.results.forEach(result => {
+    const game = games.find(item => item.id === result.gameId);
+    if (!game) return;
+    game.homeScore = result.homeScore;
+    game.awayScore = result.awayScore;
+  });
+  appSettings.extraPredictions = { ...(appSettings.extraPredictions || {}), ...(pendingExcelImport.extras || {}) };
+  appSettings.importedPoints = pendingExcelImport.importedPoints || appSettings.importedPoints || {};
+  appSettings.lastImport = { at: new Date().toISOString(), bets: pendingExcelImport.bets.length, players: new Set(pendingExcelImport.bets.map(bet => bet.playerName)).size, results: pendingExcelImport.results.length };
+  await persistAllBets(pendingExcelImport.bets, replace);
+  await persistAllGames();
+  await persistSettings();
+  pendingExcelImport = null;
+  $("excelModal").classList.add("hidden");
+  $("confirmExcelImportBtn").disabled = true;
   renderAll();
-  closeImportModal();
-  toast("Excel importado. Classificação atualizada.");
+  toast("Excel importado. Classificação recalculada.");
+}
+async function savePointsSettings() {
+  appSettings.points = {
+    exact: Number($("pointsExactInput").value) || 0,
+    winner: Number($("pointsWinnerInput").value) || 0,
+    mvp: Number($("pointsMvpInput").value) || 0,
+    topScorer: Number($("pointsTopScorerInput").value) || 0,
+    champion: Number($("pointsChampionInput").value) || 0
+  };
+  await persistSettings(); renderAll(); toast("Sistema de pontos atualizado.");
+}
+async function saveExtraResults() {
+  appSettings.extraResults = { mvp: $("finalMvpInput").value.trim(), topScorer: $("finalTopScorerInput").value.trim(), champion: $("finalChampionInput").value.trim() };
+  await persistSettings(); renderAll(); toast("Resultados especiais guardados.");
+}
+function showGameBets(gameId) {
+  const game = games.find(item => item.id === gameId);
+  if (!game) return;
+  const rows = betsForGame(gameId).sort((a, b) => a.playerName.localeCompare(b.playerName)).map(bet => `${bet.playerName}: ${bet.homeGuess}-${bet.awayGuess}${hasResult(game) ? ` · ${pointsForBet(bet, game)} pts` : ""}`);
+  alert(`${game.homeTeam} vs ${game.awayTeam}\n\n${rows.length ? rows.join("\n") : "Sem apostas para este jogo."}`);
 }
 
-function openImportModal() {
-  $("excelModal")?.classList.remove("hidden");
-}
-
-function closeImportModal() {
-  $("excelModal")?.classList.add("hidden");
-  if ($("excelInput")) $("excelInput").value = "";
-  previewImport(null);
-}
-
-function downloadTemplate() {
-  if (!window.XLSX) return toast("Biblioteca Excel não carregou.");
-  const rows = games.map(game => ({
-    Jogador: "Nome do user",
-    Grupo: game.group,
-    "Equipa Casa": game.homeTeam,
-    "Equipa Fora": game.awayTeam,
-    "Aposta Casa": "",
-    "Aposta Fora": "",
-    "Real Casa": game.homeScore ?? "",
-    "Real Fora": game.awayScore ?? ""
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Apostas");
-  XLSX.writeFile(wb, "modelo-apostas-mundial-2026.xlsx");
-}
-
-window.saveBetFromUI = id => saveBet(id, $(`home_${id}`).value, $(`away_${id}`).value);
-window.setResultFromUI = id => setResult(id, $(`res_home_${id}`).value, $(`res_away_${id}`).value);
+window.showGameBets = showGameBets;
+window.saveBetFromUI = id => saveBet(id, $("home_" + id)?.value ?? "", $("away_" + id)?.value ?? "");
+window.setResultFromUI = id => setResult(id, $("res_home_" + id).value, $("res_away_" + id).value);
 window.clearResultFromUI = id => clearResult(id);
 
 document.querySelectorAll(".tab").forEach(button => {
@@ -900,32 +809,21 @@ document.querySelectorAll(".tab").forEach(button => {
     $(button.dataset.tab).classList.add("active");
   });
 });
-
-$("searchInput").addEventListener("input", event => {
-  searchText = event.target.value;
-  renderCalendar();
-});
-
+$("searchInput").addEventListener("input", event => { searchText = event.target.value; renderCalendar(); });
 $("unlockAdminBtn").addEventListener("click", () => {
   if ($("adminPinInput").value !== ADMIN_PIN) return toast("PIN errado.");
-  isAdmin = true;
-  localStorage.setItem("mundial_admin_unlocked", "1");
-  renderAll();
+  isAdmin = true; localStorage.setItem("mundial_admin_unlocked", "1"); renderAll();
 });
-
 $("copyTodayBtn").addEventListener("click", () => copyText(todayText(), "Jogos de hoje copiados."));
-$("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Pontuação copiada."));
-$("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação copiada."));
-
-
-$("openImportBtn")?.addEventListener("click", openImportModal);
-$("closeImportBtn")?.addEventListener("click", closeImportModal);
-$("excelModal")?.addEventListener("click", event => {
-  if (event.target.id === "excelModal") closeImportModal();
-});
-$("excelInput")?.addEventListener("change", event => handleExcelFile(event.target.files?.[0]));
-$("confirmImportBtn")?.addEventListener("click", confirmImport);
-$("downloadTemplateBtn")?.addEventListener("click", downloadTemplate);
+$("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classificação copiada."));
+$("copyGroupsBtn").addEventListener("click", () => copyText(groupsText(), "Classificação dos grupos copiada."));
+$("openExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.remove("hidden"));
+$("closeExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.add("hidden"));
+$("excelModal")?.addEventListener("click", event => { if (event.target.id === "excelModal") $("excelModal").classList.add("hidden"); });
+$("previewExcelBtn")?.addEventListener("click", previewExcelImport);
+$("confirmExcelImportBtn")?.addEventListener("click", confirmExcelImport);
+$("savePointsSettingsBtn")?.addEventListener("click", savePointsSettings);
+$("saveExtraResultsBtn")?.addEventListener("click", saveExtraResults);
 
 await initFirebase();
 await loadData();
