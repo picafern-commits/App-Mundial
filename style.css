@@ -654,3 +654,47 @@ body{
   .standings-card{overflow-x:auto}
   .standings-row{min-width:720px}
 }
+
+
+/* v10 manual points focus */
+.manual-note{
+  padding:12px 14px;
+  border-radius:16px;
+  background:rgba(41,211,145,.12);
+  border:1px solid rgba(41,211,145,.24);
+  color:#d9fff0;
+}
+.bet-status-pro strong{
+  color:var(--gold);
+}
+.admin-title{
+  padding:16px 18px;
+  border-radius:22px;
+  background:linear-gradient(135deg, rgba(41,211,145,.12), rgba(255,209,102,.08));
+  border:1px solid rgba(255,255,255,.1);
+}
+.result-grid input{
+  font-size:18px;
+  font-weight:900;
+  text-align:center;
+}
+
+
+/* v11 sem login */
+.login-card{display:none!important}
+.session-card .session-label::after{
+  content:" único";
+  opacity:.7;
+}
+
+
+/* v12 sem jogador visível */
+.session-card{display:none!important}
+.hero{justify-content:flex-start}
+.single-score{
+  grid-template-columns:58px 1fr auto;
+  background:linear-gradient(135deg, rgba(255,209,102,.17), rgba(41,211,145,.11))!important;
+}
+@media(max-width:620px){
+  .single-score{grid-template-columns:1fr}
+}

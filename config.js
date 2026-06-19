@@ -2,7 +2,7 @@
 // Para testar offline deixa tudo como está.
 // Para Firebase, substitui os campos abaixo pelos dados do teu projeto. Quando preencheres, fica online automaticamente.
 window.MUNDIAL_CONFIG = {
-  appVersion: "9.0",
+  appVersion: "12.0",
   adminPin: "1234",
   firebase: {
     apiKey: "AIzaSyCOyW5rfwF8iZxcVN6jxR4VqZ6pNdNmFRA",

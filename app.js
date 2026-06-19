@@ -1,4 +1,4 @@
-// Mundial Pontos - v9.0 Funcional
+// Mundial Pontos - v12.0 Sem Jogador
 // Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -9,10 +9,10 @@ const firebaseConfig = APP_CONFIG.firebase || {};
 const apiConfig = APP_CONFIG.api || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v9";
+const demoStoreKey = "mundial_demo_data_v12";
 
 let db = null;
-let activePlayer = localStorage.getItem("mundial_active_player") || "";
+let activePlayer = "__single_user__";
 let isAdmin = localStorage.getItem("mundial_is_admin") === "1";
 let games = [];
 let bets = [];
@@ -143,7 +143,7 @@ async function loadData(){
   renderAll();
 }
 async function saveBet(gameId, homeGuess, awayGuess){
-  if(!activePlayer) return toast("Entra primeiro com o teu nome.");
+  activePlayer = "__single_user__";
   const game=games.find(g=>g.id===gameId);
   if(!game) return;
   if(isLocked(game)) return toast("As apostas deste jogo já estão fechadas.");
@@ -183,7 +183,7 @@ async function setResult(gameId, homeScore, awayScore){
   } else {
     await setDoc(doc(db,"games",gameId), {homeScore:Number(homeScore), awayScore:Number(awayScore)}, {merge:true});
   }
-  toast("Resultado guardado e tabelas atualizadas.");
+  toast("Resultado guardado. Pontos e ranking atualizados automaticamente.");
   await loadData();
 }
 async function removeResult(gameId){
@@ -290,22 +290,17 @@ function renderAll(){
   renderAdmin();
 }
 function renderSession(){
-  $("activeUserLabel").textContent=activePlayer||"Sem jogador";
-  if($("modeLabel")) $("modeLabel").textContent = DEMO_MODE || !db ? "Modo teste local" : "Firebase online";
-  $("logoutBtn")?.classList.toggle("hidden",!activePlayer);
-  $("loginView")?.classList.toggle("hidden",!!activePlayer);
-  $("mainView")?.classList.toggle("hidden",!activePlayer);
+  activePlayer = "__single_user__";
+  $("loginView")?.classList.add("hidden");
+  $("mainView")?.classList.remove("hidden");
   $("adminLocked")?.classList.toggle("hidden",isAdmin);
   $("adminUnlocked")?.classList.toggle("hidden",!isAdmin);
 }
 function renderStats(){
-  const players=new Set(bets.map(b=>b.playerName));
-  if(activePlayer) players.add(activePlayer);
   const done=games.filter(hasResult).length;
   const open=games.filter(g=>!isLocked(g)).length;
   $("statGames").textContent=games.length;
   if($("statBets")) $("statBets").textContent=bets.length;
-  $("statPlayers").textContent=players.size;
   $("statMyPoints").textContent=getTotals().get(activePlayer)?.points||0;
   if($("statFinished")) $("statFinished").textContent=done;
   if($("statOpen")) $("statOpen").textContent=open;
@@ -373,6 +368,7 @@ function renderGameCard(game){
   const st=statusOf(game);
   const resultText=hasResult(game)?`${game.homeScore} - ${game.awayScore}`:"VS";
   const pts=myBet?pointsForBet(myBet,game):0;
+  const betLabel = !myBet ? "Ainda sem aposta" : !hasResult(game) ? `A tua aposta: <strong>${myBet.homeGuess}-${myBet.awayGuess}</strong> · à espera do resultado` : `A tua aposta: <strong>${myBet.homeGuess}-${myBet.awayGuess}</strong> · <strong>${pts} pts</strong>`;
   const locked=isLocked(game);
   return `<article class="game-card match-card-pro ${st.cls}">
     <div class="match-topline">
@@ -394,7 +390,7 @@ function renderGameCard(game){
       </div>
     </div>
     <div class="match-meta-pro">🏟️ ${escapeHtml(game.venue||"Estádio a confirmar")} · ${escapeHtml(groupOf(game))}</div>
-    <div class="bet-status-pro">${myBet ? `A tua aposta: <strong>${myBet.homeGuess}-${myBet.awayGuess}</strong> · ${pts} pts` : "Ainda sem aposta"}</div>
+    <div class="bet-status-pro">${betLabel}</div>
     <div class="bet-grid bet-grid-pro">
       <label>${escapeHtml(game.homeTeam)}<input id="home_${game.id}" type="number" min="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}></label>
       <label>${escapeHtml(game.awayTeam)}<input id="away_${game.id}" type="number" min="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}></label>
@@ -403,8 +399,12 @@ function renderGameCard(game){
   </article>`;
 }
 function renderRanking(){
-  const rows=[...getTotals().values()].sort((a,b)=>b.points-a.points||b.exact-a.exact||a.playerName.localeCompare(b.playerName));
-  $("rankingList").innerHTML=rows.length?rows.map((r,i)=>`<div class="ranking-row"><div class="rank-number">${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div><div><strong>${escapeHtml(r.playerName)}</strong><p class="muted">Jogos pontuados: ${r.played} · Exatos: ${r.exact}</p></div><div class="points">${r.points} pts</div></div>`).join(""):`<div class="glass-card">Ainda não existem apostas.</div>`;
+  const r = getTotals().get(activePlayer) || {points:0, exact:0, played:0, winner:0};
+  $("rankingList").innerHTML = `<div class="ranking-row single-score">
+    <div class="rank-number">🏆</div>
+    <div><strong>Pontuação total</strong><p class="muted">Jogos com resultado: ${r.played} · Resultados exatos: ${r.exact} · Vencedor/empate certo: ${r.winner || 0}</p></div>
+    <div class="points">${r.points} pts</div>
+  </div>`;
 }
 function renderGroupsTables(){
   const el = $("groupsTables");
@@ -442,8 +442,7 @@ function renderAdmin(){
 function renderIntegration(){
   const t=$("integrationText"); if(!t) return;
   const firebaseState = DEMO_MODE || !db ? "Firebase: teste local" : "Firebase: online";
-  const apiState = apiConfig.enabled && apiConfig.endpoint ? "API: preparada" : "API: desligada";
-  t.textContent = `${firebaseState} · ${apiState}`;
+  t.textContent = `${firebaseState} · Resultados manuais · Pontos automáticos`;
 }
 function normalizeApiGame(item){
   const id = item.id || item.matchId || `${safeId(item.homeTeam||item.home||item.home_name)}_${safeId(item.awayTeam||item.away||item.away_name)}_${item.matchDate||item.date||item.utcDate||Date.now()}`;
@@ -517,9 +516,13 @@ async function importJson(file){
 }
 
 function rankingText(){
-  const rows=[...getTotals().values()].sort((a,b)=>b.points-a.points||b.exact-a.exact||a.playerName.localeCompare(b.playerName));
-  if(!rows.length) return "🏆 CLASSIFICAÇÃO MUNDIAL 2026\n\nAinda não há apostas.";
-  return "🏆 CLASSIFICAÇÃO MUNDIAL 2026\n\n" + rows.map((r,i)=>`${i+1}️⃣ ${r.playerName} — ${r.points} pts (${r.exact} exatos)`).join("\n");
+  const r = getTotals().get(activePlayer) || {points:0, exact:0, played:0, winner:0};
+  return `🏆 PONTUAÇÃO MUNDIAL 2026
+
+Total: ${r.points} pts
+Jogos com resultado: ${r.played}
+Resultados exatos: ${r.exact}
+Vencedor/empate certo: ${r.winner || 0}`;
 }
 function todayText(){
   const list=todayGames();
@@ -547,20 +550,7 @@ window.setResultFromUI=id=>setResult(id,$(`res_home_${id}`).value,$(`res_away_${
 window.removeResultFromUI=id=>removeResult(id);
 window.removeGameFromUI=id=>removeGame(id);
 
-$("enterBtn")?.addEventListener("click",async()=>{
-  const name=$("playerNameInput").value.trim();
-  if(!name) return toast("Escreve o teu nome.");
-  activePlayer=name;
-  localStorage.setItem("mundial_active_player",activePlayer);
-  await loadData();
-});
-$("logoutBtn")?.addEventListener("click",()=>{
-  activePlayer="";
-  isAdmin=false;
-  localStorage.removeItem("mundial_active_player");
-  localStorage.removeItem("mundial_is_admin");
-  renderAll();
-});
+
 $("refreshBtn")?.addEventListener("click",loadData);
 $("unlockAdminBtn")?.addEventListener("click",()=>{
   if($("adminPinInput").value!==ADMIN_PIN) return toast("PIN errado.");
@@ -596,10 +586,9 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
   if(btn.dataset.tab==="groupsTab") renderGroupsTables();
 }));
 
-["copyRankingBtn"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(rankingText(),"Classificação copiada para WhatsApp.")));
+["copyRankingBtn"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(rankingText(),"Pontuação copiada para WhatsApp.")));
 ["copyTodayBtn","copyTodayBtn2"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(todayText(),"Jogos de hoje copiados para WhatsApp.")));
 ["copyGroupsBtn","copyGroupsBtn2"].forEach(id=>$(id)?.addEventListener("click",()=>copyText(groupsText(),"Classificações dos grupos copiadas.")));
 
 await initFirebase();
-if(apiConfig.autoSyncOnOpen) await syncFromApi(false);
 await loadData();

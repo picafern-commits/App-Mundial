@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v9</title>
+  <title>Mundial Pontos v12</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -20,32 +20,12 @@
           <p class="hero-subtitle">Prognósticos, resultados, grupos, fases e partilha rápida para WhatsApp.</p>
         </div>
       </div>
-      <div class="session-card">
-        <span class="session-label">Jogador ativo</span>
-        <strong id="activeUserLabel">Sem jogador</strong>
-        <small id="modeLabel">Modo teste local</small>
-        <button id="logoutBtn" class="ghost hidden">Sair</button>
-      </div>
-    </header>
-
-    <section id="loginView" class="glass-card login-card">
-      <div class="login-badge">🏆 Mundial 2026 · Liga privada</div>
-      <h2>Entrar no jogo</h2>
-      <p>Entra, escolhe os teus resultados e acompanha a classificação em tempo real.</p>
-      <div class="form-grid one">
-        <label>Nome do jogador
-          <input id="playerNameInput" type="text" placeholder="Ex: Ricardo" autocomplete="name" />
-        </label>
-      </div>
-      <button id="enterBtn" class="primary wide">Começar a jogar</button>
-      <p class="small-note">Firebase configurado. PIN admin: <strong>1234</strong>.</p>
-    </section>
-
-    <main id="mainView" class="hidden">
+</header>
+<main id="mainView">
 <section class="premium-hub">
 <div class="hero-world">
 <h2>🏆 FIFA WORLD CUP 2026</h2>
-<p>Classificações • Prognósticos • Resultados em Tempo Real</p>
+<p>Resultados manuais • Pontos automáticos • Ranking</p>
 <div class="hub-grid">
 <div class="hub-card">⭐ Jogos de Hoje</div>
 <div class="hub-card">🏆 Classificações</div>
@@ -58,9 +38,9 @@
 <div class="wc-banner">
 <div class="wc-overlay">
 <h2>🏆 FIFA WORLD CUP 2026</h2>
-<p>Prognósticos • Classificações • Resultados</p>
+<p>Resultados manuais • Classificações • WhatsApp</p>
 <div class="quick-actions">
-      <button id="copyRankingBtn">📋 Copiar Classificação</button>
+      <button id="copyRankingBtn">📋 Copiar Pontuação</button>
       <button id="copyTodayBtn">⭐ Copiar Jogos Hoje</button>
       <button id="copyGroupsBtn">🏆 Copiar Grupos</button>
     </div>
@@ -81,15 +61,15 @@
       <section class="score-overview">
         <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
         <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>
-        <article class="mini-card"><span>Jogadores</span><strong id="statPlayers">0</strong></article>
+        
         <article class="mini-card"><span>Abertos</span><strong id="statOpen">0</strong></article>
         <article class="mini-card"><span>Terminados</span><strong id="statFinished">0</strong></article>
-        <article class="mini-card accent"><span>Os teus pontos</span><strong id="statMyPoints">0</strong></article>
+        <article class="mini-card accent"><span>Pontos</span><strong id="statMyPoints">0</strong></article>
       </section>
 
       <nav class="tabs">
         <button class="tab active" data-tab="gamesTab">⚽ Jogos</button>
-        <button class="tab" data-tab="rankingTab">🏆 Classificação</button><button class="tab" data-tab="groupsTab">🌍 Grupos</button>
+        <button class="tab" data-tab="rankingTab">🏆 Pontuação</button><button class="tab" data-tab="groupsTab">🌍 Grupos</button>
         <button class="tab" data-tab="adminTab">🛠️ Admin</button>
         <button class="tab" data-tab="rulesTab">📌 Regras</button>
       </nav>
@@ -125,8 +105,8 @@
       <section id="rankingTab" class="tab-panel">
         <div class="section-head">
           <div>
-            <h2>Classificação geral</h2>
-            <p>Desempate por número de resultados exatos.</p>
+            <h2>Pontuação</h2>
+            <p>Resumo dos pontos das tuas apostas.</p>
           </div>
         </div>
         <div id="rankingList" class="ranking-list"></div>
@@ -156,12 +136,11 @@
         <div id="adminUnlocked" class="hidden admin-stack">
           <div class="glass-card integration-card">
             <div>
-              <h2>Firebase / API</h2>
-              <p id="integrationText">Firebase: teste local · API: desligada</p>
-              <p class="small-note">Cola os dados do Firebase no ficheiro <strong>config.js</strong>. Se estiver vazio, a app continua em teste local.</p>
+              <h2>Firebase / Modo Manual</h2>
+              <p id="integrationText">Firebase: teste local · Resultados manuais</p>
+              <p class="small-note">Nesta versão os resultados são inseridos manualmente no Admin. Ao guardar o resultado, a app calcula automaticamente os pontos e atualiza o ranking.</p>
             </div>
             <div class="admin-actions">
-              <button id="syncApiBtn" class="secondary">Sincronizar API</button>
               <button id="exportBtn" class="secondary">Exportar JSON</button>
               <label class="secondary file-button">Importar JSON<input id="importInput" type="file" accept="application/json" hidden></label>
             </div>
@@ -202,7 +181,7 @@
           <div class="section-head admin-title">
             <div>
               <h2>Resultados</h2>
-              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente.</p>
+              <p>Coloca o resultado final de cada jogo. A app calcula automaticamente: 3 pontos para resultado exato, 1 ponto para vencedor/empate certo, 0 pontos se falhar.</p>
             </div>
           </div>
           <div id="adminGamesList" class="list"></div>
