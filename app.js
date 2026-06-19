@@ -1,4 +1,4 @@
-// Mundial Pontos - v1.6.0 Grupos
+// Mundial Pontos - v1.7.0 Firebase Configurado
 // Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -213,7 +213,7 @@ async function syncFromApi(showToast=true){
   }catch(e){ console.error(e); toast("Não consegui sincronizar a API."); }
 }
 function exportJson(){
-  const data={version:APP_CONFIG.appVersion||"1.6.0", exportedAt:new Date().toISOString(), games, bets};
+  const data={version:APP_CONFIG.appVersion||"1.7.0", exportedAt:new Date().toISOString(), games, bets};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="mundial-pontos-backup.json"; a.click(); URL.revokeObjectURL(a.href);
 }
