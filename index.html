@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos 2026 · Users</title>
+  <title>Mundial Pontos 2026 · Resultados Manuais</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,6 +16,7 @@
       <div class="copy-actions" aria-label="Copiar para WhatsApp">
         <button id="copyTodayBtn" class="secondary" type="button">Copiar jogos de hoje</button>
         <button id="copyScoreBtn" class="secondary" type="button">Copiar pontuação</button>
+            <button id="exportPontosBtn" class="secondary" type="button">Exportar Pontos Excel</button>
         <button id="copyGroupsBtn" class="secondary" type="button">Copiar grupos</button>
       </div>
     </header>
@@ -43,7 +44,7 @@
         <div class="section-head">
           <div>
             <h2>Pontuação</h2>
-            <p>Classificação geral calculada com as apostas importadas do Excel.</p>
+            <p>Classificação calculada automaticamente: apostas do Excel Resultados + resultados reais colocados manualmente no Admin.</p>
           </div>
         </div>
         <div id="scoreSummary" class="score-summary leaderboard"></div>
@@ -70,8 +71,7 @@
         </div>
 
         <div id="adminUnlocked" class="hidden admin-stack">
-
-          <div class="admin-card">
+<div class="admin-card">
             <div class="section-head compact">
               <div>
                 <h2>Users do Jogo</h2>
@@ -89,7 +89,7 @@
             <div class="section-head compact">
               <div>
                 <h2>Importar Excel</h2>
-                <p>Usa os ficheiros <strong>Resultados.xlsx</strong> e <strong>Pontos.xlsx</strong> como base.</p>
+                <p>Usa o ficheiro <strong>Resultados.xlsx</strong> para importar as apostas dos users. A app gera o ficheiro de pontos.</p>
               </div>
               <button id="openExcelModalBtn" class="primary" type="button">Importar Excel</button>
             </div>
@@ -100,16 +100,13 @@
             <div class="section-head compact">
               <div>
                 <h2>Sistema de Pontos</h2>
-                <p>O Admin pode editar quantos pontos vale cada campo.</p>
+                <p>O Admin pode editar quantos pontos vale cada campo. Resultado exato pontua; vencedor/empate certo foi removido.</p>
               </div>
               <button id="savePointsSettingsBtn" class="primary" type="button">Guardar pontos</button>
             </div>
             <div class="points-settings-grid">
               <label>Resultado exato
                 <input id="pointsExactInput" type="number" min="0" step="1" />
-              </label>
-              <label>Vencedor / empate certo
-                <input id="pointsWinnerInput" type="number" min="0" step="1" />
               </label>
               <label>MVP
                 <input id="pointsMvpInput" type="number" min="0" step="1" />
@@ -162,7 +159,7 @@
       <div class="modal-head">
         <div>
           <h2 id="excelModalTitle">Importar Excel dos Users</h2>
-          <p>Importa o ficheiro de apostas (<strong>Resultados.xlsx</strong>) e, se quiseres, o ficheiro de pontos/resultados (<strong>Pontos.xlsx</strong>).</p>
+          <p>Importa o ficheiro de apostas (<strong>Resultados.xlsx</strong>). Depois mete os resultados reais manualmente no Admin.</p>
         </div>
         <button id="closeExcelModalBtn" class="icon-button" type="button" aria-label="Fechar">×</button>
       </div>

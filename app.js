@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_users_v17";
+const STORAGE_KEY = "mundial_pontos_2026_resultados_manuais_v20";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -178,7 +178,7 @@ const playerIdFromName = name => `player_${normalizeKey(name).replace(/\s+/g, "_
 
 function defaultSettings() {
   return {
-    points: { exact: 3, winner: 1, mvp: 5, topScorer: 5, champion: 10 },
+    points: { exact: 3, winner: 0, mvp: 5, topScorer: 5, champion: 10 },
     extraResults: { mvp: "", topScorer: "", champion: "" },
     extraPredictions: {},
     importedPoints: {},
@@ -228,6 +228,7 @@ function mergeSettings(input = {}) {
     extraResults: { ...base.extraResults, ...(input.extraResults || {}) },
     extraPredictions: { ...(input.extraPredictions || {}) },
     importedPoints: { ...(input.importedPoints || {}) },
+    users: Array.isArray(input.users) ? input.users : [],
     users: Array.isArray(input.users) ? input.users : []
   };
 }
@@ -381,9 +382,8 @@ function betsForGame(gameId) { return bets.filter(bet => bet.gameId === gameId);
 function pointsForBet(bet, game) {
   if (!bet || !game || !hasResult(game)) return 0;
   const exactPoints = Number(appSettings.points.exact) || 0;
-  const winnerPoints = Number(appSettings.points.winner) || 0;
   if (Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore)) return exactPoints;
-  return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? winnerPoints : 0;
+  return 0;
 }
 function extraPointsForPlayer(playerName) {
   const predictions = appSettings.extraPredictions?.[playerName] || {};
@@ -413,14 +413,13 @@ function playerStats(playerName) {
     stats.gamePoints += points;
     stats.settled += 1;
     if (points === Number(appSettings.points.exact)) stats.exact += 1;
-    else if (points === Number(appSettings.points.winner)) stats.winner += 1;
     else stats.misses += 1;
   });
   const extras = extraPointsForPlayer(playerName);
   stats.mvp = extras.mvp; stats.topScorer = extras.topScorer; stats.champion = extras.champion;
   stats.extraPoints = extras.total;
   stats.points = stats.gamePoints + stats.extraPoints;
-  stats.accuracy = stats.settled ? Math.round(((stats.exact + stats.winner) / stats.settled) * 100) : 0;
+  stats.accuracy = stats.settled ? Math.round((stats.exact / stats.settled) * 100) : 0;
   stats.diffExcel = stats.importedPoints === null ? null : stats.points - Number(stats.importedPoints);
   return stats;
 }
@@ -473,9 +472,9 @@ function renderScore() {
   if (!rows.length) { $("scoreSummary").innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`; return; }
   $("scoreSummary").innerHTML = `
     <div class="leaderboard-table">
-      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Venc.</span><span>Extras</span><span>Total</span><span>Excel</span></div>
+      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Extras</span><span>Total</span><span>Excel</span></div>
       ${rows.map((row, index) => `
-        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.winner}</span><span>${row.extraPoints}</span><b>${row.points}</b><span>${row.importedPoints === null ? "—" : `${row.importedPoints}${row.diffExcel ? ` (${row.diffExcel > 0 ? "+" : ""}${row.diffExcel})` : ""}`}</span></div>
+        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.extraPoints}</span><b>${row.points}</b><span>${row.importedPoints === null ? "—" : `${row.importedPoints}${row.diffExcel ? ` (${row.diffExcel > 0 ? "+" : ""}${row.diffExcel})` : ""}`}</span></div>
       `).join("")}
     </div>`;
 }
@@ -512,12 +511,11 @@ function renderAdminState() {
   $("adminLocked").classList.toggle("hidden", isAdmin);
   $("adminUnlocked").classList.toggle("hidden", !isAdmin);
   const status = storageMode === "firebase" ? "Firebase online" : "Modo local";
-  $("storageStatus").textContent = `${status}. Importa Excel ou lança resultados manuais.`;
+  $("storageStatus").textContent = `${status}. Importa as apostas do Excel Resultados e mete os resultados reais manualmente.`;
 }
 function renderSettingsForm() {
   if (!$("pointsExactInput")) return;
   $("pointsExactInput").value = appSettings.points.exact;
-  $("pointsWinnerInput").value = appSettings.points.winner;
   $("pointsMvpInput").value = appSettings.points.mvp;
   $("pointsTopScorerInput").value = appSettings.points.topScorer;
   $("pointsChampionInput").value = appSettings.points.champion;
@@ -528,6 +526,21 @@ function renderSettingsForm() {
     $("importSummary").innerHTML = `<strong>Última importação:</strong> ${escapeHtml(new Date(appSettings.lastImport.at).toLocaleString("pt-PT"))} · ${appSettings.lastImport.bets || 0} apostas · ${appSettings.lastImport.players || 0} users · ${appSettings.lastImport.results || 0} resultados.`;
   }
 }
+
+function renderApiSettings() {
+  if (!$("apiKeyInput")) return;
+  const api = appSettings.api || defaultSettings().api;
+  $("apiKeyInput").value = api.apiKey || "";
+  $("apiLeagueInput").value = api.league || "1";
+  $("apiSeasonInput").value = api.season || "2026";
+  const summary = $("apiSyncSummary");
+  if (summary) {
+    summary.innerHTML = api.lastSync
+      ? `<strong>Última sincronização:</strong> ${escapeHtml(new Date(api.lastSync.at).toLocaleString("pt-PT"))} · ${api.lastSync.updated || 0} resultados atualizados · ${api.lastSync.matched || 0} jogos encontrados na app.`
+      : "Ainda não foi feita sincronização automática.";
+  }
+}
+
 function renderAdmin() {
   const container = $("adminGamesList");
   if (!isAdmin) { container.innerHTML = ""; return; }
@@ -784,7 +797,7 @@ async function confirmExcelImport() {
 async function savePointsSettings() {
   appSettings.points = {
     exact: Number($("pointsExactInput").value) || 0,
-    winner: Number($("pointsWinnerInput").value) || 0,
+    winner: 0,
     mvp: Number($("pointsMvpInput").value) || 0,
     topScorer: Number($("pointsTopScorerInput").value) || 0,
     champion: Number($("pointsChampionInput").value) || 0
@@ -838,6 +851,60 @@ function renderUsers() {
   }).join("");
 }
 
+
+function exportPontosExcel() {
+  if (!window.XLSX) {
+    toast("Biblioteca Excel ainda não carregou.");
+    return;
+  }
+
+  const rows = [
+    ["Jogador", "Jogos com resultado", "Resultados exatos", "Pontos jogos", "MVP", "Melhor Marcador", "Equipa Vencedora", "Pontos extras", "Total"]
+  ];
+
+  leaderboard().forEach(row => {
+    rows.push([
+      row.playerName,
+      row.settled,
+      row.exact,
+      row.gamePoints,
+      row.mvp,
+      row.topScorer,
+      row.champion,
+      row.extraPoints,
+      row.points
+    ]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [
+    { wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
+    { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 10 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, "Pontos");
+
+  const detailRows = [["Grupo", "Jogo", "Resultado real", "Hora Portugal", "User", "Aposta", "Pontos"]];
+  games.forEach(game => {
+    betsForGame(game.id).forEach(bet => {
+      detailRows.push([
+        game.group,
+        `${game.homeTeam} - ${game.awayTeam}`,
+        hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "",
+        timePortugal(game.matchDate),
+        bet.playerName,
+        `${bet.homeGuess}-${bet.awayGuess}`,
+        pointsForBet(bet, game)
+      ]);
+    });
+  });
+  const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
+  XLSX.utils.book_append_sheet(wb, wsDetail, "Detalhe");
+
+  XLSX.writeFile(wb, "Pontos_Mundial_2026.xlsx");
+  toast("Excel Pontos exportado.");
+}
+
 function showGameBets(gameId) {
   const game = games.find(item => item.id === gameId);
   if (!game) return;
@@ -874,6 +941,7 @@ $("previewExcelBtn")?.addEventListener("click", previewExcelImport);
 $("confirmExcelImportBtn")?.addEventListener("click", confirmExcelImport);
 $("savePointsSettingsBtn")?.addEventListener("click", savePointsSettings);
 $("saveExtraResultsBtn")?.addEventListener("click", saveExtraResults);
+$("exportPontosBtn")?.addEventListener("click", exportPontosExcel);
 
 await initFirebase();
 await loadData();
