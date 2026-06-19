@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_editar_user_v30";
+const STORAGE_KEY = "mundial_pontos_2026_admin_resultados_aba_v31";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;

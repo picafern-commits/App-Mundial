@@ -1119,3 +1119,10 @@ h2 {
     justify-content:flex-start;
   }
 }
+
+
+/* v31 corrigido: Resultados dos jogos dentro da própria aba */
+.admin-collapse #adminGamesList{
+  display:grid!important;
+  margin:0 14px 14px;
+}
