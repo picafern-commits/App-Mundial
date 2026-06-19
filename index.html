@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mundial Pontos</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Jogo de Prognósticos</p>
+        <h1>Mundial Pontos</h1>
+      </div>
+      <div class="user-box">
+        <span id="activeUserLabel">Sem jogador</span>
+        <button id="logoutBtn" class="ghost hidden">Sair</button>
+      </div>
+    </header>
+
+    <section id="loginView" class="card login-card">
+      <h2>Entrar no jogo</h2>
+      <p>Escreve o teu nome para guardar os teus palpites.</p>
+      <div class="form-grid one">
+        <label>Nome do jogador
+          <input id="playerNameInput" type="text" placeholder="Ex: Ricardo" autocomplete="name" />
+        </label>
+      </div>
+      <button id="enterBtn" class="primary">Entrar</button>
+      <p class="small-note">Para testes, o admin usa o PIN <strong>1234</strong>.</p>
+    </section>
+
+    <main id="mainView" class="hidden">
+      <nav class="tabs">
+        <button class="tab active" data-tab="gamesTab">Jogos</button>
+        <button class="tab" data-tab="rankingTab">Classificação</button>
+        <button class="tab" data-tab="adminTab">Admin</button>
+        <button class="tab" data-tab="rulesTab">Regras</button>
+      </nav>
+
+      <section id="gamesTab" class="tab-panel active">
+        <div class="section-head">
+          <div>
+            <h2>Fazer apostas</h2>
+            <p>Escolhe o resultado antes do jogo começar.</p>
+          </div>
+          <button id="refreshBtn" class="secondary">Atualizar</button>
+        </div>
+        <div id="gamesList" class="list"></div>
+      </section>
+
+      <section id="rankingTab" class="tab-panel">
+        <div class="section-head">
+          <div>
+            <h2>Classificação</h2>
+            <p>Ranking calculado pelos pontos ganhos.</p>
+          </div>
+        </div>
+        <div id="rankingList" class="ranking-list"></div>
+      </section>
+
+      <section id="adminTab" class="tab-panel">
+        <div id="adminLocked" class="card">
+          <h2>Área Admin</h2>
+          <p>Insere o PIN para adicionar jogos e lançar resultados.</p>
+          <div class="form-grid one">
+            <label>PIN Admin
+              <input id="adminPinInput" type="password" placeholder="PIN" />
+            </label>
+          </div>
+          <button id="unlockAdminBtn" class="primary">Entrar como admin</button>
+        </div>
+
+        <div id="adminUnlocked" class="hidden">
+          <div class="card">
+            <h2>Adicionar jogo</h2>
+            <div class="form-grid">
+              <label>Equipa casa
+                <input id="homeTeamInput" type="text" placeholder="Portugal" />
+              </label>
+              <label>Equipa fora
+                <input id="awayTeamInput" type="text" placeholder="Brasil" />
+              </label>
+              <label>Data / hora
+                <input id="matchDateInput" type="datetime-local" />
+              </label>
+            </div>
+            <button id="addGameBtn" class="primary">Adicionar jogo</button>
+          </div>
+
+          <div class="section-head admin-title">
+            <div>
+              <h2>Resultados</h2>
+              <p>Quando colocas o resultado real, os pontos são recalculados.</p>
+            </div>
+          </div>
+          <div id="adminGamesList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="rulesTab" class="tab-panel">
+        <div class="card">
+          <h2>Regras</h2>
+          <ul class="rules">
+            <li>Acertar a equipa vencedora: <strong>1 ponto</strong>.</li>
+            <li>Acertar o resultado exato: <strong>3 pontos</strong>.</li>
+            <li>Empate conta como resultado sem vencedor.</li>
+            <li>Quando o resultado real é lançado, a app calcula tudo sozinha.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
