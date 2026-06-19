@@ -1132,3 +1132,54 @@ h2 {
 .excel-preview strong{
   color:var(--gold);
 }
+
+
+/* v33 persistência apostas */
+.save-hint{
+  color:var(--gold);
+  font-weight:900;
+}
+
+
+/* v34 estado da importação */
+.import-status-box{
+  margin:0 0 12px;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  display:grid;
+  gap:4px;
+  background:rgba(255,255,255,.035);
+}
+.import-status-box strong{
+  font-size:14px;
+  font-weight:950;
+}
+.import-status-box span{
+  color:var(--muted);
+  font-size:13px;
+}
+.import-status-box.idle{
+  border-color:rgba(255,255,255,.12);
+}
+.import-status-box.success{
+  border-color:rgba(69,255,156,.35);
+  background:rgba(69,255,156,.08);
+}
+.import-status-box.success strong{
+  color:#83ffbf;
+}
+.import-status-box.warning{
+  border-color:rgba(255,216,87,.45);
+  background:rgba(255,216,87,.09);
+}
+.import-status-box.warning strong{
+  color:var(--gold);
+}
+.import-status-box.error{
+  border-color:rgba(255,98,98,.45);
+  background:rgba(255,98,98,.09);
+}
+.import-status-box.error strong{
+  color:#ff9a9a;
+}

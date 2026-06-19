@@ -290,7 +290,8 @@ async function loadData() {
     games = normalizeGames(local.games);
     bets = normalizeBets(local.bets);
     appSettings = mergeSettings(local.settings);
-    renderAll();
+    rescueLocalBetsIfNeeded();
+  renderAll();
     return;
   }
   try {
@@ -472,6 +473,47 @@ function groupByDate(list) {
     map.get(key).push(game);
     return map;
   }, new Map());
+}
+
+
+async function forceSaveAll(reason = "") {
+  try {
+    await saveAll();
+    // Garante cópia local mesmo quando Firebase está ativo/lento.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      games,
+      bets,
+      appSettings,
+      savedAt: new Date().toISOString(),
+      reason
+    }));
+  } catch (error) {
+    console.error("Erro ao guardar dados:", error);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      games,
+      bets,
+      appSettings,
+      savedAt: new Date().toISOString(),
+      reason: `${reason} fallback`
+    }));
+  }
+}
+
+
+function rescueLocalBetsIfNeeded() {
+  try {
+    if (bets.length) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data?.bets) && data.bets.length) {
+      bets = data.bets;
+      if (Array.isArray(data.games) && data.games.length) games = data.games;
+      if (data.appSettings) appSettings = mergeSettings(data.appSettings);
+    }
+  } catch (error) {
+    console.warn("Não foi possível recuperar apostas locais.", error);
+  }
 }
 
 function renderAll() { renderAdminState(); renderCalendar(); renderScore(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderCalendarFilterState(); }
@@ -713,7 +755,7 @@ async function saveEditedUserBets() {
     appSettings.users.push(playerName);
   }
 
-  await saveAll();
+  await forceSaveAll("editar apostas utilizador");
   toast(`Apostas de ${playerName} guardadas.`);
 }
 
@@ -909,6 +951,37 @@ function findPlayersRow(rows) {
   }
   return null;
 }
+
+function setImportStatus(type, title, details = "") {
+  const box = $("importStatusBox");
+  if (!box) return;
+
+  box.className = `import-status-box ${type}`;
+  box.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    ${details ? `<span>${escapeHtml(details)}</span>` : ""}
+  `;
+}
+
+function importStatusFromResult(result) {
+  const betsCount = result?.bets?.length ?? result?.importedBets?.length ?? 0;
+  const resultsCount = result?.results?.length ?? 0;
+  const usersCount = result?.users?.length ?? result?.players?.length ?? 0;
+  const errorsCount = result?.errors?.length ?? 0;
+
+  if (errorsCount > 0 && betsCount === 0 && resultsCount === 0) {
+    setImportStatus("error", "Erro ao importar Excel", `${errorsCount} avisos/erros encontrados. Vê os detalhes abaixo.`);
+    return;
+  }
+
+  if (errorsCount > 0) {
+    setImportStatus("warning", "Excel importado com avisos", `${betsCount} apostas · ${usersCount} users · ${errorsCount} avisos.`);
+    return;
+  }
+
+  setImportStatus("success", "Excel importado com sucesso", `${betsCount} apostas importadas · ${usersCount} users.`);
+}
+
 function parseResultadosWorkbookRows(rows) {
   const info = findPlayersRow(rows);
   if (!info) return { bets: [], extras: {}, errors: ["Não encontrei a linha Jogadores no ficheiro Resultados."] };
@@ -989,7 +1062,8 @@ function parsePontosWorkbookRows(rows) {
 async function previewExcelImport() {
   const resultadosFile = $("resultadosExcelInput").files?.[0];
   const pontosFile = $("pontosExcelInput").files?.[0];
-  if (!resultadosFile && !pontosFile) { toast("Seleciona o Excel Resultados corrigido para importar."); return; }
+  if (!resultadosFile && !pontosFile) { setImportStatus("error", "Nenhum ficheiro selecionado", "Seleciona o Excel Resultados corrigido para importar.");
+    toast("Seleciona o Excel Resultados corrigido para importar."); return; }
   const preview = $("excelPreview");
   preview.innerHTML = "A ler ficheiros...";
   const combined = { bets: [], extras: {}, results: [], importedPoints: {}, errors: [] };
@@ -1012,7 +1086,9 @@ async function previewExcelImport() {
     Object.keys(combined.extras).forEach(name => players.add(name));
     Object.keys(combined.importedPoints).forEach(name => players.add(name));
     pendingExcelImport = combined;
-    preview.innerHTML = `
+    
+  importStatusFromResult(combined);
+preview.innerHTML = `
       <div class="preview-grid"><div><strong>${combined.bets.length}</strong><span>apostas lidas</span></div><div><strong>${players.size}</strong><span>users</span></div><div><strong>${combined.results.length}</strong><span>resultados de jogos</span></div><div><strong>${Object.keys(combined.extras).length}</strong><span>extras</span></div></div>
       ${combined.errors.length ? `<details open><summary>${combined.errors.length} avisos — estas linhas não foram importadas</summary><ul>${combined.errors.slice(0, 80).map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul></details>` : `<p class="ok-line">Sem erros críticos encontrados.</p>`}
     `;
@@ -1362,7 +1438,7 @@ $("copyScoreBtn").addEventListener("click", () => copyText(scoreText(), "Classif
 $("addUserBtn")?.addEventListener("click", addUser);
 $("newUserNameInput")?.addEventListener("keydown", event => { if (event.key === "Enter") addUser(); });
 $("exportResultadosBtn")?.addEventListener("click", exportResultadosExcel);
-$("openExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.remove("hidden"));
+$("openExcelModalBtn")?.addEventListener("click", () => { setImportStatus("idle", "Aguardando ficheiro Excel", "Escolhe o Excel Resultados para importar."); $("excelModal").classList.remove("hidden"); });
 $("closeExcelModalBtn")?.addEventListener("click", () => $("excelModal").classList.add("hidden"));
 $("excelModal")?.addEventListener("click", event => { if (event.target.id === "excelModal") $("excelModal").classList.add("hidden"); });
 $("previewExcelBtn")?.addEventListener("click", previewExcelImport);
@@ -1391,6 +1467,18 @@ $("saveUserBetsBtn")?.addEventListener("click", saveEditedUserBets);
 document.addEventListener("click", event => {
   const clearBtn = event.target.closest(".clear-user-game-btn");
   if (clearBtn) clearUserGameRow(clearBtn);
+});
+
+window.addEventListener("beforeunload", () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      games,
+      bets,
+      appSettings,
+      savedAt: new Date().toISOString(),
+      reason: "beforeunload"
+    }));
+  } catch {}
 });
 
 await initFirebase();
