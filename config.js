@@ -5,12 +5,12 @@ window.MUNDIAL_CONFIG = {
   appVersion: "1.4.0",
   adminPin: "1234",
   firebase: {
-    apiKey: "COLOCA_AQUI",
-    authDomain: "COLOCA_AQUI",
-    projectId: "COLOCA_AQUI",
-    storageBucket: "COLOCA_AQUI",
-    messagingSenderId: "COLOCA_AQUI",
-    appId: "COLOCA_AQUI"
+  apiKey: "AIzaSyCOyW5rfwF8iZxcVN6jxR4VqZ6pNdNmFRA",
+  authDomain: "app-mundial2026.firebaseapp.com",
+  projectId: "app-mundial2026",
+  storageBucket: "app-mundial2026.firebasestorage.app",
+  messagingSenderId: "143980254410",
+  appId: "1:143980254410:web:0f48873c3aa4c9ad201033"
   },
   api: {
     enabled: false,
