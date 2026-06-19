@@ -657,7 +657,7 @@ h2 {
 .error-line { color: #ffc0c0; }
 .leaderboard { display: block; }
 .leaderboard-table { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); box-shadow: var(--shadow); }
-.leaderboard-row { display: grid; grid-template-columns: 44px minmax(150px, 1fr) 80px 70px 70px 80px 90px; gap: 8px; align-items: center; min-height: 42px; padding: 9px 12px; border-top: 1px solid rgba(255,255,255,.06); }
+.leaderboard-row { display: grid; grid-template-columns: 44px minmax(150px, 1fr) 80px 70px 70px 90px; gap: 8px; align-items: center; min-height: 42px; padding: 9px 12px; border-top: 1px solid rgba(255,255,255,.06); }
 .leaderboard-row.head { border-top: 0; color: var(--muted); background: rgba(255,255,255,.045); font-size: 12px; font-weight: 950; text-transform: uppercase; }
 .leaderboard-row b { color: var(--gold); font-size: 18px; }
 .match-row { grid-template-columns: 78px minmax(130px, 1fr) 58px minmax(130px, 1fr) 70px 86px minmax(120px, 1fr) 106px; }
@@ -855,5 +855,29 @@ h2 {
   }
   .calendar-actions{
     justify-content:flex-start;
+  }
+}
+
+
+/* v23 sem bandeiras + total vindo do Excel */
+.team span,
+.result-team span{
+  display:none!important;
+}
+.team{
+  gap:0!important;
+}
+.total-highlight,
+.leaderboard-row b{
+  color:var(--gold)!important;
+  font-size:18px;
+  font-weight:950;
+}
+.leaderboard-row{
+  grid-template-columns:44px minmax(150px,1fr) 80px 70px 70px 90px!important;
+}
+@media(max-width:820px){
+  .leaderboard-row{
+    min-width:610px!important;
   }
 }

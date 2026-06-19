@@ -1,6 +1,6 @@
 const APP_CONFIG = window.MUNDIAL_CONFIG || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
-const STORAGE_KEY = "mundial_pontos_2026_botoes_calendario_v22";
+const STORAGE_KEY = "mundial_pontos_2026_sem_bandeiras_total_v23";
 const PORTUGAL_TZ = "Europe/Lisbon";
 
 let db = null;
@@ -429,9 +429,11 @@ function playerStats(playerName) {
   const extras = extraPointsForPlayer(playerName);
   stats.mvp = extras.mvp; stats.topScorer = extras.topScorer; stats.champion = extras.champion;
   stats.extraPoints = extras.total;
-  stats.points = stats.gamePoints + stats.extraPoints;
+  const calculatedTotal = stats.gamePoints + stats.extraPoints;
+  stats.calculatedTotal = calculatedTotal;
+  stats.points = stats.importedPoints === null ? calculatedTotal : Number(stats.importedPoints);
   stats.accuracy = stats.settled ? Math.round((stats.exact / stats.settled) * 100) : 0;
-  stats.diffExcel = stats.importedPoints === null ? null : stats.points - Number(stats.importedPoints);
+  stats.diffExcel = stats.importedPoints === null ? null : calculatedTotal - Number(stats.importedPoints);
   return stats;
 }
 function leaderboard() {
@@ -471,9 +473,9 @@ function renderMatchRow(game) {
   return `
     <article class="match-row ${status.className}">
       <div class="group-pill">${escapeHtml(game.group)}</div>
-      <div class="team home"><span>${flag(game.homeTeam)}</span><strong>${escapeHtml(game.homeTeam)}</strong></div>
+      <div class="team home"><strong>${escapeHtml(game.homeTeam)}</strong></div>
       <div class="score-vs">${escapeHtml(scoreText)}</div>
-      <div class="team away"><span>${flag(game.awayTeam)}</span><strong>${escapeHtml(game.awayTeam)}</strong></div>
+      <div class="team away"><strong>${escapeHtml(game.awayTeam)}</strong></div>
       <div class="time">${timePortugal(game.matchDate)}</div>
       <div class="state ${status.className}">${status.text}</div>
       <div class="bet-note">${escapeHtml(settledText)}</div>
@@ -488,9 +490,9 @@ function renderScore() {
   if (!rows.length) { $("scoreSummary").innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`; return; }
   $("scoreSummary").innerHTML = `
     <div class="leaderboard-table">
-      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Extras</span><span>Total</span><span>Excel</span></div>
+      <div class="leaderboard-row head"><span>#</span><span>Jogador</span><span>Jogados</span><span>Exatos</span><span>Extras</span><span>Total</span></div>
       ${rows.map((row, index) => `
-        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.extraPoints}</span><b>${row.points}</b><span>${row.importedPoints === null ? "—" : `${row.importedPoints}${row.diffExcel ? ` (${row.diffExcel > 0 ? "+" : ""}${row.diffExcel})` : ""}`}</span></div>
+        <div class="leaderboard-row"><span>${index + 1}</span><strong>${escapeHtml(row.playerName)}</strong><span>${row.settled}</span><span>${row.exact}</span><span>${row.extraPoints}</span><b class="total-highlight">${row.points}</b></div>
       `).join("")}
     </div>`;
 }
@@ -519,7 +521,7 @@ function renderGroups() {
   $("groupsTables").innerHTML = buildStandings().map(({ group, rows }) => `
     <section class="group-table"><h3>${escapeHtml(group)}</h3><div class="table">
       <div class="table-row head"><span>#</span><span>Seleção</span><span>J</span><span>DG</span><span>Pts</span></div>
-      ${rows.map((row, index) => `<div class="table-row"><span>${index + 1}</span><strong>${flag(row.team)} ${escapeHtml(row.team)}</strong><span>${row.played}</span><span>${row.gd}</span><b>${row.points}</b></div>`).join("")}
+      ${rows.map((row, index) => `<div class="table-row"><span>${index + 1}</span><strong>${escapeHtml(row.team)}</strong><span>${row.played}</span><span>${row.gd}</span><b>${row.points}</b></div>`).join("")}
     </div></section>`).join("");
 }
 
@@ -561,7 +563,7 @@ function renderAdmin() {
   const container = $("adminGamesList");
   if (!isAdmin) { container.innerHTML = ""; return; }
   container.innerHTML = games.map(game => `
-    <article class="admin-row"><div class="admin-match"><span class="group-pill">${escapeHtml(game.group)}</span><strong>${flag(game.homeTeam)} ${escapeHtml(game.homeTeam)} vs ${flag(game.awayTeam)} ${escapeHtml(game.awayTeam)}</strong><small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))} · ${betsForGame(game.id).length} apostas</small></div>
+    <article class="admin-row"><div class="admin-match"><span class="group-pill">${escapeHtml(game.group)}</span><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><small>${timePortugal(game.matchDate)} · ${escapeHtml(dateHeader(game.matchDate))} · ${betsForGame(game.id).length} apostas</small></div>
       <div class="result-inputs modal-result-actions">
         <span class="admin-result-chip">${hasResult(game) ? `Resultado: ${game.homeScore}-${game.awayScore}` : "Sem resultado"}</span>
         <button class="primary" type="button" onclick="window.openResultModal('${game.id}')">${hasResult(game) ? "Editar resultado" : "Adicionar resultado"}</button>
@@ -611,13 +613,13 @@ function todayText() {
   if (!list.length) return "⭐ Jogos de Hoje\n\nHoje não há jogos registados.";
   const grouped = [...groupByGroup(list).entries()];
   return "⭐ Jogos de Hoje\n\n" + grouped.map(([group, rows]) => {
-    const lines = rows.map(game => `${flag(game.homeTeam)} ${game.homeTeam} vs ${flag(game.awayTeam)} ${game.awayTeam} - ${timePortugal(game.matchDate)}`);
+    const lines = rows.map(game => `${game.homeTeam} vs ${game.awayTeam} - ${timePortugal(game.matchDate)}`);
     return `${group}\n${lines.join("\n")}`;
   }).join("\n\n");
 }
 function groupsText() {
   return "⭐ Classificação dos Grupos\n\n" + buildStandings().map(({ group, rows }) => {
-    const lines = rows.map((row, index) => `${index + 1}. ${flag(row.team)} ${row.team} - ${row.points} pts`);
+    const lines = rows.map((row, index) => `${index + 1}. ${row.team} - ${row.points} pts`);
     return `${group}\n${lines.join("\n")}`;
   }).join("\n\n");
 }
@@ -963,8 +965,8 @@ function openResultModal(gameId) {
   $("resultGameIdInput").value = game.id;
   $("resultModalTitle").textContent = hasResult(game) ? "Editar resultado" : "Adicionar resultado";
   $("resultModalSubtitle").textContent = "Ao guardar, a app compara as apostas dos users e recalcula a classificação.";
-  $("resultHomeFlag").textContent = flag(game.homeTeam);
-  $("resultAwayFlag").textContent = flag(game.awayTeam);
+  $("resultHomeFlag").textContent = "";
+  $("resultAwayFlag").textContent = "";
   $("resultHomeTeam").textContent = game.homeTeam;
   $("resultAwayTeam").textContent = game.awayTeam;
   $("resultGroupInput").value = game.group;
