@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mundial Pontos 2026 · Ver Apostas Corrigido</title>
+  <title>Mundial Pontos 2026 · Ajustar Cards</title>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Mundial 2026" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -76,7 +76,16 @@
       <div class="copy-actions" aria-label="Copiar para WhatsApp">
         <button id="calendarMissingResultsBtn" class="primary" type="button">Por colocar resultado</button>
             <button id="calendarAllGamesBtn" class="secondary" type="button">Todos os jogos</button>
-        <button id="copyScoreBtn" class="secondary" type="button">Copiar pontuação</button>
+        <details id="onlineUsersPanel" class="online-users-panel topbar-online-users">
+          <summary class="secondary online-users-trigger">
+            <span class="online-users-trigger-label">Users</span>
+            <span id="onlineUsersBadge" class="online-users-badge">0 online</span>
+          </summary>
+          <div id="onlineUsersList" class="online-users-list">
+            <div class="empty small-empty">A carregar utilizadores...</div>
+          </div>
+        </details>
+        <button id="copyScoreBtn" class="secondary hidden" type="button">Copiar pontuação</button>
         <button id="installAppBtn" class="secondary install-btn hidden" type="button">Instalar app</button>
       </div>
     </header>
@@ -89,7 +98,7 @@
     </nav>
 
     <main>
-      <section id="calendarTab" class="tab-panel active">
+<section id="calendarTab" class="tab-panel active">
         <div class="section-head compact">
           <div>
             <h2>Fase de Grupos</h2>
@@ -134,7 +143,7 @@
         <div id="adminUnlocked" class="hidden admin-stack admin-accordion">
           <div id="firebaseStatusBox" class="firebase-status-box">Firebase: a iniciar ligação...</div>
 
-          <details class="admin-card admin-collapse" open>
+          <details class="admin-card admin-collapse">
             <summary>
               <div>
                 <h2>Permissões de utilizadores</h2>
@@ -147,6 +156,9 @@
               <div class="permission-add-grid">
                 <label>Email do utilizador
                   <input id="permissionEmailInput" type="email" placeholder="email@exemplo.com" />
+                </label>
+                <label>Nome visível
+                  <input id="permissionNameInput" type="text" placeholder="Ex: Ricardo" />
                 </label>
                 <label>Tipo
                   <select id="permissionRoleInput">
@@ -179,7 +191,7 @@
             <div id="knockoutAdminPanel" class="knockout-admin-panel"></div>
           </details>
 
-          <details class="admin-card admin-collapse" open>
+          <details class="admin-card admin-collapse">
             <summary>
               <div>
                 <h2>Editar resultados por utilizador</h2>
@@ -193,7 +205,9 @@
                 <select id="editUserSelect"></select>
               </label>
               <button id="saveUserBetsBtn" class="primary" type="button">Guardar alterações</button>
-            </div>
+            
+          <button id="openKnockoutLayoutBtn" class="secondary knockout-adjust-top-btn" type="button">Ajustar cards</button>
+        </div>
 
             <div id="userBetsEditor" class="user-bets-editor"></div>
           </details>
@@ -298,7 +312,7 @@
             </div>
           </details>
 
-          <details class="admin-card admin-collapse" open>
+          <details class="admin-card admin-collapse">
             <summary>
               <div>
                 <h2>Resultados dos jogos</h2>
