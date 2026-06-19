@@ -126,3 +126,176 @@ input:focus { border-color: rgba(80,168,255,.75); box-shadow: 0 0 0 4px rgba(80,
 .integration-card{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}
 .file-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text)}
 .session-card small{color:var(--accent);font-weight:800}
+
+/* v1.5 visual polish */
+:root{
+  --panel: rgba(9,18,36,.72);
+  --panel-soft: rgba(255,255,255,.06);
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:linear-gradient(to bottom, rgba(0,0,0,.8), transparent 82%);
+}
+.app-shell{padding-top:22px}
+.hero{
+  min-height:170px;
+  padding:24px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:34px;
+  background:
+    radial-gradient(circle at 78% 20%, rgba(255,209,102,.18), transparent 28%),
+    linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.045));
+  box-shadow:0 32px 90px rgba(0,0,0,.35);
+  overflow:hidden;
+  position:relative;
+}
+.hero::after{
+  content:"2026";
+  position:absolute;
+  right:22px;
+  bottom:-32px;
+  font-size:112px;
+  font-weight:950;
+  letter-spacing:-8px;
+  color:rgba(255,255,255,.035);
+  pointer-events:none;
+}
+.brand-mark{
+  background:
+    linear-gradient(145deg, rgba(41,211,145,.32), rgba(80,168,255,.18)),
+    rgba(255,255,255,.09);
+  transform:rotate(-4deg);
+}
+.hero-copy{position:relative;z-index:1}
+.session-card{
+  position:relative;
+  z-index:1;
+  background:rgba(4,10,22,.42);
+}
+.login-card{
+  position:relative;
+  overflow:hidden;
+}
+.login-card::after{
+  content:"⚽";
+  position:absolute;
+  right:-18px;
+  top:-28px;
+  font-size:140px;
+  opacity:.055;
+  transform:rotate(16deg);
+}
+.primary{
+  background:linear-gradient(135deg,#29d391 0%,#36b7ff 50%,#7c5cff 100%);
+}
+.secondary,.ghost,.filter-chip{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.score-overview{gap:14px}
+.mini-card{
+  position:relative;
+  overflow:hidden;
+  min-height:94px;
+}
+.mini-card::after{
+  content:"";
+  position:absolute;
+  width:70px;
+  height:70px;
+  right:-24px;
+  bottom:-26px;
+  border-radius:50%;
+  background:rgba(255,255,255,.055);
+}
+.tabs{
+  position:sticky;
+  top:10px;
+  z-index:5;
+  backdrop-filter:blur(18px);
+}
+.tab.active{
+  background:linear-gradient(135deg, rgba(41,211,145,.22), rgba(80,168,255,.20));
+}
+.game-card{
+  transition:transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.game-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(80,168,255,.34);
+  background:linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.065));
+}
+.match-title strong{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.match-title strong::before{
+  content:"⚽";
+  width:36px;
+  height:36px;
+  display:inline-grid;
+  place-items:center;
+  border-radius:14px;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.1);
+  font-size:17px;
+}
+.score-strip{
+  background:linear-gradient(135deg, rgba(0,0,0,.22), rgba(255,255,255,.055));
+}
+.bet-grid,.result-grid{
+  padding-top:6px;
+}
+.ranking-row{
+  transition:transform .18s ease, border-color .18s ease;
+}
+.ranking-row:hover{transform:translateX(3px);border-color:rgba(41,211,145,.28)}
+.ranking-row:nth-child(1){
+  background:linear-gradient(135deg, rgba(255,209,102,.18), rgba(255,255,255,.07));
+}
+.ranking-row:nth-child(2){
+  background:linear-gradient(135deg, rgba(220,230,245,.14), rgba(255,255,255,.06));
+}
+.ranking-row:nth-child(3){
+  background:linear-gradient(135deg, rgba(204,128,74,.16), rgba(255,255,255,.06));
+}
+.ranking-row:nth-child(2) .rank-number{background:#dce6f5;color:#1d2633}
+.ranking-row:nth-child(3) .rank-number{background:#cc804a;color:#201208}
+.rule-card{
+  position:relative;
+  overflow:hidden;
+}
+.rule-card::after{
+  content:"";
+  position:absolute;
+  right:-28px;
+  top:-28px;
+  width:90px;
+  height:90px;
+  border-radius:50%;
+  background:rgba(255,255,255,.045);
+}
+.admin-stack .glass-card{
+  border-radius:28px;
+}
+.toast{background:rgba(6,16,29,.94);backdrop-filter:blur(14px)}
+@media(max-width:840px){
+  .hero{min-height:auto;padding:20px;border-radius:28px}
+  .hero::after{font-size:76px;bottom:-22px}
+  .tabs{top:6px}
+}
+@media(max-width:480px){
+  .app-shell{width:min(94vw,480px);padding-top:14px}
+  h1{font-size:36px}
+  .hero-subtitle{font-size:14px}
+  .glass-card,.game-card{border-radius:22px;padding:18px}
+  .mini-card strong{font-size:26px}
+}
