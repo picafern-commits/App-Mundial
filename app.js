@@ -450,7 +450,7 @@ function normalizeBets(list) {
 }
 
 async function persistGame(game) {
-  await saveGameFastToFirebase(game);
+  return saveGameFastToFirebase(game);
 }
 
 async function persistAllGames() {
@@ -577,21 +577,44 @@ async function saveGameFastToFirebase(game) {
   saveLocalData("saveGameFast local");
 
   if (!db || !firebaseApi || storageMode !== "firebase") {
-    setFirebaseStatus("error", "Firebase: não está ligado — guardado só localmente");
-    return false;
+    setFirebaseStatus("error", "Firebase: não está ligado — resultado ficou só local");
+    throw new Error("Firebase não está ligado");
   }
 
-  try {
-    const { doc, setDoc } = firebaseApi;
-    await withTimeout(setDoc(doc(db, "games", game.id), game, { merge: true }), 12000, "guardar resultado");
-    saveLocalData("saveGameFast firebase-ok");
-    setFirebaseStatus("success", "Firebase: resultado guardado");
-    return true;
-  } catch (error) {
-    console.error("Erro ao guardar resultado:", error);
-    setFirebaseStatus("error", `Firebase: erro ao guardar resultado (${error.message || "erro"})`);
-    throw error;
+  const { doc, setDoc, getDoc, serverTimestamp } = firebaseApi;
+  const gameRef = doc(db, "games", game.id);
+
+  const payload = {
+    ...game,
+    homeScore: game.homeScore === "" || game.homeScore === undefined ? null : game.homeScore,
+    awayScore: game.awayScore === "" || game.awayScore === undefined ? null : game.awayScore,
+    updatedAt: game.updatedAt || new Date().toISOString(),
+    firebaseUpdatedAt: serverTimestamp()
+  };
+
+  setFirebaseStatus("loading", `Firebase: a guardar ${game.homeTeam} - ${game.awayTeam}...`);
+
+  await withTimeout(setDoc(gameRef, payload, { merge: true }), 15000, "guardar resultado no Firebase");
+
+  const confirmSnap = await withTimeout(getDoc(gameRef), 15000, "confirmar resultado no Firebase");
+  if (!confirmSnap.exists()) {
+    throw new Error("documento não apareceu no Firebase");
   }
+
+  const saved = confirmSnap.data();
+  const savedHome = Number(saved.homeScore);
+  const savedAway = Number(saved.awayScore);
+
+  if (Number(payload.homeScore) !== savedHome || Number(payload.awayScore) !== savedAway) {
+    throw new Error(`confirmação falhou: Firebase tem ${saved.homeScore}-${saved.awayScore}`);
+  }
+
+  const idx = games.findIndex(item => item.id === game.id);
+  if (idx !== -1) games[idx] = { ...games[idx], ...saved, id: game.id };
+
+  saveLocalData("saveGameFast firebase-confirmado");
+  setFirebaseStatus("success", `Firebase: resultado guardado e confirmado (${savedHome}-${savedAway})`);
+  return true;
 }
 
 async function saveSettingsFastToFirebase(reason = "settings") {
@@ -973,43 +996,73 @@ async function saveBet(gameId, homeGuess, awayGuess, playerName = "Manual") {
   toast("Aposta guardada.");
 }
 async function setResult(gameId, homeScore, awayScore) {
-  if (homeScore === "" || awayScore === "") return toast("Preenche o resultado completo.");
+  if (homeScore === "" || awayScore === "") {
+    toast("Preenche o resultado completo.");
+    return false;
+  }
+
   const game = games.find(item => item.id === gameId);
-  if (!game) return;
+  if (!game) {
+    toast("Jogo não encontrado.");
+    return false;
+  }
+
+  const previous = { homeScore: game.homeScore, awayScore: game.awayScore, updatedAt: game.updatedAt };
 
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
-  if (typeof stampGame === "function") stampGame(game, "resultado guardado");
-  else game.updatedAt = new Date().toISOString();
+  game.updatedAt = new Date().toISOString();
+  game.updatedReason = "resultado guardado";
 
-  saveLocalData("resultado editado local");
+  saveLocalData("resultado editado local antes firebase");
   renderAll();
 
   try {
     await persistGame(game);
-    toast("Resultado guardado.");
+    renderAll();
+    toast("Resultado guardado no Firebase.");
+    return true;
   } catch (error) {
-    console.error(error);
-    toast("Erro ao guardar no Firebase. Ficou local.");
-    throw error;
+    console.error("Falhou guardar resultado no Firebase:", error);
+    game.homeScore = previous.homeScore ?? null;
+    game.awayScore = previous.awayScore ?? null;
+    game.updatedAt = previous.updatedAt || "";
+    saveLocalData("rollback resultado firebase falhou");
+    renderAll();
+    setFirebaseStatus("error", `Firebase: NÃO guardou o resultado — ${error.message || "erro"}`);
+    toast("Erro: o resultado NÃO foi guardado no Firebase.");
+    return false;
   }
 }
 async function clearResult(gameId) {
   const game = games.find(item => item.id === gameId);
-  if (!game) return;
+  if (!game) return false;
+
+  const previous = { homeScore: game.homeScore, awayScore: game.awayScore, updatedAt: game.updatedAt };
 
   game.homeScore = null;
   game.awayScore = null;
-  stampGame(game, "resultado limpo");
-  saveLocalData("resultado limpo local");
+  game.updatedAt = new Date().toISOString();
+  game.updatedReason = "resultado limpo";
+
+  saveLocalData("resultado limpo local antes firebase");
   renderAll();
 
   try {
     await persistGame(game);
+    renderAll();
     toast("Resultado limpo no Firebase.");
+    return true;
   } catch (error) {
-    toast("Não consegui limpar no Firebase. Ficou local, tenta novamente.");
-    throw error;
+    console.error("Falhou limpar resultado no Firebase:", error);
+    game.homeScore = previous.homeScore ?? null;
+    game.awayScore = previous.awayScore ?? null;
+    game.updatedAt = previous.updatedAt || "";
+    saveLocalData("rollback limpar resultado firebase falhou");
+    renderAll();
+    setFirebaseStatus("error", `Firebase: NÃO limpou o resultado — ${error.message || "erro"}`);
+    toast("Erro: o resultado NÃO foi limpo no Firebase.");
+    return false;
   }
 }
 
@@ -1592,10 +1645,8 @@ async function saveResultFromModal() {
   }
 
   try {
-    await setResult(gameId, homeScore, awayScore);
-    closeResultModal();
-  } catch (error) {
-    console.error(error);
+    const ok = await setResult(gameId, homeScore, awayScore);
+    if (ok) closeResultModal();
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -1607,8 +1658,22 @@ async function saveResultFromModal() {
 async function clearResultFromModal() {
   const gameId = $("resultGameIdInput").value;
   if (!gameId) return;
-  await clearResult(gameId);
-  closeResultModal();
+
+  const btn = $("clearModalResultBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "A limpar...";
+  }
+
+  try {
+    const ok = await clearResult(gameId);
+    if (ok) closeResultModal();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Limpar resultado";
+    }
+  }
 }
 
 window.showGameBets = showGameBets;

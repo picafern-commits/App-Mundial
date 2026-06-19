@@ -1265,3 +1265,13 @@ button:disabled{
   border-color:rgba(255,98,98,.4);
   background:rgba(255,98,98,.08);
 }
+
+
+/* v41 Firebase save confirmado */
+.firebase-status-box.error{
+  font-weight:950;
+}
+button:disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
