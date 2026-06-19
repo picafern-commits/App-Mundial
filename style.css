@@ -1239,3 +1239,29 @@ button:disabled{
 .firebase-status-box{
   overflow-wrap:anywhere;
 }
+
+
+/* v40 Firebase estável */
+.firebase-status-box{
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.04);
+  font-weight:900;
+  overflow-wrap:anywhere;
+}
+.firebase-status-box.success{
+  color:#83ffbf;
+  border-color:rgba(69,255,156,.35);
+  background:rgba(69,255,156,.08);
+}
+.firebase-status-box.loading{
+  color:var(--gold);
+  border-color:rgba(255,216,87,.35);
+  background:rgba(255,216,87,.08);
+}
+.firebase-status-box.error{
+  color:#ff9a9a;
+  border-color:rgba(255,98,98,.4);
+  background:rgba(255,98,98,.08);
+}

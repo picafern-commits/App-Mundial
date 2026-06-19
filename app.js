@@ -299,25 +299,34 @@ function setFirebaseStatus(type, message) {
 
 async function initFirebase() {
   const config = APP_CONFIG.firebase || {};
+
   if (!config.apiKey || !config.projectId) {
+    db = null;
+    firebaseApi = null;
     storageMode = "local";
-    setFirebaseStatus("error", "Firebase: configuração em falta");
-    return;
+    setFirebaseStatus("error", "Firebase: configuração em falta no config.js");
+    return false;
   }
 
   try {
     setFirebaseStatus("loading", "Firebase: a ligar...");
     const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
     const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+
     const app = appModule.initializeApp(config);
     db = firestoreModule.getFirestore(app);
     firebaseApi = firestoreModule;
     storageMode = "firebase";
-    setFirebaseStatus("success", "Firebase: ligado e sincronizado");
+
+    setFirebaseStatus("success", `Firebase: ligado ao projeto ${config.projectId}`);
+    return true;
   } catch (error) {
-    console.error("Firebase indisponível.", error);
+    console.error("Firebase não ligou:", error);
+    db = null;
+    firebaseApi = null;
     storageMode = "local";
-    setFirebaseStatus("error", "Firebase: erro de ligação — a usar cópia local de emergência");
+    setFirebaseStatus("error", `Firebase: não ligou — ${error.message || "erro"}`);
+    return false;
   }
 }
 
@@ -375,90 +384,54 @@ async function loadData() {
     games = normalizeGames(local.games);
     bets = normalizeBets(local.bets);
     appSettings = mergeSettings(local.settings || local.appSettings);
-    rescueLocalBetsIfNeeded();
     renderAll();
     return;
   }
 
-  setFirebaseStatus("loading", "Firebase: a carregar dados...");
+  try {
+    setFirebaseStatus("loading", "Firebase: a carregar dados...");
+    const { collection, doc, getDocs, setDoc } = firebaseApi;
 
-  const localGames = normalizeGames(local.games || []);
-  const localBets = normalizeBets(local.bets || []);
-  const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
+    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
+    const betsSnap = await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
+    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
 
-  const { doc, setDoc } = firebaseApi;
+    const localGames = normalizeGames(local.games || []);
+    const localBets = normalizeBets(local.bets || []);
+    const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
 
-  const gamesRead = await safeGetCollection("games");
-  const betsRead = await safeGetCollection("bets");
-  const settingsRead = await safeGetCollection("settings");
+    const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+    const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+    const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
 
-  const failed = [gamesRead, betsRead, settingsRead].filter(item => !item.ok);
-  if (failed.length >= 2) {
+    if (remoteGames.length) {
+      games = (typeof mergeGamesByNewest === "function") ? mergeGamesByNewest(remoteGames, localGames) : normalizeGames(remoteGames);
+    } else {
+      games = localGames.length ? localGames : clone(SEED_GAMES);
+      setTimeout(() => {
+        Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })))
+          .catch(error => console.warn("Não conseguiu criar jogos no Firebase", error));
+      }, 200);
+    }
+
+    bets = normalizeBets(remoteBets.length ? remoteBets : localBets);
+    appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : localSettings);
+
+    saveLocalData("firebase carregado estável");
+    setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas carregadas`);
+    renderAll();
+
+    if (!remoteBets.length && localBets.length) {
+      setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
+    }
+  } catch (error) {
+    console.error("Erro ao carregar Firebase:", error);
+    games = normalizeGames(local.games);
+    bets = normalizeBets(local.bets);
+    appSettings = mergeSettings(local.settings || local.appSettings);
     storageMode = "local";
-    games = localGames.length ? localGames : clone(SEED_GAMES);
-    bets = localBets;
-    appSettings = localSettings;
-    setFirebaseStatus("error", `Firebase: erro ao carregar — ${shortFirebaseError(failed[0].error)}`);
+    setFirebaseStatus("error", `Firebase: erro ao carregar — ${error.message || "ver consola"}`);
     renderAll();
-    toast("Firebase falhou. A app carregou a cópia local de emergência.");
-    return;
-  }
-
-  let remoteGames = [];
-  if (gamesRead.ok && gamesRead.docs.length) {
-    remoteGames = normalizeGames(gamesRead.docs.map(item => ({ id: item.id, ...item.data() })));
-  } else {
-    remoteGames = localGames.length ? localGames : clone(SEED_GAMES);
-    // Cria os jogos no Firebase sem bloquear o arranque.
-    setTimeout(() => {
-      Promise.all(remoteGames.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })))
-        .catch(error => console.warn("Não conseguiu criar jogos no Firebase", error));
-    }, 250);
-  }
-
-  games = mergeGamesByNewest(remoteGames, localGames);
-
-  const remoteBets = betsRead.ok
-    ? normalizeBets(betsRead.docs.map(item => ({ id: item.id, ...item.data() })))
-    : [];
-
-  bets = remoteBets.length ? remoteBets : localBets;
-
-  let remoteSettings = null;
-  if (settingsRead.ok && settingsRead.docs.length) {
-    const mainSettingsDoc = settingsRead.docs.find(item => item.id === "main") || settingsRead.docs[0];
-    remoteSettings = mergeSettings(mainSettingsDoc.data());
-  }
-
-  appSettings = remoteSettings || localSettings;
-
-  // Se o Firebase estiver sem apostas mas a cópia local tiver, reenvia local.
-  if (!remoteBets.length && localBets.length) {
-    bets = localBets;
-    appSettings = localSettings;
-    setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 350);
-  }
-
-  saveLocalData("firebase carregado robusto");
-  storageMode = "firebase";
-
-  const partialWarning = failed.length
-    ? ` · aviso: ${shortFirebaseError(failed[0].error)}`
-    : "";
-
-  setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas sincronizadas${partialWarning}`);
-  renderAll();
-
-  // Se a versão local de algum jogo era mais recente, reenvia sem prender a app.
-  const hasLocalNewerGame = games.some(game => {
-    const remote = remoteGames.find(item => item.id === game.id);
-    return timestampValue(game.updatedAt) > timestampValue(remote?.updatedAt);
-  });
-
-  if (hasLocalNewerGame) {
-    setTimeout(() => {
-      persistAllGames().catch(error => console.warn("Não conseguiu reenviar jogos recentes ao Firebase", error));
-    }, 500);
   }
 }
 
@@ -1006,15 +979,18 @@ async function setResult(gameId, homeScore, awayScore) {
 
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
-  stampGame(game, "resultado guardado");
+  if (typeof stampGame === "function") stampGame(game, "resultado guardado");
+  else game.updatedAt = new Date().toISOString();
+
   saveLocalData("resultado editado local");
   renderAll();
 
   try {
     await persistGame(game);
-    toast("Resultado guardado no Firebase. Pontos recalculados.");
+    toast("Resultado guardado.");
   } catch (error) {
-    toast("Não consegui guardar no Firebase. Ficou local, tenta novamente.");
+    console.error(error);
+    toast("Erro ao guardar no Firebase. Ficou local.");
     throw error;
   }
 }
