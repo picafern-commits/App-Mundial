@@ -1,0 +1,13 @@
+Para a app gravar no Firebase:
+
+1. No Firebase Console, abre Authentication > Sign-in method.
+2. Ativa o provider Anonymous.
+3. Abre Firestore Database e confirma que a base de dados existe.
+4. Publica as regras deste projeto:
+   firebase deploy --only firestore:rules
+5. Se usares Firebase Hosting, publica tambem o site:
+   firebase deploy --only hosting
+
+Nota: o PIN desta app protege apenas a interface. Como e uma app esttica no browser,
+as regras do Firestore nao conseguem validar esse PIN. Por isso a escrita fica
+protegida por autenticacao anonima do Firebase.
