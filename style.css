@@ -4737,3 +4737,207 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
 .force-open{
   display:block!important;
 }
+
+
+/* v67 — Corrigir dropdown Users Online no telemóvel */
+@media(max-width:760px){
+  .topbar .topbar-online-users{
+    position:static!important;
+  }
+
+  .topbar .topbar-online-users .online-users-list{
+    position:fixed!important;
+    left:10px!important;
+    right:10px!important;
+    top:74px!important;
+    width:auto!important;
+    max-width:none!important;
+    min-width:0!important;
+    transform:none!important;
+    max-height:calc(100vh - 96px)!important;
+    overflow:auto!important;
+    box-sizing:border-box!important;
+    z-index:9999!important;
+  }
+
+  .topbar .topbar-online-users .online-users-table{
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  .topbar .topbar-online-users .online-users-row{
+    width:100%!important;
+    min-width:0!important;
+    grid-template-columns:1fr!important;
+    box-sizing:border-box!important;
+  }
+
+  .topbar .topbar-online-users .online-user-name strong,
+  .topbar .topbar-online-users .online-user-name small,
+  .topbar .topbar-online-users .online-last,
+  .topbar .topbar-online-users .online-state{
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+}
+
+@media(max-width:420px){
+  .topbar .topbar-online-users .online-users-list{
+    left:8px!important;
+    right:8px!important;
+    top:68px!important;
+    max-height:calc(100vh - 84px)!important;
+    padding:8px!important;
+    border-radius:14px!important;
+  }
+}
+
+
+/* v68 — Fechar janela Users Online */
+.online-users-popup-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0 2px 9px;
+  margin-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.online-users-popup-head strong{
+  font-size:14px;
+  font-weight:1000;
+}
+
+.online-users-close{
+  width:32px;
+  height:32px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;
+  background:rgba(255,255,255,.07);
+  color:var(--text);
+  font-size:22px;
+  line-height:1;
+  font-weight:800;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.online-users-close:hover{
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,212,90,.36);
+}
+
+.topbar .topbar-online-users .online-users-list{
+  padding:0!important;
+}
+
+@media(max-width:760px){
+  .online-users-popup-head{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:rgba(7,11,19,.98);
+    padding:4px 2px 10px;
+  }
+
+  .online-users-close{
+    width:38px;
+    height:38px;
+    font-size:24px;
+  }
+}
+
+
+/* v69 — X dos Users Online sempre visível no iPhone */
+.topbar .topbar-online-users .online-users-list{
+  padding:10px!important;
+}
+
+.topbar .topbar-online-users .online-users-popup-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  position:sticky!important;
+  top:0!important;
+  z-index:5!important;
+  margin:-10px -10px 10px!important;
+  padding:10px!important;
+  border-bottom:1px solid rgba(255,255,255,.10)!important;
+  background:rgba(7,11,19,.99)!important;
+  backdrop-filter:blur(16px)!important;
+}
+
+.topbar .topbar-online-users .online-users-popup-head strong{
+  display:block!important;
+  color:var(--text)!important;
+  font-size:14px!important;
+  font-weight:1000!important;
+}
+
+.topbar .topbar-online-users .online-users-close{
+  flex:0 0 auto!important;
+  width:38px!important;
+  height:38px!important;
+  min-width:38px!important;
+  min-height:38px!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+  font-size:28px!important;
+  line-height:1!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  padding:0!important;
+}
+
+.topbar .topbar-online-users .online-users-close:active{
+  transform:scale(.96);
+}
+
+@media(max-width:760px){
+  .topbar .topbar-online-users .online-users-list{
+    padding:10px!important;
+  }
+
+  .topbar .topbar-online-users .online-users-popup-head{
+    margin:-10px -10px 10px!important;
+    padding:10px 10px 9px!important;
+    padding-top:max(10px, env(safe-area-inset-top))!important;
+  }
+
+  .topbar .topbar-online-users .online-users-close{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    min-height:42px!important;
+    font-size:30px!important;
+  }
+}
+
+
+/* v70 — garantir que o X recebe clique no iPhone */
+.topbar .topbar-online-users .online-users-close{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  position:relative!important;
+  z-index:99999!important;
+  cursor:pointer!important;
+  -webkit-tap-highlight-color:rgba(255,255,255,.18)!important;
+}
+
+.topbar .topbar-online-users .online-users-popup-head{
+  pointer-events:auto!important;
+  z-index:99998!important;
+}
