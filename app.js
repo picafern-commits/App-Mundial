@@ -1,4 +1,4 @@
-// Mundial Pontos - v1.4.0 GitHub Pages
+// Mundial Pontos - v1.6.0 Grupos
 // Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -9,7 +9,7 @@ const firebaseConfig = APP_CONFIG.firebase || {};
 const apiConfig = APP_CONFIG.api || {};
 const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
 const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v4";
+const demoStoreKey = "mundial_demo_data_v6";
 
 let db = null;
 let activePlayer = localStorage.getItem("mundial_active_player") || "";
@@ -20,27 +20,27 @@ let currentFilter = "all";
 let currentSearch = "";
 
 const SEED_GAMES = [
-  { id:"wc2026-mex-kor", homeTeam:"México", awayTeam:"Coreia do Sul", matchDate:"2026-06-19T01:00", venue:"Estadio Guadalajara", phase:"Fase de grupos", homeScore:1, awayScore:0 },
-  { id:"wc2026-can-qat", homeTeam:"Canadá", awayTeam:"Qatar", matchDate:"2026-06-18T22:00", venue:"BC Place Vancouver", phase:"Fase de grupos", homeScore:6, awayScore:0 },
-  { id:"wc2026-sui-bih", homeTeam:"Suíça", awayTeam:"Bósnia-Herzegovina", matchDate:"2026-06-18T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:4, awayScore:1 },
-  { id:"wc2026-cze-rsa", homeTeam:"Chéquia", awayTeam:"África do Sul", matchDate:"2026-06-18T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
-  { id:"wc2026-uzb-col", homeTeam:"Uzbequistão", awayTeam:"Colômbia", matchDate:"2026-06-18T02:00", venue:"Mexico City Stadium", phase:"Fase de grupos", homeScore:1, awayScore:3 },
-  { id:"wc2026-eng-cro", homeTeam:"Inglaterra", awayTeam:"Croácia", matchDate:"2026-06-17T20:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:4, awayScore:2 },
-  { id:"wc2026-por-cod", homeTeam:"Portugal", awayTeam:"RD Congo", matchDate:"2026-06-17T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
-  { id:"wc2026-usa-aus", homeTeam:"Estados Unidos", awayTeam:"Austrália", matchDate:"2026-06-19T19:00", venue:"Seattle Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-sco-mar", homeTeam:"Escócia", awayTeam:"Marrocos", matchDate:"2026-06-19T22:00", venue:"Boston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-bra-hai", homeTeam:"Brasil", awayTeam:"Haiti", matchDate:"2026-06-20T00:30", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-tur-par", homeTeam:"Turquia", awayTeam:"Paraguai", matchDate:"2026-06-20T03:00", venue:"San Francisco Bay Area Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ned-swe", homeTeam:"Países Baixos", awayTeam:"Suécia", matchDate:"2026-06-20T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ger-civ", homeTeam:"Alemanha", awayTeam:"Costa do Marfim", matchDate:"2026-06-20T20:00", venue:"Toronto Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-ecu-cuw", homeTeam:"Equador", awayTeam:"Curaçao", matchDate:"2026-06-21T00:00", venue:"Kansas City Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-tun-jpn", homeTeam:"Tunísia", awayTeam:"Japão", matchDate:"2026-06-21T04:00", venue:"Estadio Monterrey", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-esp-ksa", homeTeam:"Espanha", awayTeam:"Arábia Saudita", matchDate:"2026-06-21T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-bel-irn", homeTeam:"Bélgica", awayTeam:"Irão", matchDate:"2026-06-21T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-uru-cpv", homeTeam:"Uruguai", awayTeam:"Cabo Verde", matchDate:"2026-06-21T22:00", venue:"Miami Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-arg-aut", homeTeam:"Argentina", awayTeam:"Áustria", matchDate:"2026-06-22T17:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-fra-irq", homeTeam:"França", awayTeam:"Iraque", matchDate:"2026-06-22T21:00", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
-  { id:"wc2026-por-uzb", homeTeam:"Portugal", awayTeam:"Uzbequistão", matchDate:"2026-06-23T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null }
+  { id:"wc2026-mex-kor", group:"Grupo A", homeTeam:"México", awayTeam:"Coreia do Sul", matchDate:"2026-06-19T01:00", venue:"Estadio Guadalajara", phase:"Fase de grupos", homeScore:1, awayScore:0 },
+  { id:"wc2026-can-qat", group:"Grupo B", homeTeam:"Canadá", awayTeam:"Qatar", matchDate:"2026-06-18T22:00", venue:"BC Place Vancouver", phase:"Fase de grupos", homeScore:6, awayScore:0 },
+  { id:"wc2026-sui-bih", group:"Grupo C", homeTeam:"Suíça", awayTeam:"Bósnia-Herzegovina", matchDate:"2026-06-18T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:4, awayScore:1 },
+  { id:"wc2026-cze-rsa", group:"Grupo A", homeTeam:"Chéquia", awayTeam:"África do Sul", matchDate:"2026-06-18T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
+  { id:"wc2026-uzb-col", group:"Grupo H", homeTeam:"Uzbequistão", awayTeam:"Colômbia", matchDate:"2026-06-18T02:00", venue:"Mexico City Stadium", phase:"Fase de grupos", homeScore:1, awayScore:3 },
+  { id:"wc2026-eng-cro", group:"Grupo D", homeTeam:"Inglaterra", awayTeam:"Croácia", matchDate:"2026-06-17T20:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:4, awayScore:2 },
+  { id:"wc2026-por-cod", group:"Grupo H", homeTeam:"Portugal", awayTeam:"RD Congo", matchDate:"2026-06-17T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:1, awayScore:1 },
+  { id:"wc2026-usa-aus", group:"Grupo E", homeTeam:"Estados Unidos", awayTeam:"Austrália", matchDate:"2026-06-19T19:00", venue:"Seattle Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-sco-mar", group:"Grupo F", homeTeam:"Escócia", awayTeam:"Marrocos", matchDate:"2026-06-19T22:00", venue:"Boston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-bra-hai", group:"Grupo G", homeTeam:"Brasil", awayTeam:"Haiti", matchDate:"2026-06-20T00:30", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-tur-par", group:"Grupo I", homeTeam:"Turquia", awayTeam:"Paraguai", matchDate:"2026-06-20T03:00", venue:"San Francisco Bay Area Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-ned-swe", group:"Grupo J", homeTeam:"Países Baixos", awayTeam:"Suécia", matchDate:"2026-06-20T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-ger-civ", group:"Grupo K", homeTeam:"Alemanha", awayTeam:"Costa do Marfim", matchDate:"2026-06-20T20:00", venue:"Toronto Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-ecu-cuw", group:"Grupo L", homeTeam:"Equador", awayTeam:"Curaçao", matchDate:"2026-06-21T00:00", venue:"Kansas City Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-tun-jpn", group:"Grupo M", homeTeam:"Tunísia", awayTeam:"Japão", matchDate:"2026-06-21T04:00", venue:"Estadio Monterrey", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-esp-ksa", group:"Grupo N", homeTeam:"Espanha", awayTeam:"Arábia Saudita", matchDate:"2026-06-21T16:00", venue:"Atlanta Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-bel-irn", group:"Grupo O", homeTeam:"Bélgica", awayTeam:"Irão", matchDate:"2026-06-21T19:00", venue:"Los Angeles Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-uru-cpv", group:"Grupo P", homeTeam:"Uruguai", awayTeam:"Cabo Verde", matchDate:"2026-06-21T22:00", venue:"Miami Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-arg-aut", group:"Grupo Q", homeTeam:"Argentina", awayTeam:"Áustria", matchDate:"2026-06-22T17:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-fra-irq", group:"Grupo R", homeTeam:"França", awayTeam:"Iraque", matchDate:"2026-06-22T21:00", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
+  { id:"wc2026-por-uzb", group:"Grupo H", homeTeam:"Portugal", awayTeam:"Uzbequistão", matchDate:"2026-06-23T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null }
 ].map(g => ({ ...g, createdAt: Date.now(), source:"Base inicial" }));
 
 const defaultDemo = { games: SEED_GAMES, bets: [] };
@@ -57,6 +57,8 @@ function getDemoData(){ const raw=localStorage.getItem(demoStoreKey); if(!raw){ 
 function saveDemoData(data){ localStorage.setItem(demoStoreKey, JSON.stringify(data)); }
 function formatDate(value){ if(!value) return "Sem data"; return new Date(value).toLocaleString("pt-PT", { weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }); }
 function statusOf(game){ if(hasResult(game)) return { label:"Terminado", cls:"closed" }; if(isLocked(game)) return { label:"Apostas fechadas", cls:"locked" }; return { label:"Aberto", cls:"open" }; }
+function groupOf(game){ return game.group || game.groupName || game.pool || game.phase || "Outros jogos"; }
+function groupSortKey(group){ const m=String(group).match(/Grupo\s+([A-Z])/i); return m ? `0_${m[1].toUpperCase()}` : `1_${group}`; }
 function exactBet(bet, game){ return Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore); }
 function pointsForBet(bet, game){ if(!game || !hasResult(game)) return 0; if(exactBet(bet, game)) return 3; return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0; }
 
@@ -80,11 +82,11 @@ async function saveBet(gameId, homeGuess, awayGuess){
   else await setDoc(doc(db,"bets",`${gameId}_${safeId(activePlayer)}`), {...bet, updatedAt:serverTimestamp()});
   toast("Aposta guardada."); await loadData();
 }
-async function addGame(homeTeam, awayTeam, matchDate, venue="", phase="Fase de grupos"){
+async function addGame(homeTeam, awayTeam, matchDate, venue="", phase="Fase de grupos", group="Grupo A"){
   if(!homeTeam || !awayTeam || !matchDate) return toast("Preenche os dados do jogo.");
-  const game={homeTeam, awayTeam, matchDate, venue, phase, homeScore:null, awayScore:null, createdAt:Date.now(), source:"Manual"};
+  const game={homeTeam, awayTeam, matchDate, venue, phase, group, homeScore:null, awayScore:null, createdAt:Date.now(), source:"Manual"};
   if(DEMO_MODE){ const data=getDemoData(); data.games.push({id:crypto.randomUUID(),...game}); saveDemoData(data); } else await addDoc(collection(db,"games"), {...game, createdAt:serverTimestamp()});
-  ["homeTeamInput","awayTeamInput","matchDateInput","venueInput","phaseInput"].forEach(id=>$(id) && ($(id).value="")); toast("Jogo adicionado."); await loadData();
+  ["homeTeamInput","awayTeamInput","matchDateInput","venueInput","phaseInput","groupInput"].forEach(id=>$(id) && ($(id).value="")); toast("Jogo adicionado."); await loadData();
 }
 async function setResult(gameId, homeScore, awayScore){
   if(homeScore==="" || awayScore==="") return toast("Coloca o resultado completo.");
@@ -115,23 +117,55 @@ function renderAll(){ renderSession(); renderStats(); renderGames(); renderRanki
 function renderSession(){ $("activeUserLabel").textContent=activePlayer||"Sem jogador"; if($("modeLabel")) $("modeLabel").textContent = DEMO_MODE || !db ? "Modo teste local" : "Firebase online"; $("logoutBtn").classList.toggle("hidden",!activePlayer); $("loginView").classList.toggle("hidden",!!activePlayer); $("mainView").classList.toggle("hidden",!activePlayer); $("adminLocked").classList.toggle("hidden",isAdmin); $("adminUnlocked").classList.toggle("hidden",!isAdmin); }
 function renderStats(){ const players=new Set(bets.map(b=>b.playerName)); if(activePlayer) players.add(activePlayer); const done=games.filter(hasResult).length; const open=games.filter(g=>!isLocked(g)).length; $("statGames").textContent=games.length; if($("statBets")) $("statBets").textContent=bets.length; $("statPlayers").textContent=players.size; $("statMyPoints").textContent=getTotals().get(activePlayer)?.points||0; if($("statFinished")) $("statFinished").textContent=done; if($("statOpen")) $("statOpen").textContent=open; }
 function renderGames(){
-  const el=$("gamesList"); const list=getVisibleGames(); if(!list.length){ el.innerHTML=`<div class="glass-card">Não encontrei jogos com esse filtro.</div>`; return; }
-  el.innerHTML=list.map(game=>{ const myBet=bets.find(b=>b.gameId===game.id&&b.playerName===activePlayer); const st=statusOf(game); const resultText=hasResult(game)?`${game.homeScore} - ${game.awayScore}`:"Por jogar"; const pts=myBet?pointsForBet(myBet,game):0; const locked=isLocked(game);
-    return `<article class="game-card ${st.cls}">
-      <div class="match-title">
-        <div><span class="phase-pill">${escapeHtml(game.phase||"Mundial")}</span><strong>${escapeHtml(game.homeTeam)} <span>vs</span> ${escapeHtml(game.awayTeam)}</strong><p class="muted">${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"Estádio a confirmar")}</p></div>
-        <span class="badge ${st.cls}">${st.label}</span>
+  const el=$("gamesList");
+  const list=getVisibleGames();
+  if(!list.length){ el.innerHTML=`<div class="glass-card">Não encontrei jogos com esse filtro.</div>`; return; }
+
+  const grouped = new Map();
+  list.forEach(game => {
+    const group = groupOf(game);
+    if(!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group).push(game);
+  });
+
+  const sections = [...grouped.entries()].sort((a,b)=>groupSortKey(a[0]).localeCompare(groupSortKey(b[0]))).map(([group, groupGames])=>{
+    const openCount = groupGames.filter(g=>!isLocked(g)).length;
+    const finishedCount = groupGames.filter(hasResult).length;
+    const totalBets = groupGames.reduce((sum,g)=>sum + bets.filter(b=>b.gameId===g.id).length,0);
+    return `<section class="group-section">
+      <div class="group-header">
+        <div>
+          <span class="group-kicker">Fase de grupos</span>
+          <h3>${escapeHtml(group)}</h3>
+        </div>
+        <div class="group-meta">
+          <span>${groupGames.length} jogos</span>
+          <span>${openCount} abertos</span>
+          <span>${finishedCount} terminados</span>
+          <span>${totalBets} apostas</span>
+        </div>
       </div>
-      <div class="score-strip"><span>Resultado real</span><strong>${resultText}</strong><span>${myBet ? `A tua aposta: ${myBet.homeGuess}-${myBet.awayGuess} · ${pts} pts` : "Ainda sem aposta"}</span></div>
-      <div class="bet-grid">
-        <label>${escapeHtml(game.homeTeam)}<input id="home_${game.id}" type="number" min="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}></label>
-        <label>${escapeHtml(game.awayTeam)}<input id="away_${game.id}" type="number" min="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}></label>
-        <button class="primary" onclick="window.saveBetFromUI('${game.id}')" ${locked?"disabled":""}>Guardar aposta</button>
+      <div class="group-games">
+      ${groupGames.map(game=>{ const myBet=bets.find(b=>b.gameId===game.id&&b.playerName===activePlayer); const st=statusOf(game); const resultText=hasResult(game)?`${game.homeScore} - ${game.awayScore}`:"Por jogar"; const pts=myBet?pointsForBet(myBet,game):0; const locked=isLocked(game);
+        return `<article class="game-card ${st.cls}">
+          <div class="match-title">
+            <div><span class="phase-pill">${escapeHtml(game.phase||"Mundial")}</span><strong><span class="team-name">${escapeHtml(game.homeTeam)}</span> <em>vs</em> <span class="team-name">${escapeHtml(game.awayTeam)}</span></strong><p class="muted">${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"Estádio a confirmar")}</p></div>
+            <span class="badge ${st.cls}">${st.label}</span>
+          </div>
+          <div class="score-strip"><span>Resultado real</span><strong>${resultText}</strong><span>${myBet ? `A tua aposta: ${myBet.homeGuess}-${myBet.awayGuess} · ${pts} pts` : "Ainda sem aposta"}</span></div>
+          <div class="bet-grid">
+            <label>${escapeHtml(game.homeTeam)}<input id="home_${game.id}" type="number" min="0" value="${myBet?.homeGuess ?? ""}" ${locked?"disabled":""}></label>
+            <label>${escapeHtml(game.awayTeam)}<input id="away_${game.id}" type="number" min="0" value="${myBet?.awayGuess ?? ""}" ${locked?"disabled":""}></label>
+            <button class="primary" onclick="window.saveBetFromUI('${game.id}')" ${locked?"disabled":""}>Guardar aposta</button>
+          </div>
+        </article>`; }).join("")}
       </div>
-    </article>`; }).join("");
+    </section>`;
+  });
+  el.innerHTML = sections.join("");
 }
 function renderRanking(){ const rows=[...getTotals().values()].sort((a,b)=>b.points-a.points||b.exact-a.exact||a.playerName.localeCompare(b.playerName)); $("rankingList").innerHTML=rows.length?rows.map((r,i)=>`<div class="ranking-row"><div class="rank-number">${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div><div><strong>${escapeHtml(r.playerName)}</strong><p class="muted">Jogos pontuados: ${r.played} · Exatos: ${r.exact}</p></div><div class="points">${r.points} pts</div></div>`).join(""):`<div class="glass-card">Ainda não existem apostas.</div>`; }
-function renderAdmin(){ const el=$("adminGamesList"); if(!el) return; renderIntegration(); el.innerHTML=games.map(game=>`<article class="game-card"><div class="match-title"><div><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><p class="muted">${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"")}</p></div><button class="danger" onclick="window.removeGameFromUI('${game.id}')">Apagar</button></div><div class="result-grid"><label>${escapeHtml(game.homeTeam)}<input id="res_home_${game.id}" type="number" min="0" value="${game.homeScore ?? ""}"></label><label>${escapeHtml(game.awayTeam)}<input id="res_away_${game.id}" type="number" min="0" value="${game.awayScore ?? ""}"></label><button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" onclick="window.removeResultFromUI('${game.id}')">Limpar resultado</button><span class="muted">Apostas: ${bets.filter(b=>b.gameId===game.id).length}</span></div></article>`).join("")||`<div class="glass-card">Ainda não existem jogos.</div>`; }
+function renderAdmin(){ const el=$("adminGamesList"); if(!el) return; renderIntegration(); el.innerHTML=games.map(game=>`<article class="game-card"><div class="match-title"><div><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><p class="muted">${escapeHtml(groupOf(game))} · ${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"")}</p></div><button class="danger" onclick="window.removeGameFromUI('${game.id}')">Apagar</button></div><div class="result-grid"><label>${escapeHtml(game.homeTeam)}<input id="res_home_${game.id}" type="number" min="0" value="${game.homeScore ?? ""}"></label><label>${escapeHtml(game.awayTeam)}<input id="res_away_${game.id}" type="number" min="0" value="${game.awayScore ?? ""}"></label><button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" onclick="window.removeResultFromUI('${game.id}')">Limpar resultado</button><span class="muted">Apostas: ${bets.filter(b=>b.gameId===game.id).length}</span></div></article>`).join("")||`<div class="glass-card">Ainda não existem jogos.</div>`; }
 
 function renderIntegration(){
   const t=$("integrationText"); if(!t) return;
@@ -148,6 +182,7 @@ function normalizeApiGame(item){
     matchDate: item.matchDate || item.date || item.utcDate || "",
     venue: item.venue || item.stadium || "",
     phase: item.phase || item.stage || "Mundial",
+    group: item.group || item.groupName || item.pool || item.roundGroup || "Outros jogos",
     homeScore: item.homeScore ?? item.scoreHome ?? item.home_score ?? null,
     awayScore: item.awayScore ?? item.scoreAway ?? item.away_score ?? null,
     source: "API",
@@ -178,7 +213,7 @@ async function syncFromApi(showToast=true){
   }catch(e){ console.error(e); toast("Não consegui sincronizar a API."); }
 }
 function exportJson(){
-  const data={version:APP_CONFIG.appVersion||"1.4.0", exportedAt:new Date().toISOString(), games, bets};
+  const data={version:APP_CONFIG.appVersion||"1.6.0", exportedAt:new Date().toISOString(), games, bets};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="mundial-pontos-backup.json"; a.click(); URL.revokeObjectURL(a.href);
 }
@@ -199,7 +234,7 @@ $("enterBtn").addEventListener("click",async()=>{ const name=$("playerNameInput"
 $("logoutBtn").addEventListener("click",()=>{ activePlayer=""; isAdmin=false; localStorage.removeItem("mundial_active_player"); localStorage.removeItem("mundial_is_admin"); renderAll(); });
 $("refreshBtn").addEventListener("click",loadData);
 $("unlockAdminBtn").addEventListener("click",()=>{ if($("adminPinInput").value!==ADMIN_PIN) return toast("PIN errado."); isAdmin=true; localStorage.setItem("mundial_is_admin","1"); renderSession(); renderAdmin(); });
-$("addGameBtn").addEventListener("click",()=>addGame($("homeTeamInput").value.trim(),$("awayTeamInput").value.trim(),$("matchDateInput").value,$("venueInput").value.trim(),$("phaseInput").value.trim()||"Fase de grupos"));
+$("addGameBtn").addEventListener("click",()=>addGame($("homeTeamInput").value.trim(),$("awayTeamInput").value.trim(),$("matchDateInput").value,$("venueInput").value.trim(),$("phaseInput").value.trim()||"Fase de grupos",$("groupInput").value.trim()||"Grupo A"));
 $("resetSeedBtn")?.addEventListener("click",resetSeed);
 $("syncApiBtn")?.addEventListener("click",()=>syncFromApi(true));
 $("exportBtn")?.addEventListener("click",exportJson);
