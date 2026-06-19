@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v1.7</title>
+  <title>Mundial Pontos v9</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -17,7 +17,7 @@
         <div>
           <p class="eyebrow">Jogo de Prognósticos</p>
           <h1>Mundial Pontos</h1>
-          <p class="hero-subtitle">Prognósticos entre amigos, pontos automáticos e ranking com sabor a Mundial.</p>
+          <p class="hero-subtitle">Prognósticos, resultados, grupos, fases e partilha rápida para WhatsApp.</p>
         </div>
       </div>
       <div class="session-card">
@@ -59,13 +59,24 @@
 <div class="wc-overlay">
 <h2>🏆 FIFA WORLD CUP 2026</h2>
 <p>Prognósticos • Classificações • Resultados</p>
-<div class="quick-actions"><button id="copyRankingBtn">📋 Copiar Classificação</button><button id="copyTodayBtn">⭐ Copiar Jogos Hoje</button>
-<button>⭐ Jogos de Hoje</button>
-<button>📋 Copiar WhatsApp</button>
-<button>🏆 Grupos</button>
+<div class="quick-actions">
+      <button id="copyRankingBtn">📋 Copiar Classificação</button>
+      <button id="copyTodayBtn">⭐ Copiar Jogos Hoje</button>
+      <button id="copyGroupsBtn">🏆 Copiar Grupos</button>
+    </div>
 </div>
 </div>
-</div>
+
+      <section class="today-section">
+        <div class="section-head">
+          <div>
+            <h2>⭐ Jogos de Hoje</h2>
+            <p>Atualizado automaticamente pela data do teu dispositivo.</p>
+          </div>
+          <button id="copyTodayBtn2" class="secondary">📋 Copiar para WhatsApp</button>
+        </div>
+        <div id="todayGamesList" class="today-games"></div>
+      </section>
 
       <section class="score-overview">
         <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
@@ -91,6 +102,14 @@
           </div>
           <button id="refreshBtn" class="secondary">Atualizar</button>
         </div>
+        <div class="phase-filter-row">
+          <button class="phase-chip active" data-phase="all">🌍 Todos</button>
+          <button class="phase-chip" data-phase="groups">Fase de Grupos</button>
+          <button class="phase-chip" data-phase="r16">Oitavos</button>
+          <button class="phase-chip" data-phase="quarters">Quartos</button>
+          <button class="phase-chip" data-phase="semis">Meias</button>
+          <button class="phase-chip" data-phase="final">Final</button>
+        </div>
         <div class="toolbar">
           <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, estádio ou fase..." />
           <div class="filter-row">
@@ -111,7 +130,16 @@
           </div>
         </div>
         <div id="rankingList" class="ranking-list"></div>
-      </section><section id="groupsTab" class="tab-panel"><div class="glass-card"><h2>🌍 Classificações dos Grupos</h2><div id="groupsTables">Classificações automáticas após inserir resultados.</div></div></section>
+      </section><section id="groupsTab" class="tab-panel">
+        <div class="section-head">
+          <div>
+            <h2>🌍 Classificações dos Grupos</h2>
+            <p>Calculadas automaticamente a partir dos resultados inseridos.</p>
+          </div>
+          <button id="copyGroupsBtn2" class="secondary">📋 Copiar Grupos</button>
+        </div>
+        <div id="groupsTables" class="groups-tables"></div>
+      </section>
 
       <section id="adminTab" class="tab-panel">
         <div id="adminLocked" class="glass-card">
