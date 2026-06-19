@@ -1221,3 +1221,9 @@ button:disabled{
   opacity:.65;
   cursor:not-allowed;
 }
+
+
+/* v37 guardar rápido */
+.firebase-status-box.error{
+  white-space:normal;
+}
