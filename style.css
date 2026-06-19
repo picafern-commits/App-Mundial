@@ -119,3 +119,10 @@ input:focus { border-color: rgba(80,168,255,.75); box-shadow: 0 0 0 4px rgba(80,
 .game-card.locked{opacity:.86}
 .admin-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 @media(max-width:720px){.score-strip{grid-template-columns:1fr}.score-strip span:last-child{text-align:left}.search{min-width:100%}}
+
+/* v1.3 extras */
+.score-overview{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.admin-stack{display:grid;gap:16px}
+.integration-card{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}
+.file-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text)}
+.session-card small{color:var(--accent);font-weight:800}

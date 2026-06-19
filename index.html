@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mundial Pontos v1.2</title>
+  <title>Mundial Pontos v1.4</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -17,12 +17,13 @@
         <div>
           <p class="eyebrow">Jogo de Prognósticos</p>
           <h1>Mundial Pontos</h1>
-          <p class="hero-subtitle">Prognósticos do Mundial 2026, apostas bloqueadas à hora do jogo e ranking automático.</p>
+          <p class="hero-subtitle">Apostas por diversão, pontos automáticos e ranking em tempo real.</p>
         </div>
       </div>
       <div class="session-card">
         <span class="session-label">Jogador ativo</span>
         <strong id="activeUserLabel">Sem jogador</strong>
+        <small id="modeLabel">Modo teste local</small>
         <button id="logoutBtn" class="ghost hidden">Sair</button>
       </div>
     </header>
@@ -45,8 +46,8 @@
         <article class="mini-card"><span>Jogos</span><strong id="statGames">0</strong></article>
         <article class="mini-card"><span>Apostas</span><strong id="statBets">0</strong></article>
         <article class="mini-card"><span>Jogadores</span><strong id="statPlayers">0</strong></article>
-        <article class="mini-card"><span>Terminados</span><strong id="statFinished">0</strong></article>
         <article class="mini-card"><span>Abertos</span><strong id="statOpen">0</strong></article>
+        <article class="mini-card"><span>Terminados</span><strong id="statFinished">0</strong></article>
         <article class="mini-card accent"><span>Os teus pontos</span><strong id="statMyPoints">0</strong></article>
       </section>
 
@@ -61,12 +62,12 @@
         <div class="section-head">
           <div>
             <h2>Fazer prognósticos</h2>
-            <p>Coloca o resultado que achas que vai acontecer. A aposta fecha automaticamente quando chega a hora do jogo.</p>
+            <p>Coloca o resultado que achas que vai acontecer. Depois do resultado real, bloqueia.</p>
           </div>
           <button id="refreshBtn" class="secondary">Atualizar</button>
         </div>
         <div class="toolbar">
-          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa ou estádio..." />
+          <input id="searchInput" class="search" type="search" placeholder="Pesquisar equipa, estádio ou fase..." />
           <div class="filter-row">
             <button class="filter-chip active" data-filter="all">Todos</button>
             <button class="filter-chip" data-filter="open">Abertos</button>
@@ -99,7 +100,19 @@
           <button id="unlockAdminBtn" class="primary">Entrar como admin</button>
         </div>
 
-        <div id="adminUnlocked" class="hidden">
+        <div id="adminUnlocked" class="hidden admin-stack">
+          <div class="glass-card integration-card">
+            <div>
+              <h2>Firebase / API</h2>
+              <p id="integrationText">Firebase: teste local · API: desligada</p>
+              <p class="small-note">Cola os dados do Firebase no ficheiro <strong>config.js</strong>. Se estiver vazio, a app continua em teste local.</p>
+            </div>
+            <div class="admin-actions">
+              <button id="syncApiBtn" class="secondary">Sincronizar API</button>
+              <button id="exportBtn" class="secondary">Exportar JSON</button>
+              <label class="secondary file-button">Importar JSON<input id="importInput" type="file" accept="application/json" hidden></label>
+            </div>
+          </div>
           <div class="glass-card">
             <div class="admin-card-head">
               <div>
@@ -118,19 +131,22 @@
                 <input id="matchDateInput" type="datetime-local" />
               </label>
               <label>Estádio / local
-                <input id="venueInput" type="text" placeholder="Ex: Houston Stadium" />
+                <input id="venueInput" type="text" placeholder="Estádio" />
+              </label>
+              <label>Fase
+                <input id="phaseInput" type="text" placeholder="Fase de grupos" />
               </label>
             </div>
             <div class="admin-actions">
               <button id="addGameBtn" class="primary">Adicionar jogo</button>
-              <button id="resetSeedBtn" class="secondary">Repor lista Mundial 2026</button>
+              <button id="resetSeedBtn" class="secondary">Repor jogos base</button>
             </div>
           </div>
 
           <div class="section-head admin-title">
             <div>
               <h2>Resultados</h2>
-              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente. Na próxima fase isto fica ligado a API/Firebase.</p>
+              <p>Quando guardas o resultado real, a app calcula os pontos automaticamente.</p>
             </div>
           </div>
           <div id="adminGamesList" class="list"></div>
@@ -142,7 +158,6 @@
           <article class="glass-card rule-card"><strong>+1</strong><span>Acertar vencedor ou empate, sem acertar o resultado.</span></article>
           <article class="glass-card rule-card"><strong>+3</strong><span>Acertar o resultado exato.</span></article>
           <article class="glass-card rule-card"><strong>0</strong><span>Não acertar vencedor, empate ou resultado.</span></article>
-          <article class="glass-card rule-card"><strong>🔒</strong><span>Apostas fecham automaticamente quando chega a hora do jogo.</span></article>
         </div>
       </section>
     </main>

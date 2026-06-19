@@ -1,13 +1,15 @@
-// Mundial Pontos - v1.2.0 GitHub Pages
-// Base pronta para Firebase/API. Em modo teste guarda tudo no localStorage.
+// Mundial Pontos - v1.4.0 GitHub Pages
+// Firebase/API configuráveis via config.js. Modo teste continua ativo sem configuração.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-const firebaseConfig = { apiKey: "COLOCA_AQUI", authDomain: "COLOCA_AQUI", projectId: "COLOCA_AQUI", storageBucket: "COLOCA_AQUI", messagingSenderId: "COLOCA_AQUI", appId: "COLOCA_AQUI" };
-const ADMIN_PIN = "1234";
-const DEMO_MODE = firebaseConfig.apiKey === "COLOCA_AQUI";
-const demoStoreKey = "mundial_demo_data_v2";
+const APP_CONFIG = window.MUNDIAL_CONFIG || {};
+const firebaseConfig = APP_CONFIG.firebase || {};
+const apiConfig = APP_CONFIG.api || {};
+const ADMIN_PIN = APP_CONFIG.adminPin || "1234";
+const DEMO_MODE = !firebaseConfig.apiKey || firebaseConfig.apiKey === "COLOCA_AQUI";
+const demoStoreKey = "mundial_demo_data_v4";
 
 let db = null;
 let activePlayer = localStorage.getItem("mundial_active_player") || "";
@@ -39,27 +41,32 @@ const SEED_GAMES = [
   { id:"wc2026-arg-aut", homeTeam:"Argentina", awayTeam:"Áustria", matchDate:"2026-06-22T17:00", venue:"Dallas Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
   { id:"wc2026-fra-irq", homeTeam:"França", awayTeam:"Iraque", matchDate:"2026-06-22T21:00", venue:"Philadelphia Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null },
   { id:"wc2026-por-uzb", homeTeam:"Portugal", awayTeam:"Uzbequistão", matchDate:"2026-06-23T17:00", venue:"Houston Stadium", phase:"Fase de grupos", homeScore:null, awayScore:null }
-].map(g => ({ ...g, createdAt: Date.now(), source:"Base SuperSport/FIFA" }));
+].map(g => ({ ...g, createdAt: Date.now(), source:"Base inicial" }));
 
 const defaultDemo = { games: SEED_GAMES, bets: [] };
 const $ = id => document.getElementById(id);
 const hasResult = game => game && game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined;
 const isLocked = game => hasResult(game) || new Date(game.matchDate).getTime() <= Date.now();
-const safeId = text => text.toLowerCase().trim().replace(/[^a-z0-9]+/gi, "_");
+const safeId = text => String(text ?? "").toLowerCase().trim().replace(/[^a-z0-9]+/gi, "_");
 const outcome = (h,a) => Number(h)>Number(a) ? "home" : Number(h)<Number(a) ? "away" : "draw";
 const escapeHtml = text => String(text ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 
 function toast(message){ const el=$("toast"); el.textContent=message; el.classList.remove("hidden"); setTimeout(()=>el.classList.add("hidden"),2800); }
-function getDemoData(){ const raw=localStorage.getItem(demoStoreKey); if(!raw){ localStorage.setItem(demoStoreKey, JSON.stringify(defaultDemo)); return structuredClone(defaultDemo); } return JSON.parse(raw); }
+function getDemoData(){ const raw=localStorage.getItem(demoStoreKey); if(!raw){ localStorage.setItem(demoStoreKey, JSON.stringify(defaultDemo)); return structuredClone(defaultDemo); } 
+  try { return JSON.parse(raw); } catch { localStorage.removeItem(demoStoreKey); localStorage.setItem(demoStoreKey, JSON.stringify(defaultDemo)); return structuredClone(defaultDemo); } }
 function saveDemoData(data){ localStorage.setItem(demoStoreKey, JSON.stringify(data)); }
 function formatDate(value){ if(!value) return "Sem data"; return new Date(value).toLocaleString("pt-PT", { weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }); }
 function statusOf(game){ if(hasResult(game)) return { label:"Terminado", cls:"closed" }; if(isLocked(game)) return { label:"Apostas fechadas", cls:"locked" }; return { label:"Aberto", cls:"open" }; }
 function exactBet(bet, game){ return Number(bet.homeGuess) === Number(game.homeScore) && Number(bet.awayGuess) === Number(game.awayScore); }
 function pointsForBet(bet, game){ if(!game || !hasResult(game)) return 0; if(exactBet(bet, game)) return 3; return outcome(bet.homeGuess, bet.awayGuess) === outcome(game.homeScore, game.awayScore) ? 1 : 0; }
 
-async function initFirebase(){ if(DEMO_MODE) return; const app=initializeApp(firebaseConfig); db=getFirestore(app); }
+async function initFirebase(){
+  if(DEMO_MODE) return;
+  try { const app=initializeApp(firebaseConfig); db=getFirestore(app); }
+  catch(e){ console.error(e); toast("Firebase não ligou. A usar modo teste."); }
+}
 async function loadData(){
-  if(DEMO_MODE){ const data=getDemoData(); games=data.games.sort((a,b)=>String(a.matchDate).localeCompare(String(b.matchDate))); bets=data.bets; renderAll(); return; }
+  if(DEMO_MODE || !db){ const data=getDemoData(); games=data.games.sort((a,b)=>String(a.matchDate).localeCompare(String(b.matchDate))); bets=data.bets; renderAll(); return; }
   const gamesSnap=await getDocs(query(collection(db,"games"), orderBy("matchDate","asc"))); games=gamesSnap.docs.map(d=>({id:d.id,...d.data()}));
   const betsSnap=await getDocs(collection(db,"bets")); bets=betsSnap.docs.map(d=>({id:d.id,...d.data()})); renderAll();
 }
@@ -77,7 +84,7 @@ async function addGame(homeTeam, awayTeam, matchDate, venue="", phase="Fase de g
   if(!homeTeam || !awayTeam || !matchDate) return toast("Preenche os dados do jogo.");
   const game={homeTeam, awayTeam, matchDate, venue, phase, homeScore:null, awayScore:null, createdAt:Date.now(), source:"Manual"};
   if(DEMO_MODE){ const data=getDemoData(); data.games.push({id:crypto.randomUUID(),...game}); saveDemoData(data); } else await addDoc(collection(db,"games"), {...game, createdAt:serverTimestamp()});
-  ["homeTeamInput","awayTeamInput","matchDateInput","venueInput"].forEach(id=>$(id) && ($(id).value="")); toast("Jogo adicionado."); await loadData();
+  ["homeTeamInput","awayTeamInput","matchDateInput","venueInput","phaseInput"].forEach(id=>$(id) && ($(id).value="")); toast("Jogo adicionado."); await loadData();
 }
 async function setResult(gameId, homeScore, awayScore){
   if(homeScore==="" || awayScore==="") return toast("Coloca o resultado completo.");
@@ -105,8 +112,8 @@ function getVisibleGames(){ return games.filter(g => {
 }); }
 function getTotals(){ const totals=new Map(); bets.forEach(b=>{ const g=games.find(x=>x.id===b.gameId); const cur=totals.get(b.playerName)||{playerName:b.playerName,points:0,exact:0,played:0}; cur.points+=pointsForBet(b,g); if(g&&hasResult(g)) cur.played+=1; if(g&&exactBet(b,g)) cur.exact+=1; totals.set(b.playerName,cur); }); if(activePlayer&&!totals.has(activePlayer)) totals.set(activePlayer,{playerName:activePlayer,points:0,exact:0,played:0}); return totals; }
 function renderAll(){ renderSession(); renderStats(); renderGames(); renderRanking(); renderAdmin(); }
-function renderSession(){ $("activeUserLabel").textContent=activePlayer||"Sem jogador"; $("logoutBtn").classList.toggle("hidden",!activePlayer); $("loginView").classList.toggle("hidden",!!activePlayer); $("mainView").classList.toggle("hidden",!activePlayer); $("adminLocked").classList.toggle("hidden",isAdmin); $("adminUnlocked").classList.toggle("hidden",!isAdmin); }
-function renderStats(){ const players=new Set(bets.map(b=>b.playerName)); if(activePlayer) players.add(activePlayer); const done=games.filter(hasResult).length; const open=games.filter(g=>!isLocked(g)).length; $("statGames").textContent=games.length; $("statBets").textContent=bets.length; $("statPlayers").textContent=players.size; $("statMyPoints").textContent=getTotals().get(activePlayer)?.points||0; if($("statFinished")) $("statFinished").textContent=done; if($("statOpen")) $("statOpen").textContent=open; }
+function renderSession(){ $("activeUserLabel").textContent=activePlayer||"Sem jogador"; if($("modeLabel")) $("modeLabel").textContent = DEMO_MODE || !db ? "Modo teste local" : "Firebase online"; $("logoutBtn").classList.toggle("hidden",!activePlayer); $("loginView").classList.toggle("hidden",!!activePlayer); $("mainView").classList.toggle("hidden",!activePlayer); $("adminLocked").classList.toggle("hidden",isAdmin); $("adminUnlocked").classList.toggle("hidden",!isAdmin); }
+function renderStats(){ const players=new Set(bets.map(b=>b.playerName)); if(activePlayer) players.add(activePlayer); const done=games.filter(hasResult).length; const open=games.filter(g=>!isLocked(g)).length; $("statGames").textContent=games.length; if($("statBets")) $("statBets").textContent=bets.length; $("statPlayers").textContent=players.size; $("statMyPoints").textContent=getTotals().get(activePlayer)?.points||0; if($("statFinished")) $("statFinished").textContent=done; if($("statOpen")) $("statOpen").textContent=open; }
 function renderGames(){
   const el=$("gamesList"); const list=getVisibleGames(); if(!list.length){ el.innerHTML=`<div class="glass-card">Não encontrei jogos com esse filtro.</div>`; return; }
   el.innerHTML=list.map(game=>{ const myBet=bets.find(b=>b.gameId===game.id&&b.playerName===activePlayer); const st=statusOf(game); const resultText=hasResult(game)?`${game.homeScore} - ${game.awayScore}`:"Por jogar"; const pts=myBet?pointsForBet(myBet,game):0; const locked=isLocked(game);
@@ -124,7 +131,64 @@ function renderGames(){
     </article>`; }).join("");
 }
 function renderRanking(){ const rows=[...getTotals().values()].sort((a,b)=>b.points-a.points||b.exact-a.exact||a.playerName.localeCompare(b.playerName)); $("rankingList").innerHTML=rows.length?rows.map((r,i)=>`<div class="ranking-row"><div class="rank-number">${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div><div><strong>${escapeHtml(r.playerName)}</strong><p class="muted">Jogos pontuados: ${r.played} · Exatos: ${r.exact}</p></div><div class="points">${r.points} pts</div></div>`).join(""):`<div class="glass-card">Ainda não existem apostas.</div>`; }
-function renderAdmin(){ const el=$("adminGamesList"); if(!el) return; el.innerHTML=games.map(game=>`<article class="game-card"><div class="match-title"><div><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><p class="muted">${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"")}</p></div><button class="danger" onclick="window.removeGameFromUI('${game.id}')">Apagar</button></div><div class="result-grid"><label>${escapeHtml(game.homeTeam)}<input id="res_home_${game.id}" type="number" min="0" value="${game.homeScore ?? ""}"></label><label>${escapeHtml(game.awayTeam)}<input id="res_away_${game.id}" type="number" min="0" value="${game.awayScore ?? ""}"></label><button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" onclick="window.removeResultFromUI('${game.id}')">Limpar resultado</button><span class="muted">Apostas: ${bets.filter(b=>b.gameId===game.id).length}</span></div></article>`).join("")||`<div class="glass-card">Ainda não existem jogos.</div>`; }
+function renderAdmin(){ const el=$("adminGamesList"); if(!el) return; renderIntegration(); el.innerHTML=games.map(game=>`<article class="game-card"><div class="match-title"><div><strong>${escapeHtml(game.homeTeam)} vs ${escapeHtml(game.awayTeam)}</strong><p class="muted">${formatDate(game.matchDate)} · ${escapeHtml(game.venue||"")}</p></div><button class="danger" onclick="window.removeGameFromUI('${game.id}')">Apagar</button></div><div class="result-grid"><label>${escapeHtml(game.homeTeam)}<input id="res_home_${game.id}" type="number" min="0" value="${game.homeScore ?? ""}"></label><label>${escapeHtml(game.awayTeam)}<input id="res_away_${game.id}" type="number" min="0" value="${game.awayScore ?? ""}"></label><button class="primary" onclick="window.setResultFromUI('${game.id}')">Guardar resultado</button><button class="secondary" onclick="window.removeResultFromUI('${game.id}')">Limpar resultado</button><span class="muted">Apostas: ${bets.filter(b=>b.gameId===game.id).length}</span></div></article>`).join("")||`<div class="glass-card">Ainda não existem jogos.</div>`; }
+
+function renderIntegration(){
+  const t=$("integrationText"); if(!t) return;
+  const firebaseState = DEMO_MODE || !db ? "Firebase: teste local" : "Firebase: online";
+  const apiState = apiConfig.enabled && apiConfig.endpoint ? "API: preparada" : "API: desligada";
+  t.textContent = `${firebaseState} · ${apiState}`;
+}
+function normalizeApiGame(item){
+  const id = item.id || item.matchId || `${safeId(item.homeTeam||item.home||item.home_name)}_${safeId(item.awayTeam||item.away||item.away_name)}_${item.matchDate||item.date||item.utcDate||Date.now()}`;
+  return {
+    id,
+    homeTeam: item.homeTeam || item.home || item.home_name || item.homeTeamName || "Casa",
+    awayTeam: item.awayTeam || item.away || item.away_name || item.awayTeamName || "Fora",
+    matchDate: item.matchDate || item.date || item.utcDate || "",
+    venue: item.venue || item.stadium || "",
+    phase: item.phase || item.stage || "Mundial",
+    homeScore: item.homeScore ?? item.scoreHome ?? item.home_score ?? null,
+    awayScore: item.awayScore ?? item.scoreAway ?? item.away_score ?? null,
+    source: "API",
+    createdAt: Date.now()
+  };
+}
+async function upsertGames(imported){
+  if(!Array.isArray(imported) || !imported.length) return toast("Não encontrei jogos para importar.");
+  if(DEMO_MODE || !db){
+    const data=getDemoData();
+    const map=new Map(data.games.map(g=>[g.id,g]));
+    imported.forEach(g=>map.set(g.id,{...(map.get(g.id)||{}),...g}));
+    data.games=[...map.values()]; saveDemoData(data);
+  } else {
+    for(const g of imported) await setDoc(doc(db,"games",g.id), g, {merge:true});
+  }
+  toast(`${imported.length} jogos sincronizados.`); await loadData();
+}
+async function syncFromApi(showToast=true){
+  if(!apiConfig.enabled || !apiConfig.endpoint){ if(showToast) toast("API ainda não configurada no config.js."); return; }
+  try{
+    const headers=apiConfig.apiKey ? {"Authorization":`Bearer ${apiConfig.apiKey}`} : {};
+    const res=await fetch(apiConfig.endpoint,{headers});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json=await res.json();
+    const arr=Array.isArray(json) ? json : (json.games || json.matches || json.fixtures || []);
+    await upsertGames(arr.map(normalizeApiGame));
+  }catch(e){ console.error(e); toast("Não consegui sincronizar a API."); }
+}
+function exportJson(){
+  const data={version:APP_CONFIG.appVersion||"1.4.0", exportedAt:new Date().toISOString(), games, bets};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="mundial-pontos-backup.json"; a.click(); URL.revokeObjectURL(a.href);
+}
+async function importJson(file){
+  if(!file) return;
+  try{ const data=JSON.parse(await file.text()); await upsertGames((data.games||[]).map(normalizeApiGame));
+    if(Array.isArray(data.bets) && (DEMO_MODE || !db)){ const cur=getDemoData(); cur.bets=data.bets; saveDemoData(cur); await loadData(); }
+    toast("Importação concluída.");
+  }catch(e){ console.error(e); toast("Ficheiro inválido."); }
+}
 
 window.saveBetFromUI=id=>saveBet(id,$(`home_${id}`).value,$(`away_${id}`).value);
 window.setResultFromUI=id=>setResult(id,$(`res_home_${id}`).value,$(`res_away_${id}`).value);
@@ -135,8 +199,11 @@ $("enterBtn").addEventListener("click",async()=>{ const name=$("playerNameInput"
 $("logoutBtn").addEventListener("click",()=>{ activePlayer=""; isAdmin=false; localStorage.removeItem("mundial_active_player"); localStorage.removeItem("mundial_is_admin"); renderAll(); });
 $("refreshBtn").addEventListener("click",loadData);
 $("unlockAdminBtn").addEventListener("click",()=>{ if($("adminPinInput").value!==ADMIN_PIN) return toast("PIN errado."); isAdmin=true; localStorage.setItem("mundial_is_admin","1"); renderSession(); renderAdmin(); });
-$("addGameBtn").addEventListener("click",()=>addGame($("homeTeamInput").value.trim(),$("awayTeamInput").value.trim(),$("matchDateInput").value,$("venueInput").value.trim()));
+$("addGameBtn").addEventListener("click",()=>addGame($("homeTeamInput").value.trim(),$("awayTeamInput").value.trim(),$("matchDateInput").value,$("venueInput").value.trim(),$("phaseInput").value.trim()||"Fase de grupos"));
 $("resetSeedBtn")?.addEventListener("click",resetSeed);
+$("syncApiBtn")?.addEventListener("click",()=>syncFromApi(true));
+$("exportBtn")?.addEventListener("click",exportJson);
+$("importInput")?.addEventListener("change",e=>importJson(e.target.files?.[0]));
 $("searchInput")?.addEventListener("input",e=>{ currentSearch=e.target.value; renderGames(); });
 document.querySelectorAll(".filter-chip").forEach(btn=>btn.addEventListener("click",()=>{ document.querySelectorAll(".filter-chip").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); currentFilter=btn.dataset.filter; renderGames(); }));
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{ document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active")); document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active")); btn.classList.add("active"); $(btn.dataset.tab).classList.add("active"); }));
