@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mundial Pontos 2026 · Imagem Src Real</title>
+  <title>Mundial Pontos 2026 · Chat Admin Toggle</title>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Mundial 2026" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -69,7 +69,11 @@
         <p class="eyebrow">Calendário da Fase de Grupos</p>
         <h1>Mundial Pontos 2026</h1>
       </div>
-      <button id="chatOpenBtn" class="secondary chat-open-btn" type="button">Chat <span id="chatUnreadBadge" class="chat-unread-badge hidden">0</span></button>
+      
+          <button id="chatAdminToggleBtn" class="topbar-btn chat-admin-toggle hidden" type="button" title="Ativar/desativar chat">
+            Chat: <span id="chatAdminToggleLabel">...</span>
+          </button>
+<button id="chatOpenBtn" class="secondary chat-open-btn" type="button">Chat <span id="chatUnreadBadge" class="chat-unread-badge hidden">0</span></button>
         <div id="sessionBox" class="session-box hidden">
         <span id="sessionUserLabel">Sem login</span>
         <button id="logoutBtn" class="secondary small" type="button">Sair</button>

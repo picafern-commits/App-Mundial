@@ -7002,3 +7002,28 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   0%,100%{ transform:translateY(0); }
   50%{ transform:translateY(-1px); }
 }
+
+
+/* v98 — botão admin para ativar/desativar chat */
+.chat-admin-toggle{
+  border:1px solid rgba(255,255,255,.16)!important;
+  background:rgba(255,255,255,.08)!important;
+  color:#fff!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+
+.chat-admin-toggle.is-on{
+  background:rgba(28,185,120,.20)!important;
+  border-color:rgba(28,185,120,.50)!important;
+}
+
+.chat-admin-toggle.is-off{
+  background:rgba(255,120,80,.16)!important;
+  border-color:rgba(255,120,80,.44)!important;
+}
+
+.chat-admin-toggle.hidden,
+#chatOpenBtn.hidden{
+  display:none!important;
+}

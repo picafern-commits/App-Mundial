@@ -6474,3 +6474,240 @@ setupSearchResultsAdminButton();
     if (chatIsOpen()) forceChatInteractive();
   }, 2500);
 })();
+
+
+// v98 — Sistema de chat ativado/desativado por admin.
+let chatSystemEnabled = false;
+let chatSettingsUnsubscribeV98 = null;
+let chatSettingsLoadedV98 = false;
+
+function chatSettingsDocRefV98() {
+  if (!db || !firebaseApi) return null;
+  const { doc } = firebaseApi;
+  if (typeof doc !== "function") return null;
+  return doc(db, "appSettings", "chatSystem");
+}
+
+function isCurrentUserAdminV98() {
+  try {
+    if (typeof isCurrentUserAdmin === "function") return Boolean(isCurrentUserAdmin());
+  } catch {}
+
+  try {
+    if (typeof isAdmin === "function") return Boolean(isAdmin());
+  } catch {}
+
+  try {
+    if (typeof currentUserIsAdmin !== "undefined") return Boolean(currentUserIsAdmin);
+  } catch {}
+
+  try {
+    const email = String(currentUser?.email || "").toLowerCase().trim();
+    const cfg = window.APP_CONFIG || window.appConfig || {};
+    const admins = cfg.adminEmails || cfg.admins || [];
+    if (Array.isArray(admins) && admins.map(x => String(x).toLowerCase().trim()).includes(email)) return true;
+  } catch {}
+
+  try {
+    const email = String(currentUser?.email || "").toLowerCase().trim();
+    if (Array.isArray(window.adminEmails) && window.adminEmails.map(x => String(x).toLowerCase().trim()).includes(email)) return true;
+  } catch {}
+
+  try {
+    const email = String(currentUser?.email || "").toLowerCase().trim();
+    if (Array.isArray(APP_CONFIG?.adminEmails) && APP_CONFIG.adminEmails.map(x => String(x).toLowerCase().trim()).includes(email)) return true;
+  } catch {}
+
+  return false;
+}
+
+function setChatVisibleV98(enabled) {
+  chatSystemEnabled = Boolean(enabled);
+
+  const chatBtn = document.getElementById("chatOpenBtn");
+  const chatPanel = document.getElementById("chatPanel");
+  const adminToggle = document.getElementById("chatAdminToggleBtn");
+  const adminLabel = document.getElementById("chatAdminToggleLabel");
+  const isAdmin = isCurrentUserAdminV98();
+
+  if (chatBtn) {
+    chatBtn.classList.toggle("hidden", !chatSystemEnabled);
+    chatBtn.style.display = chatSystemEnabled ? "" : "none";
+  }
+
+  if (!chatSystemEnabled && chatPanel) {
+    chatPanel.classList.add("hidden");
+    try { document.body.classList.remove("chat-fullscreen-open", "chat-mobile-page-open", "chat-window-open"); } catch {}
+    try { document.documentElement.classList.remove("chat-mobile-page-open"); } catch {}
+  }
+
+  if (adminToggle) {
+    adminToggle.classList.toggle("hidden", !isAdmin);
+    adminToggle.style.display = isAdmin ? "" : "none";
+    adminToggle.classList.toggle("is-on", chatSystemEnabled);
+    adminToggle.classList.toggle("is-off", !chatSystemEnabled);
+  }
+
+  if (adminLabel) adminLabel.textContent = chatSystemEnabled ? "Ativo" : "Desativo";
+}
+
+async function saveChatSystemEnabledV98(enabled) {
+  if (!isCurrentUserAdminV98()) {
+    try { toast("Só o admin pode alterar o chat."); } catch {}
+    return;
+  }
+
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    try { toast("Firebase não está ligado."); } catch {}
+    return;
+  }
+
+  try {
+    const ref = chatSettingsDocRefV98();
+    if (!ref) throw new Error("Sem referência Firebase");
+
+    const { setDoc, serverTimestamp } = firebaseApi;
+    await setDoc(ref, {
+      enabled: Boolean(enabled),
+      updatedAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
+      updatedBy: currentUser?.uid || "",
+      updatedByEmail: String(currentUser?.email || "").toLowerCase()
+    }, { merge: true });
+
+    setChatVisibleV98(Boolean(enabled));
+    try { toast(Boolean(enabled) ? "Chat ativado." : "Chat desativado."); } catch {}
+  } catch (error) {
+    console.error("Falhou guardar estado do chat:", error);
+    try { toast("Não consegui guardar o estado do chat."); } catch {}
+  }
+}
+
+async function loadChatSystemEnabledV98() {
+  setChatVisibleV98(false);
+
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) {
+    chatSettingsLoadedV98 = false;
+    setChatVisibleV98(false);
+    return;
+  }
+
+  try {
+    if (typeof chatSettingsUnsubscribeV98 === "function") {
+      try { chatSettingsUnsubscribeV98(); } catch {}
+      chatSettingsUnsubscribeV98 = null;
+    }
+
+    const ref = chatSettingsDocRefV98();
+    if (!ref) throw new Error("Sem referência Firebase");
+
+    const { onSnapshot, getDoc, setDoc, serverTimestamp } = firebaseApi;
+
+    if (typeof getDoc === "function") {
+      const snap = await getDoc(ref);
+      chatSettingsLoadedV98 = true;
+
+      if (!snap.exists?.() && isCurrentUserAdminV98() && typeof setDoc === "function") {
+        await setDoc(ref, {
+          enabled: false,
+          createdAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
+          createdBy: currentUser?.uid || "",
+          createdByEmail: String(currentUser?.email || "").toLowerCase()
+        }, { merge: true });
+        setChatVisibleV98(false);
+      } else if (snap.exists?.()) {
+        setChatVisibleV98(Boolean((snap.data?.() || {}).enabled));
+      } else {
+        setChatVisibleV98(false);
+      }
+    }
+
+    if (typeof onSnapshot === "function") {
+      chatSettingsUnsubscribeV98 = onSnapshot(ref, snap => {
+        chatSettingsLoadedV98 = true;
+        const data = snap.exists?.() ? (snap.data?.() || {}) : {};
+        setChatVisibleV98(Boolean(data.enabled));
+      }, error => {
+        console.warn("Estado do chat não carregou:", error);
+        setChatVisibleV98(false);
+      });
+    }
+  } catch (error) {
+    console.warn("Erro ao carregar estado do chat:", error);
+    setChatVisibleV98(false);
+  }
+}
+
+function setupChatAdminToggleV98() {
+  const btn = document.getElementById("chatAdminToggleBtn");
+  if (btn && btn.dataset.v98Bound !== "1") {
+    btn.dataset.v98Bound = "1";
+    btn.addEventListener("click", async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      await saveChatSystemEnabledV98(!chatSystemEnabled);
+    });
+  }
+
+  setChatVisibleV98(chatSystemEnabled);
+}
+
+// Bloqueia abertura se estiver desativado.
+(function wrapChatOpenWithToggleV98(){
+  if (window.__chatOpenToggleWrappedV98) return;
+  window.__chatOpenToggleWrappedV98 = true;
+
+  const originalWindowOpen = typeof window.openChatPanel === "function" ? window.openChatPanel : null;
+
+  window.openChatPanel = function openChatPanelToggleV98(...args) {
+    if (!chatSystemEnabled) {
+      try { toast("Chat desativado pelo admin."); } catch {}
+      return;
+    }
+
+    if (typeof originalWindowOpen === "function") return originalWindowOpen.apply(this, args);
+    try {
+      const panel = document.getElementById("chatPanel");
+      if (panel) panel.classList.remove("hidden");
+    } catch {}
+  };
+})();
+
+document.addEventListener("click", event => {
+  const chatBtn = event.target.closest?.("#chatOpenBtn");
+  if (!chatBtn) return;
+
+  if (!chatSystemEnabled) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    try { toast("Chat desativado pelo admin."); } catch {}
+    return false;
+  }
+}, { capture: true });
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupChatAdminToggleV98();
+  setChatVisibleV98(false);
+  setTimeout(setupChatAdminToggleV98, 300);
+});
+
+(function startChatSettingsWatcherV98(){
+  if (window.__chatSettingsWatcherV98) return;
+  window.__chatSettingsWatcherV98 = true;
+
+  const tick = () => {
+    setupChatAdminToggleV98();
+
+    if (currentUser && db && firebaseApi && storageMode === "firebase") {
+      if (!chatSettingsLoadedV98) loadChatSystemEnabledV98();
+    } else {
+      chatSettingsLoadedV98 = false;
+      setChatVisibleV98(false);
+    }
+  };
+
+  setInterval(tick, 2500);
+  setTimeout(tick, 600);
+  setTimeout(tick, 1600);
+  setTimeout(tick, 3200);
+})();
