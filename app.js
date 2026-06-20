@@ -958,15 +958,35 @@ function leaderboard() {
 }
 
 function filteredGames() {
-  let base = games;
+  let base = [...games];
+
   if (calendarViewMode === "missing") {
-    base = games.filter(game => !hasResult(game));
+    base = base.filter(game => !hasResult(game));
+  }
+
+  if (calendarViewMode === "played") {
+    base = base.filter(game => hasResult(game));
   }
 
   const query = (searchText || "").trim().toLowerCase();
-  if (!query) return base;
+  if (query) {
+    base = base.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
+  }
 
-  return base.filter(game => `${game.group} ${game.homeTeam} ${game.awayTeam}`.toLowerCase().includes(query));
+  const timeValue = game => {
+    const value = new Date(game.matchDate || game.date || game.data || game.startTime || "").getTime();
+    return Number.isFinite(value) ? value : 0;
+  };
+
+  return base.sort((a, b) => {
+    const diff = timeValue(a) - timeValue(b);
+
+    // Já jogaram: mais recente para o mais antigo.
+    if (calendarViewMode === "played") return -diff;
+
+    // Faltam resultados e Todos os jogos: ordem natural do calendário.
+    return diff;
+  });
 }
 function groupByDate(list) {
   return list.reduce((map, game) => {
@@ -3911,18 +3931,58 @@ function renderAll() {
   setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); applyPermissionsToUi(); updateActiveAppSection(); }
 
 function renderCalendarFilterState() {
-  $("calendarMissingResultsBtn")?.classList.toggle("active-filter", calendarViewMode === "missing");
-  $("calendarAllGamesBtn")?.classList.toggle("active-filter", calendarViewMode === "all");
+  const missingBtn = $("calendarMissingResultsBtn");
+  const playedBtn = $("calendarPlayedGamesBtn");
+  const allBtn = $("calendarAllGamesBtn");
+
+  const missingCount = games.filter(game => !hasResult(game)).length;
+  const playedCount = games.filter(game => hasResult(game)).length;
+  const totalCount = games.length;
+
+  if (missingBtn) {
+    missingBtn.classList.toggle("active-filter", calendarViewMode === "missing");
+    missingBtn.innerHTML = `Faltam resultados <span class="filter-count">${missingCount}</span>`;
+    missingBtn.title = "Mostra apenas jogos que ainda não têm resultado colocado.";
+    missingBtn.setAttribute("aria-label", `Faltam resultados: ${missingCount} jogos`);
+  }
+
+  if (playedBtn) {
+    playedBtn.classList.toggle("active-filter", calendarViewMode === "played");
+    playedBtn.innerHTML = `Já jogaram <span class="filter-count">${playedCount}</span>`;
+    playedBtn.title = "Mostra apenas jogos que já têm resultado, do mais recente para o mais antigo.";
+    playedBtn.setAttribute("aria-label", `Já jogaram: ${playedCount} jogos, do mais recente para o mais antigo`);
+  }
+
+  if (allBtn) {
+    allBtn.classList.toggle("active-filter", calendarViewMode === "all");
+    allBtn.innerHTML = `Todos os jogos <span class="filter-count">${totalCount}</span>`;
+    allBtn.title = "Mostra todos os jogos por data/calendário.";
+    allBtn.setAttribute("aria-label", `Todos os jogos: ${totalCount} jogos por data`);
+  }
 }
 
 function renderCalendar() {
   const container = $("gamesList");
   const groups = groupByDate(filteredGames());
-  const days = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  if (!days.length) { container.innerHTML = `<div class="empty">Não há jogos para mostrar neste filtro.</div>${knockoutEntryButtonHtml()}`; return; }
+  const days = [...groups.entries()].sort((a, b) => {
+    // Já jogaram: dias mais recentes primeiro.
+    if (calendarViewMode === "played") return b[0].localeCompare(a[0]);
+
+    // Todos os jogos e Faltam resultados: por data/calendário.
+    return a[0].localeCompare(b[0]);
+  });
+
+  if (!days.length) {
+    container.innerHTML = `<div class="empty">Não há jogos para mostrar neste filtro.</div>${knockoutEntryButtonHtml()}`;
+    renderCalendarFilterState();
+    return;
+  }
+
   container.innerHTML = days.map(([, dayGames]) => `
     <section class="day-block"><h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3><div class="match-list">${dayGames.map(renderMatchRow).join("")}</div></section>
   `).join("") + knockoutEntryButtonHtml();
+
+  renderCalendarFilterState();
 }
 function renderMatchRow(game) {
   const status = statusOf(game);
@@ -5231,6 +5291,12 @@ $("unlockAdminBtn").addEventListener("click", () => {
 
 $("calendarMissingResultsBtn")?.addEventListener("click", () => {
   calendarViewMode = "missing";
+  renderCalendar();
+  renderCalendarFilterState();
+});
+
+$("calendarPlayedGamesBtn")?.addEventListener("click", () => {
+  calendarViewMode = "played";
   renderCalendar();
   renderCalendarFilterState();
 });
