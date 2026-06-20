@@ -28,6 +28,20 @@ let fullSyncTimer = null;
 let realtimeUnsubscribers = [];
 let realtimeRenderTimer = null;
 let onlineUsersCache = [];
+let chatMessagesCache = [];
+let chatPinnedMessage = null;
+let chatPinnedUnsubscribe = null;
+let chatLongPressTimer = null;
+let chatActionMessageId = null;
+let chatCurrentRoom = localStorage.getItem('mundial_chat_room') || 'general';
+let chatReplyTo = null;
+let chatTypingUnsubscribe = null;
+let chatTypingTimer = null;
+let chatSearchTerm = '';
+let chatLastNotifiedId = localStorage.getItem('mundial_chat_last_notified_id') || '';
+let chatUnsubscribe = null;
+let chatOpenedOnce = false;
+let chatLastSeenAt = Number(localStorage.getItem('mundial_chat_last_seen_at') || '0');
 let presenceIntervalId = null;
 let onlineUsersIntervalId = null;
 
@@ -1497,6 +1511,8 @@ function applyPermissionsToUi() {
   $("savePointsSettingsBtn")?.classList.toggle("hidden", !hasPermission("editPoints"));
   $("saveExtraResultsBtn")?.classList.toggle("hidden", !hasPermission("editPoints"));
   $("saveKnockoutUnlockBtn")?.classList.toggle("hidden", !hasPermission("editKnockout"));
+    $("searchAllResultsBtn")?.classList.toggle("hidden", !hasPermission("editResults"));
+    document.querySelectorAll(".search-game-result-btn").forEach(btn => btn.classList.toggle("hidden", !hasPermission("editResults")));
 
   document.querySelectorAll("[data-ko-save], [data-ko-edit]").forEach(btn => {
     btn.classList.toggle("hidden", !hasPermission("editKnockout"));
@@ -1846,6 +1862,1188 @@ function stopOnlineFeaturesSafe() {
   }
 }
 
+
+const CHAT_COLLECTION = "chatMessages";
+const CHAT_LIMIT = 150;
+
+function chatUserName() {
+  return String(currentProfile?.name || "").trim() || displayNameFromEmail(currentUser?.email || "") || currentUser?.email || "User";
+}
+
+function chatTimestampMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toDate === "function") return value.toDate().getTime();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return new Date(value).getTime();
+  return 0;
+}
+
+function chatTimeLabel(value) {
+  const time = chatTimestampMs(value);
+  if (!Number.isFinite(time) || !time) return "";
+  return new Date(time).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+}
+
+function chatDateKey(value) {
+  const time = chatTimestampMs(value);
+  if (!Number.isFinite(time) || !time) return "";
+  const date = new Date(time);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function chatDateLabel(value) {
+  const time = chatTimestampMs(value);
+  if (!Number.isFinite(time) || !time) return "";
+  const messageDate = new Date(time);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (chatDateKey(messageDate) === chatDateKey(today)) return "Hoje";
+  if (chatDateKey(messageDate) === chatDateKey(yesterday)) return "Ontem";
+  return messageDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function chatMessageDateValue(message) {
+  return message?.createdAt || message?.createdAtLocal || message?.createdAtMillis || 0;
+}
+
+function chatParticipantsCount() {
+  const names = new Set();
+  (appSettings.users || []).forEach(name => {
+    const clean = String(name || "").trim();
+    if (clean) names.add(clean.toLowerCase());
+  });
+  (permissionsCache || []).forEach(profile => {
+    if (profile?.active === false) return;
+    const clean = String(profile?.name || profile?.email || profile?.id || "").trim();
+    if (clean) names.add(clean.toLowerCase());
+  });
+  if (currentProfile?.active !== false) {
+    const clean = String(currentProfile?.name || currentProfile?.email || currentUser?.email || "").trim();
+    if (clean) names.add(clean.toLowerCase());
+  }
+  return names.size || 18;
+}
+
+
+function isMobileChatPageMode() {
+  return window.matchMedia?.("(max-width: 760px)")?.matches || window.innerWidth <= 760;
+}
+
+function setChatMobilePageState(open) {
+  document.body.classList.toggle("chat-mobile-page-open", Boolean(open && isMobileChatPageMode()));
+  document.body.classList.toggle("chat-window-open", Boolean(open && !isMobileChatPageMode()));
+}
+
+function pushChatMobileHistory() {
+  if (!isMobileChatPageMode()) return;
+  if (window.location.hash === "#chat") return;
+
+  try {
+    history.pushState({ chatOpen: true }, "", "#chat");
+  } catch {}
+}
+
+function closeChatFromHistorySafe() {
+  const panel = $("chatPanel");
+  if (!panel || panel.classList.contains("hidden")) return;
+  window.closeChatPanelNow();
+}
+
+if (!window.__chatMobilePagePopBound) {
+  window.__chatMobilePagePopBound = true;
+  window.addEventListener("popstate", () => {
+    if (window.location.hash !== "#chat") closeChatFromHistorySafe();
+  });
+}
+
+function openChatPanel() {
+  const panel = $("chatPanel");
+  const input = $("chatInput");
+  if (!panel) { document.body.classList.remove("chat-fullscreen-open");
+    setChatMobilePageState(false);
+    setChatMobilePageState(false); return; }
+  panel.classList.remove("hidden");
+  setChatMobilePageState(true);
+  pushChatMobileHistory();
+  document.body.classList.add("chat-fullscreen-open");
+  renderChatTabs();
+  chatOpenedOnce = true;
+  chatLastSeenAt = Date.now();
+  localStorage.setItem("mundial_chat_last_seen_at", String(chatLastSeenAt));
+  updateChatUnreadBadge();
+  chatNotifyNewMessages();
+  renderChatPinnedMessage();
+  setTimeout(() => { scrollChatToBottom(); input?.focus(); }, 50);
+}
+
+
+window.closeChatPanelNow = function closeChatPanelNow(event) {
+  try {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const panel = document.getElementById("chatPanel");
+    if (panel) panel.classList.add("hidden");
+
+    document.body.classList.remove("chat-fullscreen-open");
+
+    if (typeof closeChatActionMenu === "function") closeChatActionMenu();
+    if (typeof clearChatReply === "function") clearChatReply();
+    if (typeof updateChatTyping === "function") updateChatTyping(false);
+
+    const input = document.getElementById("chatInput");
+    if (input) input.blur();
+
+    if (window.location.hash === "#chat") {
+      try {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {}
+    }
+  } catch (error) {
+    console.warn("Falhou fechar chat:", error);
+    document.body.classList.remove("chat-fullscreen-open");
+  }
+
+  return false;
+};
+
+function closeChatPanel() {
+  window.closeChatPanelNow();
+  chatLastSeenAt = Date.now();
+  localStorage.setItem("mundial_chat_last_seen_at", String(chatLastSeenAt));
+  updateChatUnreadBadge();
+}
+
+function scrollChatToBottom() {
+  const box = $("chatMessages");
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+function updateChatUnreadBadge() {
+  const badge = $("chatUnreadBadge");
+  if (!badge) return;
+  const panelOpen = !$("chatPanel")?.classList.contains("hidden");
+  const unread = chatMessagesCache.filter(message => {
+    if (message.uid === currentUser?.uid) return false;
+    return chatTimestampMs(message.createdAt || message.createdAtLocal) > chatLastSeenAt;
+  }).length;
+  if (panelOpen || unread <= 0) {
+    badge.classList.add("hidden");
+    badge.textContent = "0";
+  } else {
+    badge.classList.remove("hidden");
+    badge.textContent = String(Math.min(99, unread));
+  }
+  chatNotifyNewMessages();
+}
+
+
+const CHAT_SETTINGS_COLLECTION = "chatSettings";
+
+function isChatAdmin() {
+  return hasPermission("editResults") || currentProfile?.role === "admin";
+}
+
+function canDeleteChatMessage(message) {
+  return Boolean(currentUser && (message?.uid === currentUser.uid || isChatAdmin()));
+}
+
+function chatNotifyNewMessages() {
+  const panelOpen = !$("chatPanel")?.classList.contains("hidden");
+  const unread = chatMessagesCache.filter(message => {
+    if (message.uid === currentUser?.uid) return false;
+    return chatTimestampMs(message.createdAt || message.createdAtLocal) > chatLastSeenAt;
+  }).length;
+
+  const button = $("chatOpenBtn");
+  if (!button) return;
+
+  button.classList.toggle("has-chat-unread", !panelOpen && unread > 0);
+  button.title = unread > 0 ? `${unread} mensagem(ns) nova(s)` : "Chat";
+}
+
+function renderChatPinnedMessage() {
+  const box = $("chatPinnedBox");
+  if (!box) return;
+
+  if (!chatPinnedMessage?.text) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div class="chat-pinned-content">
+      <div>
+        <span>📌 Mensagem fixada</span>
+        <strong>${escapeHtml(chatPinnedMessage.name || "Admin")}</strong>
+        <p>${escapeHtml(chatPinnedMessage.text || "")}</p>
+      </div>
+      ${isChatAdmin() ? `<button id="chatUnpinBtn" class="chat-pin-action" type="button">Remover</button>` : ""}
+    </div>
+  `;
+
+  const unpin = $("chatUnpinBtn");
+  if (unpin && unpin.dataset.bound !== "1") {
+    unpin.dataset.bound = "1";
+    unpin.addEventListener("click", () => unpinChatMessage());
+  }
+}
+
+async function pinChatMessage(messageId) {
+  if (!isChatAdmin()) return toast("Só o Admin pode fixar mensagens.");
+  const message = chatMessagesCache.find(item => item.id === messageId);
+  if (!message) return toast("Mensagem não encontrada.");
+  if (!db || !firebaseApi || storageMode !== "firebase") return toast("Firebase não está ligado.");
+
+  try {
+    const { doc, setDoc, serverTimestamp } = firebaseApi;
+    await setDoc(doc(db, CHAT_SETTINGS_COLLECTION, `pinned_${chatCurrentRoom}`), {
+      messageId,
+      text: String(message.text || ""),
+      uid: message.uid || "",
+      email: message.email || "",
+      name: message.name || displayNameFromEmail(message.email || ""),
+      pinnedBy: currentUser?.uid || "",
+      pinnedByEmail: normalizeEmail(currentUser?.email),
+      pinnedAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
+      pinnedAtLocal: new Date().toISOString()
+    }, { merge: true });
+    toast("Mensagem fixada.");
+  } catch (error) {
+    console.error("Falhou fixar mensagem:", error);
+    toast("Não consegui fixar a mensagem.");
+  }
+}
+
+async function unpinChatMessage() {
+  if (!isChatAdmin()) return toast("Só o Admin pode remover a mensagem fixada.");
+  if (!db || !firebaseApi || storageMode !== "firebase") return toast("Firebase não está ligado.");
+
+  try {
+    const { doc, deleteDoc, setDoc } = firebaseApi;
+    if (typeof deleteDoc === "function") {
+      await deleteDoc(doc(db, CHAT_SETTINGS_COLLECTION, `pinned_${chatCurrentRoom}`));
+    } else {
+      await setDoc(doc(db, CHAT_SETTINGS_COLLECTION, `pinned_${chatCurrentRoom}`), { text: "", removedAt: new Date().toISOString() }, { merge: true });
+    }
+    chatPinnedMessage = null;
+    renderChatPinnedMessage();
+    toast("Mensagem fixada removida.");
+  } catch (error) {
+    console.error("Falhou remover fixada:", error);
+    toast("Não consegui remover a mensagem fixada.");
+  }
+}
+
+async function deleteChatMessage(messageId) {
+  const message = chatMessagesCache.find(item => item.id === messageId);
+  if (!message) return toast("Mensagem nao encontrada.");
+  if (!canDeleteChatMessage(message)) return toast("So podes apagar as tuas mensagens.");
+  if (!db || !firebaseApi || storageMode !== "firebase") return toast("Firebase nao esta ligado.");
+
+  const beforeDelete = [...chatMessagesCache];
+  const collectionName = chatCollectionRef(message.room || chatCurrentRoom);
+  chatMessagesCache = chatMessagesCache.filter(item => item.id !== messageId);
+  renderChatMessages();
+  toast("Mensagem apagada.");
+
+  try {
+    const { doc, deleteDoc, updateDoc, serverTimestamp } = firebaseApi;
+    const ref = doc(db, collectionName, messageId);
+
+    if (typeof deleteDoc === "function") {
+      try {
+        await withTimeout(deleteDoc(ref), 4500, "apagar mensagem");
+        return;
+      } catch (deleteError) {
+        console.warn("Delete fisico do chat falhou, vou marcar como apagada:", deleteError);
+      }
+    }
+
+    if (typeof updateDoc === "function") {
+      await withTimeout(updateDoc(ref, {
+        deleted: true,
+        deletedAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
+        deletedAtLocal: new Date().toISOString(),
+        deletedBy: currentUser?.uid || "",
+        text: "",
+        imageData: "",
+        replyTo: "",
+        replyName: "",
+        replyText: "",
+        reactions: {}
+      }), 4500, "marcar mensagem apagada");
+      return;
+    }
+
+    throw new Error("Firebase sem deleteDoc/updateDoc");
+  } catch (error) {
+    console.error("Falhou apagar mensagem:", error);
+    chatMessagesCache = beforeDelete;
+    renderChatMessages();
+    toast("Nao consegui apagar a mensagem. Confirma as regras Firebase.");
+  }
+}
+
+function closeChatActionMenu() {
+  const menu = $("chatActionMenu");
+  if (!menu) return;
+  menu.classList.add("hidden");
+  chatActionMessageId = null;
+  document.querySelectorAll(".chat-message-row.is-selected").forEach(row => row.classList.remove("is-selected"));
+}
+
+function openChatActionMenu(messageId, anchorEvent) {
+  const menu = $("chatActionMenu");
+  const pinBtn = $("chatActionPinBtn");
+  const deleteBtn = $("chatActionDeleteBtn");
+  const replyBtn = $("chatActionReplyBtn");
+  const reactionBar = $("chatReactionBar");
+  const message = chatMessagesCache.find(item => item.id === messageId);
+
+  if (!menu || !message) return;
+
+  const system = isSystemChatMessage(message);
+  const canPin = isChatAdmin() && !system;
+  const canDelete = canDeleteChatMessage(message);
+  const canReply = !system;
+  const canReact = !system;
+
+  if (!canPin && !canDelete && !canReply && !canReact) return;
+
+  chatActionMessageId = messageId;
+
+  document.querySelectorAll(".chat-message-row.is-selected").forEach(row => row.classList.remove("is-selected"));
+  document.querySelector(`[data-chat-message="${CSS.escape(messageId)}"]`)?.closest(".chat-message-row")?.classList.add("is-selected");
+
+  if (pinBtn) pinBtn.classList.toggle("hidden", !canPin);
+  if (deleteBtn) deleteBtn.classList.toggle("hidden", !canDelete);
+  if (replyBtn) replyBtn.classList.toggle("hidden", !canReply);
+  if (reactionBar) reactionBar.classList.toggle("hidden", !canReact);
+
+  const panel = $("chatPanel");
+  const panelRect = panel?.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  let x = anchorEvent?.clientX || 0;
+  let y = anchorEvent?.clientY || 0;
+
+  if ((!x || !y) && anchorEvent?.target) {
+    const rect = anchorEvent.target.getBoundingClientRect();
+    x = rect.left + rect.width / 2;
+    y = rect.top + rect.height / 2;
+  }
+
+  menu.classList.remove("hidden");
+  const menuRect = menu.getBoundingClientRect();
+  const width = menuRect.width || 260;
+  const height = menuRect.height || 90;
+
+  let left = Math.min(Math.max(10, x - width / 2), viewportWidth - width - 10);
+  let top = Math.min(Math.max(10, y - height - 12), viewportHeight - height - 10);
+
+  if (panelRect) {
+    left = Math.min(Math.max(panelRect.left + 10, left), panelRect.right - width - 10);
+    top = Math.min(Math.max(panelRect.top + 10, top), panelRect.bottom - height - 10);
+  }
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function fireChatLongPress(messageId, event) {
+  if (!messageId) return;
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (navigator.vibrate) {
+    try { navigator.vibrate(15); } catch {}
+  }
+  openChatActionMenu(messageId, event);
+}
+
+function setupChatMessageActions() {
+  const box = $("chatMessages");
+  const pinBtn = $("chatActionPinBtn");
+  const deleteBtn = $("chatActionDeleteBtn");
+  const replyBtn = $("chatActionReplyBtn");
+  const reactionBar = $("chatReactionBar");
+
+  if (!box || box.dataset.actionsBound === "1") return;
+
+  box.dataset.actionsBound = "1";
+
+  const clearTimer = () => {
+    if (chatLongPressTimer) {
+      clearTimeout(chatLongPressTimer);
+      chatLongPressTimer = null;
+    }
+  };
+
+  const messageIdFromEvent = event => event.target.closest?.("[data-chat-message]")?.dataset.chatMessage || "";
+
+  box.addEventListener("pointerdown", event => {
+    if (event.pointerType && event.pointerType !== "touch" && event.pointerType !== "pen") return;
+    if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+    const messageId = messageIdFromEvent(event);
+    if (!messageId) return;
+    clearTimer();
+    chatLongPressTimer = setTimeout(() => fireChatLongPress(messageId, event), 520);
+  });
+
+  box.addEventListener("pointerup", clearTimer);
+  box.addEventListener("pointerleave", clearTimer);
+  box.addEventListener("pointercancel", clearTimer);
+  box.addEventListener("scroll", clearTimer, { passive: true });
+
+  box.addEventListener("contextmenu", event => {
+    const messageId = messageIdFromEvent(event);
+    if (!messageId) return;
+    event.preventDefault();
+    openChatActionMenu(messageId, event);
+  });
+
+  replyBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = chatActionMessageId;
+    closeChatActionMenu();
+    if (id) setChatReply(id);
+  });
+
+  pinBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = chatActionMessageId;
+    closeChatActionMenu();
+    if (id) pinChatMessage(id);
+  });
+
+  deleteBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = chatActionMessageId;
+    closeChatActionMenu();
+    if (id) deleteChatMessage(id);
+  });
+
+  reactionBar?.addEventListener("click", event => {
+    const btn = event.target.closest?.("[data-chat-reaction]");
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const id = chatActionMessageId;
+    const emoji = btn.dataset.chatReaction;
+    closeChatActionMenu();
+    if (id && emoji) reactToChatMessage(id, emoji);
+  });
+
+  document.addEventListener("click", event => {
+    const activeMenu = $("chatActionMenu");
+    if (!activeMenu || activeMenu.classList.contains("hidden")) return;
+    if (activeMenu.contains(event.target)) return;
+    if (event.target.closest?.("[data-chat-message]")) return;
+    closeChatActionMenu();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeChatActionMenu();
+  });
+}
+
+async function loadPinnedChatOnce() {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+
+  try {
+    const { doc, getDoc } = firebaseApi;
+    const snap = await withTimeout(getDoc(doc(db, CHAT_SETTINGS_COLLECTION, `pinned_${chatCurrentRoom}`)), 10000, "ler mensagem fixada");
+    chatPinnedMessage = snap.exists() ? (snap.data() || null) : null;
+    renderChatPinnedMessage();
+  } catch (error) {
+    console.warn("Mensagem fixada não carregou:", error);
+  }
+}
+
+function startPinnedChatListenerSafe() {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+  if (chatPinnedUnsubscribe) return;
+
+  try {
+    const { doc, onSnapshot } = firebaseApi;
+    if (typeof onSnapshot !== "function") {
+      loadPinnedChatOnce();
+      return;
+    }
+
+    chatPinnedUnsubscribe = onSnapshot(doc(db, CHAT_SETTINGS_COLLECTION, `pinned_${chatCurrentRoom}`), snap => {
+      chatPinnedMessage = snap.exists() ? (snap.data() || null) : null;
+      renderChatPinnedMessage();
+    }, error => {
+      console.warn("Listener da mensagem fixada falhou:", error);
+      chatPinnedUnsubscribe = null;
+      loadPinnedChatOnce();
+    });
+  } catch (error) {
+    console.warn("Listener da mensagem fixada não iniciou:", error);
+    loadPinnedChatOnce();
+  }
+}
+
+function stopPinnedChatListenerSafe() {
+  try {
+    if (typeof chatPinnedUnsubscribe === "function") chatPinnedUnsubscribe();
+  } catch (error) {
+    console.warn("Erro a parar mensagem fixada:", error);
+  }
+  chatPinnedUnsubscribe = null;
+}
+
+
+function chatRoomLabel(room = chatCurrentRoom) {
+  return room === "admin" ? "Chat Admin" : "Chat Geral";
+}
+
+function canUseChatRoom(room = chatCurrentRoom) {
+  return room !== "admin" || isChatAdmin();
+}
+
+function chatCollectionRef(room = chatCurrentRoom) {
+  return room === "admin" ? "chatAdminMessages" : CHAT_COLLECTION;
+}
+
+function chatTypingDocId(room = chatCurrentRoom) {
+  return `${room}_${currentUser?.uid || "anon"}`;
+}
+
+function chatSystemName() {
+  return "Sistema Mundial";
+}
+
+function isSystemChatMessage(message) {
+  return message?.type === "system";
+}
+
+function chatMessageMatchesSearch(message) {
+  if (message?.deleted || message?.deletedAt) return false;
+  const term = chatSearchTerm.trim().toLowerCase();
+  if (!term) return true;
+  return [
+    message.text,
+    message.name,
+    message.email,
+    message.replyName,
+    message.replyText
+  ].some(value => String(value || "").toLowerCase().includes(term));
+}
+
+function chatImageMarkup(message) {
+  if (!message.imageData) return "";
+  const src = escapeHtml(message.imageData);
+  return `
+    <button type="button" class="chat-image-button" data-chat-image-src="${src}" aria-label="Abrir imagem do chat">
+      <img class="chat-image" src="${src}" alt="Imagem enviada no chat" loading="lazy" />
+    </button>`;
+}
+
+function chatReactionsMarkup(message) {
+  const reactions = message.reactions || {};
+  const groups = {};
+  Object.values(reactions).forEach(emoji => {
+    if (!emoji) return;
+    groups[emoji] = (groups[emoji] || 0) + 1;
+  });
+  const entries = Object.entries(groups);
+  if (!entries.length) return "";
+  return `<div class="chat-reactions">${entries.map(([emoji, count]) => `<span>${escapeHtml(emoji)}${count > 1 ? ` ${count}` : ""}</span>`).join("")}</div>`;
+}
+
+function chatReplyMarkup(message) {
+  if (!message.replyTo && !message.replyText) return "";
+  return `
+    <div class="chat-reply-card">
+      <strong>${escapeHtml(message.replyName || "Mensagem")}</strong>
+      <p>${escapeHtml(message.replyText || "")}</p>
+    </div>`;
+}
+
+function chatMessageMetaMarkup(message, mine) {
+  const time = chatTimeLabel(chatMessageDateValue(message));
+  const status = message.failed ? "erro" : (message.pending ? "a enviar" : (mine ? "✓✓" : ""));
+  const statusClass = message.failed ? " failed" : (message.pending ? " pending" : "");
+  return `
+    <span class="chat-message-meta${statusClass}">
+      <span>${escapeHtml(time)}</span>
+      ${status ? `<span class="chat-message-status">${escapeHtml(status)}</span>` : ""}
+    </span>`;
+}
+
+function setChatReply(messageId) {
+  const message = chatMessagesCache.find(item => item.id === messageId);
+  if (!message) return;
+  chatReplyTo = {
+    id: message.id,
+    name: message.name || displayNameFromEmail(message.email || "") || chatSystemName(),
+    text: String(message.text || (message.imageData ? "Imagem" : "")).slice(0, 120)
+  };
+  renderChatReplyPreview();
+  $("chatInput")?.focus();
+}
+
+function clearChatReply() {
+  chatReplyTo = null;
+  renderChatReplyPreview();
+}
+
+function renderChatReplyPreview() {
+  const box = $("chatReplyPreview");
+  if (!box) return;
+  if (!chatReplyTo) {
+    box.classList.add("hidden");
+    $("chatReplyName") && ($("chatReplyName").textContent = "");
+    $("chatReplyText") && ($("chatReplyText").textContent = "");
+    return;
+  }
+  box.classList.remove("hidden");
+  $("chatReplyName") && ($("chatReplyName").textContent = chatReplyTo.name || "");
+  $("chatReplyText") && ($("chatReplyText").textContent = chatReplyTo.text || "");
+}
+
+async function reactToChatMessage(messageId, emoji) {
+  const message = chatMessagesCache.find(item => item.id === messageId);
+  if (!message || !currentUser) return;
+  if (!db || !firebaseApi || storageMode !== "firebase") return toast("Firebase não está ligado.");
+
+  try {
+    const { doc, updateDoc } = firebaseApi;
+    if (typeof updateDoc !== "function") return toast("Esta versão do Firebase não permite reações.");
+    const next = { ...(message.reactions || {}) };
+    if (next[currentUser.uid] === emoji) delete next[currentUser.uid];
+    else next[currentUser.uid] = emoji;
+    await updateDoc(doc(db, chatCollectionRef(message.room || chatCurrentRoom), messageId), { reactions: next });
+  } catch (error) {
+    console.error("Falhou reação:", error);
+    toast("Não consegui guardar a reação.");
+  }
+}
+
+function setChatRoom(room) {
+  if (room === "admin" && !isChatAdmin()) {
+    toast("Só Admin pode usar o chat Admin.");
+    room = "general";
+  }
+  if (chatCurrentRoom === room) return;
+  chatCurrentRoom = room;
+  localStorage.setItem("mundial_chat_room", chatCurrentRoom);
+  chatMessagesCache = [];
+  clearChatReply();
+  closeChatActionMenu();
+  stopChatListenerSafe();
+  startChatListenerSafe();
+  stopPinnedChatListenerSafe();
+  startPinnedChatListenerSafe();
+  stopChatTypingListenerSafe();
+  startChatTypingListenerSafe();
+  renderChatTabs();
+  renderChatMessages();
+}
+
+function renderChatTabs() {
+  $("chatGeneralTab")?.classList.toggle("active", chatCurrentRoom === "general");
+  $("chatAdminTab")?.classList.toggle("active", chatCurrentRoom === "admin");
+  $("chatAdminTab")?.classList.toggle("hidden", !isChatAdmin());
+  const subtitle = $("chatSubtitle");
+  if (subtitle) {
+    subtitle.textContent = chatCurrentRoom === "admin"
+      ? "Conversa privada dos admins"
+      : `Grupo geral - ${chatParticipantsCount()} participantes`;
+  }
+}
+
+async function sendSystemChatMessage(text, room = "general") {
+  if (!db || !firebaseApi || storageMode !== "firebase") return;
+  if (room === "admin" && !isChatAdmin()) return;
+  try {
+    const { collection, addDoc, serverTimestamp } = firebaseApi;
+    await addDoc(collection(db, chatCollectionRef(room)), {
+      uid: "system",
+      email: "",
+      name: chatSystemName(),
+      text: String(text || "").slice(0, 500),
+      type: "system",
+      room,
+      createdAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
+      createdAtLocal: new Date().toISOString()
+    });
+  } catch (error) {
+    console.warn("Mensagem automática não enviada:", error);
+  }
+}
+
+function playChatNotification(message) {
+  if (!message || message.uid === currentUser?.uid || isSystemChatMessage(message)) return;
+  if (message.id === chatLastNotifiedId) return;
+  chatLastNotifiedId = message.id;
+  localStorage.setItem("mundial_chat_last_notified_id", message.id || "");
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate(25); } catch {}
+  }
+
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 660;
+    gain.gain.value = 0.035;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    setTimeout(() => {
+      osc.stop();
+      audioCtx.close?.();
+    }, 90);
+  } catch {}
+}
+
+function renderTypingBox(names = []) {
+  const box = $("chatTypingBox");
+  if (!box) return;
+  const clean = names.filter(Boolean).slice(0, 3);
+  if (!clean.length) {
+    box.classList.add("hidden");
+    box.textContent = "";
+    return;
+  }
+  box.classList.remove("hidden");
+  box.textContent = clean.length === 1 ? `${clean[0]} está a escrever...` : `${clean.join(", ")} estão a escrever...`;
+}
+
+async function updateChatTyping(isTyping) {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+  try {
+    const { doc, setDoc } = firebaseApi;
+    await setDoc(doc(db, "chatTyping", chatTypingDocId()), {
+      uid: currentUser.uid,
+      email: normalizeEmail(currentUser.email),
+      name: chatUserName(),
+      room: chatCurrentRoom,
+      typing: Boolean(isTyping),
+      updatedAt: Date.now()
+    }, { merge: true });
+  } catch (error) {
+    console.warn("Typing não atualizado:", error);
+  }
+}
+
+function startChatTypingListenerSafe() {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+  if (chatTypingUnsubscribe) return;
+  try {
+    const { collection, query, onSnapshot } = firebaseApi;
+    if (typeof onSnapshot !== "function") return;
+    const q = query(collection(db, "chatTyping"));
+    chatTypingUnsubscribe = onSnapshot(q, snap => {
+      const now = Date.now();
+      const names = snap.docs
+        .map(docSnap => docSnap.data() || {})
+        .filter(item => item.room === chatCurrentRoom && item.typing && item.uid !== currentUser.uid && now - Number(item.updatedAt || 0) < 5000)
+        .map(item => item.name || displayNameFromEmail(item.email || ""));
+      renderTypingBox(names);
+    }, error => {
+      console.warn("Typing listener falhou:", error);
+      chatTypingUnsubscribe = null;
+    });
+  } catch (error) {
+    console.warn("Typing listener não iniciou:", error);
+  }
+}
+
+function stopChatTypingListenerSafe() {
+  try {
+    if (typeof chatTypingUnsubscribe === "function") chatTypingUnsubscribe();
+  } catch {}
+  chatTypingUnsubscribe = null;
+  renderTypingBox([]);
+}
+
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Falha a ler imagem"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Falha a carregar imagem"));
+    img.src = src;
+  });
+}
+
+async function compressChatImage(file) {
+  const originalDataUrl = await readFileAsDataURL(file);
+  const img = await loadImageElement(originalDataUrl);
+
+  let width = img.naturalWidth || img.width || 0;
+  let height = img.naturalHeight || img.height || 0;
+
+  if (!width || !height) return originalDataUrl;
+
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) return originalDataUrl;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const maxLength = 650000; // margem segura para Firestore
+  let quality = 0.88;
+  let result = canvas.toDataURL("image/jpeg", quality);
+
+  while (result.length > maxLength && quality > 0.45) {
+    quality -= 0.08;
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  while (result.length > maxLength && width > 700 && height > 700) {
+    width = Math.round(width * 0.85);
+    height = Math.round(height * 0.85);
+    canvas.width = width;
+    canvas.height = height;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    quality = Math.max(0.62, quality);
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  if (result.length > maxLength) {
+    throw new Error("Imagem demasiado grande para o chat");
+  }
+
+  return result;
+}
+
+async function sendChatImage(file) {
+  if (!file) return;
+  if (!file.type?.startsWith("image/")) return toast("Escolhe uma imagem.");
+  if (file.size > 8 * 1024 * 1024) return toast("Imagem demasiado grande. Usa uma imagem até 8 MB.");
+
+  try {
+    toast("A preparar imagem...");
+    const data = await compressChatImage(file);
+    await sendChatMessage("", data);
+  } catch (error) {
+    console.error("Falhou enviar imagem do chat:", error);
+    toast("Não consegui enviar a imagem.");
+  }
+}
+
+function renderChatMessages() {
+  const box = $("chatMessages");
+  if (!box) return;
+  renderChatTabs();
+
+  if (!currentUser) {
+    box.innerHTML = `<div class="empty small-empty">Faz login para usar o chat.</div>`;
+    return;
+  }
+
+  const visibleMessages = chatMessagesCache.filter(chatMessageMatchesSearch);
+
+  if (!visibleMessages.length) {
+    box.innerHTML = `<div class="empty small-empty">${chatSearchTerm ? "Nenhuma mensagem encontrada." : "Ainda não há mensagens. Escreve a primeira 🙂"}</div>`;
+    updateChatUnreadBadge();
+    chatNotifyNewMessages();
+    renderChatPinnedMessage();
+    return;
+  }
+
+  const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+
+  let lastDateKey = "";
+
+  box.innerHTML = visibleMessages.map(message => {
+    const mine = message.uid === currentUser?.uid;
+    const system = isSystemChatMessage(message);
+    const name = message.name || displayNameFromEmail(message.email || "");
+    const dateValue = chatMessageDateValue(message);
+    const currentDateKey = chatDateKey(dateValue);
+    const dateSeparator = currentDateKey && currentDateKey !== lastDateKey
+      ? `<div class="chat-date-separator"><span>${escapeHtml(chatDateLabel(dateValue))}</span></div>`
+      : "";
+    if (currentDateKey) lastDateKey = currentDateKey;
+
+    if (system) {
+      return `${dateSeparator}
+        <div class="chat-message-row system" data-chat-message="${escapeHtml(message.id)}">
+          <div class="chat-bubble system-bubble" data-chat-message="${escapeHtml(message.id)}">
+            <p>${escapeHtml(String(message.text || ""))}</p>
+            ${chatMessageMetaMarkup(message, false)}
+          </div>
+        </div>`;
+    }
+
+    return `${dateSeparator}
+      <div class="chat-message-row ${mine ? "mine" : "theirs"} ${message.pending ? "is-pending" : ""} ${message.failed ? "is-failed" : ""}" data-chat-message="${escapeHtml(message.id)}">
+        <div class="chat-bubble" data-chat-message="${escapeHtml(message.id)}">
+          ${mine ? "" : `<strong>${escapeHtml(name)}</strong>`}
+          ${chatReplyMarkup(message)}
+          ${message.text ? `<p>${escapeHtml(String(message.text || ""))}</p>` : ""}
+          ${chatImageMarkup(message)}
+          ${chatMessageMetaMarkup(message, mine)}
+          ${chatReactionsMarkup(message)}
+        </div>
+      </div>`;
+  }).join("");
+
+  setupChatMessageActions();
+  setupChatCloseButtonSafe();
+
+  if (stick || !chatOpenedOnce) scrollChatToBottom();
+  updateChatUnreadBadge();
+  chatNotifyNewMessages();
+  renderChatPinnedMessage();
+}
+
+async function loadChatMessagesOnce() {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+  if (!canUseChatRoom()) return;
+
+  try {
+    const { collection, getDocs, query, orderBy, limit, limitToLast } = firebaseApi;
+    const limiter = typeof limitToLast === "function" ? limitToLast : limit;
+    const q = query(collection(db, chatCollectionRef()), orderBy("createdAt", "asc"), limiter(CHAT_LIMIT));
+    const snap = await withTimeout(getDocs(q), 10000, "ler chat");
+    chatMessagesCache = snap.docs.map(docSnap => ({ id: docSnap.id, room: chatCurrentRoom, ...(docSnap.data() || {}) }));
+    renderChatMessages();
+  } catch (error) {
+    console.warn("Chat não carregou:", error);
+    const box = $("chatMessages");
+    if (box) box.innerHTML = `<div class="empty small-empty">Não foi possível carregar o chat. Confirma as regras Firebase.</div>`;
+  }
+}
+
+function startChatListenerSafe() {
+  if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
+  if (!canUseChatRoom()) return;
+  if (chatUnsubscribe) return;
+
+  try {
+    const { collection, query, orderBy, limit, limitToLast, onSnapshot } = firebaseApi;
+    if (typeof onSnapshot !== "function") {
+      loadChatMessagesOnce();
+      return;
+    }
+
+    const limiter = typeof limitToLast === "function" ? limitToLast : limit;
+    const q = query(collection(db, chatCollectionRef()), orderBy("createdAt", "asc"), limiter(CHAT_LIMIT));
+    chatUnsubscribe = onSnapshot(q, snap => {
+      const previousLast = chatMessagesCache.at?.(-1)?.id || "";
+      chatMessagesCache = snap.docs.map(docSnap => ({ id: docSnap.id, room: chatCurrentRoom, ...(docSnap.data() || {}) }));
+      renderChatMessages();
+      const latest = chatMessagesCache.at?.(-1);
+      const panelOpen = !$("chatPanel")?.classList.contains("hidden");
+      if (latest && latest.id !== previousLast && !panelOpen) playChatNotification(latest);
+    }, error => {
+      console.warn("Chat em tempo real falhou:", error);
+      chatUnsubscribe = null;
+      loadChatMessagesOnce();
+    });
+  } catch (error) {
+    console.warn("Listener do chat não iniciou:", error);
+    loadChatMessagesOnce();
+  }
+}
+
+function stopChatListenerSafe() {
+  try { if (typeof chatUnsubscribe === "function") chatUnsubscribe(); } catch (error) { console.warn("Erro a parar chat:", error); }
+  chatUnsubscribe = null;
+}
+
+async function sendChatMessage(text, imageData = "") {
+  const clean = String(text || "").trim();
+  const image = String(imageData || "");
+  if (!clean && !image) return;
+  if (!currentUser) return toast("Faz login para escrever no chat.");
+  if (!canUseChatRoom()) return toast("Nao tens acesso a este chat.");
+  if (!db || !firebaseApi || storageMode !== "firebase") return toast("Firebase nao esta ligado.");
+
+  const now = Date.now();
+  const optimisticId = `local_${now}_${Math.random().toString(36).slice(2)}`;
+  const baseMessage = {
+    uid: currentUser.uid,
+    email: normalizeEmail(currentUser.email),
+    name: chatUserName(),
+    text: clean.slice(0, 500),
+    imageData: image,
+    replyTo: chatReplyTo?.id || "",
+    replyName: chatReplyTo?.name || "",
+    replyText: chatReplyTo?.text || "",
+    reactions: {},
+    room: chatCurrentRoom,
+    createdAtLocal: new Date(now).toISOString(),
+    createdAtMillis: now
+  };
+
+  chatMessagesCache = [...chatMessagesCache, { id: optimisticId, pending: true, ...baseMessage }].slice(-CHAT_LIMIT);
+  clearChatReply();
+  renderChatMessages();
+  setTimeout(scrollChatToBottom, 20);
+
+  try {
+    const { collection, addDoc, serverTimestamp } = firebaseApi;
+    await addDoc(collection(db, chatCollectionRef()), {
+      ...baseMessage,
+      createdAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString()
+    });
+    chatMessagesCache = chatMessagesCache.filter(message => message.id !== optimisticId);
+    renderChatMessages();
+    updateChatTyping(false);
+  } catch (error) {
+    console.error("Falhou enviar mensagem:", error);
+    chatMessagesCache = chatMessagesCache.map(message => (
+      message.id === optimisticId ? { ...message, pending: false, failed: true } : message
+    ));
+    renderChatMessages();
+    toast("Nao consegui enviar a mensagem.");
+  }
+}
+
+function setupChatCloseButtonSafe() {
+  const closeBtn = $("chatCloseBtn");
+  if (!closeBtn || closeBtn.dataset.closeFixBound === "1") return;
+
+  closeBtn.dataset.closeFixBound = "1";
+  closeBtn.addEventListener("click", event => window.closeChatPanelNow(event));
+  closeBtn.addEventListener("pointerup", event => window.closeChatPanelNow(event));
+  closeBtn.addEventListener("touchend", event => window.closeChatPanelNow(event), { passive: false });
+}
+
+function setupChatUi() {
+  const openBtn = $("chatOpenBtn");
+  const closeBtn = $("chatCloseBtn");
+  const form = $("chatForm");
+  const input = $("chatInput");
+  const imageBtn = $("chatImageBtn");
+  const imageInput = $("chatImageInput");
+  const replyCancel = $("chatReplyCancelBtn");
+  const searchInput = $("chatSearchInput");
+  const generalTab = $("chatGeneralTab");
+  const adminTab = $("chatAdminTab");
+
+  setupChatMessageActions();
+  renderChatTabs();
+
+  if (openBtn && openBtn.dataset.bound !== "1") {
+    openBtn.dataset.bound = "1";
+    openBtn.addEventListener("click", () => openChatPanel());
+  }
+
+  if (closeBtn && closeBtn.dataset.bound !== "1") {
+    closeBtn.dataset.bound = "1";
+    closeBtn.addEventListener("click", () => closeChatPanel());
+  }
+
+  if (generalTab && generalTab.dataset.bound !== "1") {
+    generalTab.dataset.bound = "1";
+    generalTab.addEventListener("click", () => setChatRoom("general"));
+  }
+
+  if (adminTab && adminTab.dataset.bound !== "1") {
+    adminTab.dataset.bound = "1";
+    adminTab.addEventListener("click", () => setChatRoom("admin"));
+  }
+
+  if (replyCancel && replyCancel.dataset.bound !== "1") {
+    replyCancel.dataset.bound = "1";
+    replyCancel.addEventListener("click", clearChatReply);
+  }
+
+  if (searchInput && searchInput.dataset.bound !== "1") {
+    searchInput.dataset.bound = "1";
+    searchInput.addEventListener("input", () => {
+      chatSearchTerm = searchInput.value || "";
+      renderChatMessages();
+    });
+  }
+
+  if (imageBtn && imageBtn.dataset.bound !== "1") {
+    imageBtn.dataset.bound = "1";
+    imageBtn.addEventListener("click", () => imageInput?.click());
+  }
+
+  if (imageInput && imageInput.dataset.bound !== "1") {
+    imageInput.dataset.bound = "1";
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files?.[0];
+      imageInput.value = "";
+      await sendChatImage(file);
+    });
+  }
+
+  if (input && input.dataset.typingBound !== "1") {
+    input.dataset.typingBound = "1";
+    input.addEventListener("input", () => {
+      updateChatTyping(true);
+      if (chatTypingTimer) clearTimeout(chatTypingTimer);
+      chatTypingTimer = setTimeout(() => updateChatTyping(false), 2500);
+    });
+  }
+
+  if (form && form.dataset.bound !== "1") {
+    form.dataset.bound = "1";
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const text = input?.value || "";
+      if (input) input.value = "";
+      await sendChatMessage(text);
+      setTimeout(scrollChatToBottom, 80);
+    });
+  }
+}
+
+function startChatSafe() {
+  try {
+    setupChatUi();
+    startChatListenerSafe();
+    startPinnedChatListenerSafe();
+    startChatTypingListenerSafe();
+  } catch (error) {
+    console.warn("Chat não iniciou:", error);
+  }
+}
+
+function stopChatSafe() {
+  closeChatPanel();
+  stopChatListenerSafe();
+  stopPinnedChatListenerSafe();
+  stopChatTypingListenerSafe();
+}
+
 function setupAuthGate() {
   if (!firebaseAuthApi || !firebaseAuth) {
     showLoginScreen();
@@ -1861,6 +3059,7 @@ function setupAuthGate() {
     if (!user) {
       currentProfile = null;
       stopOnlineFeaturesSafe();
+      stopChatSafe();
       showLoginScreen();
       updateSessionBox();
       return;
@@ -1882,6 +3081,7 @@ function setupAuthGate() {
       await loadData();
       applyPermissionsToUi();
       setLoginStatus("Login efetuado.", "success");
+      startChatSafe();
       startOnlineFeaturesSafe();
     } catch (error) {
       console.error("Erro no arranque com login:", error);
@@ -2705,6 +3905,8 @@ function openKnockoutEditInAdmin(matchId) {
 }
 
 function renderAll() {
+  setupSearchResultsAdminButton();
+  setTimeout(addSearchButtonsToResultCards, 0);
   setupOnlineUsersCloseControls();
   setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); applyPermissionsToUi(); updateActiveAppSection(); }
 
@@ -2859,6 +4061,83 @@ function renderGroups() {
       <div class="table-row head"><span>#</span><span>Seleção</span><span>J</span><span>DG</span><span>Pts</span></div>
       ${rows.map((row, index) => `<div class="table-row"><span>${index + 1}</span><strong>${escapeHtml(row.team)}</strong><span>${row.played}</span><span>${row.gd}</span><b>${row.points}</b></div>`).join("")}
     </div></section>`).join("");
+}
+
+
+function openResultSearchForGame(game) {
+  if (!game) return toast("Jogo não encontrado.");
+
+  const home = game.homeTeam || game.home || game.teamA || "";
+  const away = game.awayTeam || game.away || game.teamB || "";
+  if (!home || !away) return toast("Este jogo ainda não tem as duas equipas definidas.");
+
+  const date = game.matchDate || game.date || "";
+  const query = `${home} vs ${away} ${date} resultado Mundial 2026`;
+  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function openResultsSearchDashboard() {
+  if (!hasPermission("editResults")) {
+    toast("Só o Admin pode pesquisar resultados.");
+    return;
+  }
+
+  const dueGames = (games || [])
+    .filter(game => !hasResult(game))
+    .filter(game => parsePortugalDate(game.matchDate).getTime() <= Date.now())
+    .sort((a, b) => parsePortugalDate(a.matchDate) - parsePortugalDate(b.matchDate));
+
+  if (dueGames.length) {
+    openResultSearchForGame(dueGames[0]);
+    if (dueGames.length > 1) toast(`Abri a pesquisa do primeiro jogo. Existem ${dueGames.length} jogos sem resultado.`);
+    return;
+  }
+
+  const nextGame = (games || [])
+    .filter(game => !hasResult(game))
+    .sort((a, b) => parsePortugalDate(a.matchDate) - parsePortugalDate(b.matchDate))[0];
+
+  if (nextGame) {
+    openResultSearchForGame(nextGame);
+    return;
+  }
+
+  toast("Não existem jogos pendentes para pesquisar.");
+}
+
+function setupSearchResultsAdminButton() {
+  const button = $("searchAllResultsBtn");
+  if (!button || button.dataset.bound === "1") return;
+
+  button.dataset.bound = "1";
+  button.addEventListener("click", () => openResultsSearchDashboard());
+}
+
+function addSearchButtonsToResultCards() {
+  if (!hasPermission("editResults")) return;
+
+  document.querySelectorAll("[data-result-game]").forEach(resultButton => {
+    const gameId = resultButton.dataset.resultGame;
+    if (!gameId) return;
+
+    const parent = resultButton.parentElement;
+    if (!parent || parent.querySelector(`[data-search-result-game="${CSS.escape(gameId)}"]`)) return;
+
+    const searchButton = document.createElement("button");
+    searchButton.type = "button";
+    searchButton.className = "secondary small search-game-result-btn admin-only";
+    searchButton.dataset.searchResultGame = gameId;
+    searchButton.textContent = "Pesquisar";
+    searchButton.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const game = games.find(item => item.id === gameId);
+      openResultSearchForGame(game);
+    });
+
+    parent.insertBefore(searchButton, resultButton);
+  });
 }
 
 function renderAdminState() {
@@ -4073,16 +5352,103 @@ function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js")
-      .catch(error => console.warn("Service worker não registado:", error));
+      .then(registration => {
+        setupAppUpdateRefresh(registration);
+      })
+      .catch(error => console.warn("Service worker nao registado:", error));
   });
 }
 
+async function clearAppCaches() {
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    }
+  } catch (error) {
+    console.warn("Nao consegui limpar a cache da app:", error);
+  }
+}
+
+function showRefreshAppButton(message = "Nova versao disponivel.") {
+  const button = $("refreshAppBtn");
+  if (!button) return;
+  button.classList.remove("hidden");
+  button.classList.add("has-update");
+  button.title = message;
+}
+
+async function refreshAppNow() {
+  const button = $("refreshAppBtn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "A atualizar...";
+  }
+
+  toast("A atualizar app...");
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(async registration => {
+        try { registration.waiting?.postMessage({ type: "SKIP_WAITING" }); } catch {}
+        try { await registration.update(); } catch {}
+      }));
+    }
+
+    await clearAppCaches();
+  } catch (error) {
+    console.warn("Atualizacao da app falhou, vou recarregar na mesma:", error);
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("v", Date.now().toString());
+  window.location.replace(url.toString());
+}
+
+function setupAppUpdateRefresh(registration) {
+  const button = $("refreshAppBtn");
+  if (button && button.dataset.bound !== "1") {
+    button.dataset.bound = "1";
+    button.addEventListener("click", refreshAppNow);
+  }
+
+  if (!registration) return;
+
+  registration.addEventListener("updatefound", () => {
+    const worker = registration.installing;
+    if (!worker) return;
+
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "installed" && navigator.serviceWorker.controller) {
+        showRefreshAppButton("Nova versao pronta para instalar.");
+        toast("Nova versao pronta. Toca em Atualizar app.");
+      }
+    });
+  });
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (window.__appRefreshControllerChanged) return;
+    window.__appRefreshControllerChanged = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.addEventListener("message", event => {
+    if (event.data?.type === "APP_VERSION_READY") {
+      showRefreshAppButton("Nova versao pronta para instalar.");
+    }
+  });
+
+  setTimeout(() => {
+    registration.update().catch(() => {});
+  }, 1200);
+}
 
 function setupPageWheelScroll() {
   document.addEventListener("wheel", event => {
     if (document.body.classList.contains("knockout-layout-active")) return;
     if (event.defaultPrevented || !event.deltaY) return;
-    if (event.target.closest(".modal, .modal-card, .ko-admin-list")) return;
+    if (event.target.closest("#chatPanel, #chatActionMenu, #chatImageViewer, .chat-panel, .chat-messages, .chat-action-menu, .chat-image-viewer, .modal, .modal-card, .ko-admin-list")) return;
 
     const before = window.scrollY;
     window.scrollBy({ top: event.deltaY, left: 0, behavior: "auto" });
@@ -4152,3 +5518,959 @@ setupKnockoutAdjustTopButton();
 setupOnlineUsersCloseControls();
 
 
+
+setupSearchResultsAdminButton();
+
+
+
+
+// v89 — Chat mobile limpo: sem capturas globais agressivas.
+(function setupChatMobileCleanV89(){
+  if (window.__chatMobileCleanV89) return;
+  window.__chatMobileCleanV89 = true;
+
+  function isMobileChat() {
+    return window.matchMedia?.("(max-width: 760px)")?.matches || window.innerWidth <= 760;
+  }
+
+  function clearChatState() {
+    document.body.classList.remove("chat-fullscreen-open", "chat-mobile-page-open", "chat-window-open");
+    document.documentElement.classList.remove("chat-mobile-page-open");
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+    document.body.style.height = "";
+  }
+
+  function applyChatOpenState() {
+    const mobile = isMobileChat();
+    document.body.classList.toggle("chat-mobile-page-open", mobile);
+    document.body.classList.toggle("chat-fullscreen-open", mobile);
+    document.body.classList.toggle("chat-window-open", !mobile);
+    document.documentElement.classList.toggle("chat-mobile-page-open", mobile);
+  }
+
+  window.closeChatMobileClean = function closeChatMobileClean(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const panel = document.getElementById("chatPanel");
+    if (panel) panel.classList.add("hidden");
+
+    clearChatState();
+
+    try { if (typeof closeChatActionMenu === "function") closeChatActionMenu(); } catch {}
+    try { if (typeof clearChatReply === "function") clearChatReply(); } catch {}
+    try { if (typeof updateChatTyping === "function") updateChatTyping(false); } catch {}
+    try { document.getElementById("chatInput")?.blur(); } catch {}
+
+    if (window.location.hash === "#chat") {
+      try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch {}
+    }
+
+    try {
+      chatLastSeenAt = Date.now();
+      localStorage.setItem("mundial_chat_last_seen_at", String(chatLastSeenAt));
+      updateChatUnreadBadge();
+    } catch {}
+
+    return false;
+  };
+
+  window.closeChatPanelNow = window.closeChatMobileClean;
+  window.closeChatPanel = function closeChatPanelClean() {
+    return window.closeChatMobileClean();
+  };
+
+  window.openChatPanel = function openChatPanelClean() {
+    const panel = document.getElementById("chatPanel");
+    if (!panel) {
+      clearChatState();
+      return;
+    }
+
+    panel.classList.remove("hidden");
+    applyChatOpenState();
+
+    if (isMobileChat() && window.location.hash !== "#chat") {
+      try { history.pushState({ chatOpen: true }, "", "#chat"); } catch {}
+    }
+
+    try { chatOpenedOnce = true; } catch {}
+    try {
+      chatLastSeenAt = Date.now();
+      localStorage.setItem("mundial_chat_last_seen_at", String(chatLastSeenAt));
+    } catch {}
+    try { updateChatUnreadBadge(); } catch {}
+    try { if (typeof chatNotifyNewMessages === "function") chatNotifyNewMessages(); } catch {}
+    try { if (typeof renderChatPinnedMessage === "function") renderChatPinnedMessage(); } catch {}
+
+    setTimeout(() => {
+      try { scrollChatToBottom(); } catch {}
+    }, 50);
+  };
+
+  window.openChatImageClean = function openChatImageClean(src, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (!viewer || !img || !src) return false;
+
+    img.src = src;
+    viewer.classList.remove("hidden");
+    document.body.classList.add("chat-image-viewer-open");
+    return false;
+  };
+
+  window.closeChatImageClean = function closeChatImageClean(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (viewer) viewer.classList.add("hidden");
+    if (img) img.removeAttribute("src");
+    document.body.classList.remove("chat-image-viewer-open");
+    return false;
+  };
+
+  function bindCleanChat() {
+    const openBtn = document.getElementById("chatOpenBtn");
+    const closeBtn = document.getElementById("chatCloseBtn");
+    const messages = document.getElementById("chatMessages");
+    const imageClose = document.getElementById("chatImageViewerClose");
+    const imageViewer = document.getElementById("chatImageViewer");
+
+    if (openBtn && openBtn.dataset.v89Open !== "1") {
+      openBtn.dataset.v89Open = "1";
+      openBtn.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.openChatPanel();
+      });
+    }
+
+    if (closeBtn && closeBtn.dataset.v89Close !== "1") {
+      closeBtn.dataset.v89Close = "1";
+      closeBtn.setAttribute("onclick", "return window.closeChatMobileClean(event)");
+      ["click", "touchend"].forEach(name => {
+        closeBtn.addEventListener(name, event => window.closeChatMobileClean(event), { passive: false });
+      });
+    }
+
+    if (messages && messages.dataset.v89Messages !== "1") {
+      messages.dataset.v89Messages = "1";
+
+      // Tocar na imagem: abre imagem. Não interfere com texto.
+      messages.addEventListener("click", event => {
+        const imageButton = event.target.closest?.(".chat-image-button,[data-chat-image-src]");
+        if (imageButton) {
+          const src = imageButton.dataset.chatImageSrc || imageButton.querySelector?.("img")?.src || "";
+          window.openChatImageClean(src, event);
+          return;
+        }
+
+        // No mobile, tocar na mensagem abre ações, para não depender de long press do Safari.
+      });
+
+      // Long press continua disponível, mas sem capturar imagens.
+      let pressTimer = null;
+      messages.addEventListener("touchstart", event => {
+        if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+        const row = event.target.closest?.(".chat-message-row[data-chat-message]");
+        if (!row) return;
+        pressTimer = setTimeout(() => {
+          if (typeof openChatActionMenu === "function") openChatActionMenu(row.dataset.chatMessage, event);
+        }, 520);
+      }, { passive: true });
+
+      ["touchend", "touchmove", "touchcancel"].forEach(name => {
+        messages.addEventListener(name, () => {
+          if (pressTimer) clearTimeout(pressTimer);
+          pressTimer = null;
+        }, { passive: true });
+      });
+    }
+
+    if (imageClose && imageClose.dataset.v89Close !== "1") {
+      imageClose.dataset.v89Close = "1";
+      imageClose.addEventListener("click", event => window.closeChatImageClean(event));
+      imageClose.addEventListener("touchend", event => window.closeChatImageClean(event), { passive: false });
+    }
+
+    if (imageViewer && imageViewer.dataset.v89Viewer !== "1") {
+      imageViewer.dataset.v89Viewer = "1";
+      imageViewer.addEventListener("click", event => {
+        if (event.target === imageViewer) window.closeChatImageClean(event);
+      });
+    }
+  }
+
+  bindCleanChat();
+  document.addEventListener("DOMContentLoaded", () => {
+    bindCleanChat();
+
+    const panel = document.getElementById("chatPanel");
+    if (panel) panel.classList.add("hidden");
+    clearChatState();
+
+    if (window.location.hash === "#chat") {
+      try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch {}
+    }
+  });
+  setTimeout(bindCleanChat, 400);
+
+  window.addEventListener("popstate", () => {
+    const panel = document.getElementById("chatPanel");
+    if (panel && !panel.classList.contains("hidden") && window.location.hash !== "#chat") {
+      window.closeChatMobileClean();
+    }
+  });
+})();
+
+
+// v91 — fixes sobre base v89: menu por toque e imagem acima do chat.
+(function setupChatMenuImageV91(){
+  if (window.__chatMenuImageV91) return;
+  window.__chatMenuImageV91 = true;
+
+  function isMobileV91() {
+    return window.matchMedia?.("(max-width: 760px)")?.matches || window.innerWidth <= 760;
+  }
+
+  function getMessageIdFromTarget(target) {
+    return target?.closest?.(".chat-message-row[data-chat-message], .chat-bubble[data-chat-message]")?.dataset?.chatMessage || "";
+  }
+
+  window.openChatImageAboveV91 = function openChatImageAboveV91(src, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (!viewer || !img || !src) return false;
+
+    img.src = src;
+    viewer.classList.remove("hidden");
+    viewer.style.zIndex = "2147483600";
+    document.body.classList.add("chat-image-viewer-open");
+    return false;
+  };
+
+  window.closeChatImageAboveV91 = function closeChatImageAboveV91(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (viewer) viewer.classList.add("hidden");
+    if (img) img.removeAttribute("src");
+    document.body.classList.remove("chat-image-viewer-open");
+    return false;
+  };
+
+  function openMessageMenuV91(id, event) {
+    if (!id || typeof openChatActionMenu !== "function") return false;
+
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    openChatActionMenu(id, event || { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2, target: document.body });
+    return false;
+  }
+
+  function bindV91() {
+    const messages = document.getElementById("chatMessages");
+    const viewer = document.getElementById("chatImageViewer");
+    const viewerClose = document.getElementById("chatImageViewerClose");
+
+    if (messages && messages.dataset.v91Bound !== "1") {
+      messages.dataset.v91Bound = "1";
+
+      // Click normal: imagem abre; mensagem abre menu no mobile.
+      messages.addEventListener("click", event => {
+        const imageButton = event.target.closest?.(".chat-image-button,[data-chat-image-src]");
+        if (imageButton) {
+          const src = imageButton.dataset.chatImageSrc || imageButton.querySelector?.("img")?.src || "";
+          return window.openChatImageAboveV91(src, event);
+        }
+
+      });
+
+      // iPhone/Safari às vezes falha click em elementos dentro de scroll: usar touchend só no container.
+      messages.addEventListener("touchend", event => {
+        const imageButton = event.target.closest?.(".chat-image-button,[data-chat-image-src]");
+        if (imageButton) {
+          const src = imageButton.dataset.chatImageSrc || imageButton.querySelector?.("img")?.src || "";
+          return window.openChatImageAboveV91(src, event);
+        }
+
+      }, { passive: false });
+
+      // PC continua com botão direito.
+      messages.addEventListener("contextmenu", event => {
+        const id = getMessageIdFromTarget(event.target);
+        if (id) return openMessageMenuV91(id, event);
+      });
+    }
+
+    if (viewerClose && viewerClose.dataset.v91Bound !== "1") {
+      viewerClose.dataset.v91Bound = "1";
+      viewerClose.addEventListener("click", event => window.closeChatImageAboveV91(event));
+      viewerClose.addEventListener("touchend", event => window.closeChatImageAboveV91(event), { passive: false });
+    }
+
+    if (viewer && viewer.dataset.v91Bound !== "1") {
+      viewer.dataset.v91Bound = "1";
+      viewer.addEventListener("click", event => {
+        if (event.target === viewer) window.closeChatImageAboveV91(event);
+      });
+    }
+  }
+
+  bindV91();
+  document.addEventListener("DOMContentLoaded", bindV91);
+  setTimeout(bindV91, 350);
+})();
+
+
+// v92 — Força visualizador de imagem por cima do chat mobile.
+(function setupImageAboveChatV92(){
+  if (window.__imageAboveChatV92) return;
+  window.__imageAboveChatV92 = true;
+
+  const previousOpen = window.openChatImageAboveV91 || window.openChatImageClean || window.openChatImageViewerV90 || window.openChatImageViewer;
+
+  window.openChatImageAboveChatV92 = function openChatImageAboveChatV92(src, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (!viewer || !img || !src) return false;
+
+    img.src = src;
+    viewer.classList.remove("hidden");
+    viewer.style.visibility = "visible";
+    viewer.style.pointerEvents = "auto";
+    viewer.style.zIndex = "2147483646";
+    document.body.classList.add("chat-image-viewer-open");
+    document.documentElement.classList.add("chat-image-viewer-open");
+
+    return false;
+  };
+
+  window.closeChatImageAboveChatV92 = function closeChatImageAboveChatV92(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (viewer) viewer.classList.add("hidden");
+    if (img) img.removeAttribute("src");
+
+    document.body.classList.remove("chat-image-viewer-open");
+    document.documentElement.classList.remove("chat-image-viewer-open");
+
+    return false;
+  };
+
+  // Substitui os nomes usados pelas versões anteriores.
+  window.openChatImageAboveV91 = window.openChatImageAboveChatV92;
+  window.openChatImageClean = window.openChatImageAboveChatV92;
+  window.openChatImageViewerV90 = window.openChatImageAboveChatV92;
+  window.closeChatImageAboveV91 = window.closeChatImageAboveChatV92;
+  window.closeChatImageClean = window.closeChatImageAboveChatV92;
+  window.closeChatImageViewerV90 = window.closeChatImageAboveChatV92;
+
+  function bindV92() {
+    const viewer = document.getElementById("chatImageViewer");
+    const closeBtn = document.getElementById("chatImageViewerClose");
+    const messages = document.getElementById("chatMessages");
+
+    if (closeBtn && closeBtn.dataset.v92Bound !== "1") {
+      closeBtn.dataset.v92Bound = "1";
+      closeBtn.addEventListener("click", event => window.closeChatImageAboveChatV92(event));
+      closeBtn.addEventListener("touchend", event => window.closeChatImageAboveChatV92(event), { passive: false });
+    }
+
+    if (viewer && viewer.dataset.v92Bound !== "1") {
+      viewer.dataset.v92Bound = "1";
+      viewer.addEventListener("click", event => {
+        if (event.target === viewer) window.closeChatImageAboveChatV92(event);
+      });
+      viewer.addEventListener("touchend", event => {
+        if (event.target === viewer) window.closeChatImageAboveChatV92(event);
+      }, { passive: false });
+    }
+
+    if (messages && messages.dataset.v92ImageBound !== "1") {
+      messages.dataset.v92ImageBound = "1";
+      messages.addEventListener("click", event => {
+        const imageButton = event.target.closest?.(".chat-image-button,[data-chat-image-src]");
+        if (!imageButton) return;
+        const src = imageButton.dataset.chatImageSrc || imageButton.querySelector?.("img")?.src || "";
+        if (src) return window.openChatImageAboveChatV92(src, event);
+      });
+      messages.addEventListener("touchend", event => {
+        const imageButton = event.target.closest?.(".chat-image-button,[data-chat-image-src]");
+        if (!imageButton) return;
+        const src = imageButton.dataset.chatImageSrc || imageButton.querySelector?.("img")?.src || "";
+        if (src) return window.openChatImageAboveChatV92(src, event);
+      }, { passive: false });
+    }
+  }
+
+  bindV92();
+  document.addEventListener("DOMContentLoaded", bindV92);
+  setTimeout(bindV92, 350);
+})();
+
+
+// v93 — visualizador usa SEMPRE o src real do <img>, seguro no iPhone/Safari.
+(function setupChatImageSrcRealV93(){
+  if (window.__chatImageSrcRealV93) return;
+  window.__chatImageSrcRealV93 = true;
+
+  function getRealImageSrcFromButton(button) {
+    const img = button?.querySelector?.("img.chat-image, img");
+    return img?.currentSrc || img?.src || img?.getAttribute?.("src") || "";
+  }
+
+  window.openChatImageSrcRealV93 = function openChatImageSrcRealV93(src, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (!viewer || !img || !src) return false;
+
+    viewer.classList.remove("hidden");
+    viewer.style.display = "flex";
+    viewer.style.visibility = "visible";
+    viewer.style.opacity = "1";
+    viewer.style.pointerEvents = "auto";
+    viewer.style.zIndex = "2147483646";
+
+    img.style.display = "block";
+    img.style.visibility = "visible";
+    img.style.opacity = "1";
+    img.style.maxWidth = "96vw";
+    img.style.maxHeight = "86dvh";
+    img.style.objectFit = "contain";
+    img.style.zIndex = "2147483646";
+
+    img.onload = () => {
+      img.style.display = "block";
+      img.style.visibility = "visible";
+      img.style.opacity = "1";
+    };
+
+    img.onerror = () => {
+      console.warn("Imagem do chat não carregou no viewer.");
+    };
+
+    img.src = src;
+
+    document.body.classList.add("chat-image-viewer-open");
+    document.documentElement.classList.add("chat-image-viewer-open");
+
+    return false;
+  };
+
+  window.closeChatImageSrcRealV93 = function closeChatImageSrcRealV93(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    }
+
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+
+    if (viewer) {
+      viewer.classList.add("hidden");
+      viewer.style.display = "";
+      viewer.style.visibility = "";
+      viewer.style.opacity = "";
+      viewer.style.pointerEvents = "";
+    }
+
+    if (img) {
+      img.removeAttribute("src");
+      img.onload = null;
+      img.onerror = null;
+    }
+
+    document.body.classList.remove("chat-image-viewer-open");
+    document.documentElement.classList.remove("chat-image-viewer-open");
+
+    return false;
+  };
+
+  window.openChatImageAboveChatV92 = window.openChatImageSrcRealV93;
+  window.openChatImageAboveV91 = window.openChatImageSrcRealV93;
+  window.openChatImageClean = window.openChatImageSrcRealV93;
+  window.openChatImageViewerV90 = window.openChatImageSrcRealV93;
+
+  window.closeChatImageAboveChatV92 = window.closeChatImageSrcRealV93;
+  window.closeChatImageAboveV91 = window.closeChatImageSrcRealV93;
+  window.closeChatImageClean = window.closeChatImageSrcRealV93;
+  window.closeChatImageViewerV90 = window.closeChatImageSrcRealV93;
+
+  function bindV93() {
+    const messages = document.getElementById("chatMessages");
+    const viewer = document.getElementById("chatImageViewer");
+    const closeBtn = document.getElementById("chatImageViewerClose");
+
+    if (messages && messages.dataset.v93ImageBound !== "1") {
+      messages.dataset.v93ImageBound = "1";
+
+      const openFromEvent = event => {
+        const button = event.target.closest?.(".chat-image-button");
+        if (!button) return;
+
+        const src = getRealImageSrcFromButton(button);
+        if (!src) return;
+
+        return window.openChatImageSrcRealV93(src, event);
+      };
+
+      messages.addEventListener("click", openFromEvent, { capture: true });
+      messages.addEventListener("touchend", openFromEvent, { capture: true, passive: false });
+    }
+
+    if (closeBtn && closeBtn.dataset.v93Bound !== "1") {
+      closeBtn.dataset.v93Bound = "1";
+      closeBtn.addEventListener("click", event => window.closeChatImageSrcRealV93(event));
+      closeBtn.addEventListener("touchend", event => window.closeChatImageSrcRealV93(event), { passive: false });
+    }
+
+    if (viewer && viewer.dataset.v93Bound !== "1") {
+      viewer.dataset.v93Bound = "1";
+      viewer.addEventListener("click", event => {
+        if (event.target === viewer) window.closeChatImageSrcRealV93(event);
+      });
+      viewer.addEventListener("touchend", event => {
+        if (event.target === viewer) window.closeChatImageSrcRealV93(event);
+      }, { passive: false });
+    }
+  }
+
+  bindV93();
+  document.addEventListener("DOMContentLoaded", bindV93);
+  setTimeout(bindV93, 350);
+})();
+
+
+// v96 - interacao do menu: long press correto no mobile e clique direito no PC.
+(function setupChatInteractionV96(){
+  if (window.__chatInteractionV96) return;
+  window.__chatInteractionV96 = true;
+
+  let pressTimer = null;
+  let pressStart = null;
+  let pressOpened = false;
+  let suppressNextClickUntil = 0;
+
+  function isTouchLike(event) {
+    return event?.pointerType === "touch" || event?.pointerType === "pen" || event?.type?.startsWith("touch");
+  }
+
+  function pointFromEvent(event) {
+    const touch = event?.changedTouches?.[0] || event?.touches?.[0];
+    return {
+      x: Number(touch?.clientX ?? event?.clientX ?? 0),
+      y: Number(touch?.clientY ?? event?.clientY ?? 0)
+    };
+  }
+
+  function rowFromEvent(event) {
+    return event?.target?.closest?.(".chat-message-row[data-chat-message]") || null;
+  }
+
+  function clearPress() {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+    pressStart = null;
+    pressOpened = false;
+  }
+
+  function openMenuForRow(row, point) {
+    const id = row?.dataset?.chatMessage || "";
+    if (!id || typeof openChatActionMenu !== "function") return;
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+    pressOpened = true;
+    suppressNextClickUntil = Date.now() + 1500;
+    openChatActionMenu(id, {
+      clientX: point.x,
+      clientY: point.y,
+      target: row,
+      preventDefault() {},
+      stopPropagation() {}
+    });
+  }
+
+  function bindV96() {
+    const messages = document.getElementById("chatMessages");
+    if (!messages || messages.dataset.v96Bound === "1") return;
+    messages.dataset.v96Bound = "1";
+
+    messages.addEventListener("pointerdown", event => {
+      if (!isTouchLike(event)) return;
+      if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+
+      const row = rowFromEvent(event);
+      if (!row) {
+        if (typeof closeChatActionMenu === "function") closeChatActionMenu();
+        return;
+      }
+
+      event.stopImmediatePropagation();
+      clearPress();
+
+      const point = pointFromEvent(event);
+      pressStart = { ...point, row };
+      pressTimer = setTimeout(() => {
+        if (!pressStart || pressStart.row !== row) return;
+        if (navigator.vibrate) {
+          try { navigator.vibrate(15); } catch {}
+        }
+        openMenuForRow(row, point);
+      }, 620);
+    }, { capture: true, passive: false });
+
+    messages.addEventListener("touchstart", event => {
+      if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+      if (!rowFromEvent(event)) return;
+      event.stopImmediatePropagation();
+    }, { capture: true, passive: true });
+
+    const cancelIfMoved = event => {
+      if (!pressStart) return;
+      const point = pointFromEvent(event);
+      if (Math.abs(point.x - pressStart.x) > 10 || Math.abs(point.y - pressStart.y) > 10) {
+        clearPress();
+      }
+    };
+
+    messages.addEventListener("pointermove", cancelIfMoved, { capture: true, passive: true });
+    messages.addEventListener("touchmove", cancelIfMoved, { capture: true, passive: true });
+    messages.addEventListener("scroll", clearPress, { passive: true });
+
+    const finishTouch = event => {
+      if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+      if (Date.now() < suppressNextClickUntil) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        clearPress();
+        return;
+      }
+      const hadPress = Boolean(pressTimer || pressStart || pressOpened);
+      const opened = pressOpened;
+      clearPress();
+      if (hadPress) event.stopImmediatePropagation();
+      if (!opened && typeof closeChatActionMenu === "function") closeChatActionMenu();
+    };
+
+    messages.addEventListener("pointerup", finishTouch, { capture: true, passive: false });
+    messages.addEventListener("pointercancel", finishTouch, { capture: true, passive: false });
+    messages.addEventListener("touchend", finishTouch, { capture: true, passive: false });
+    messages.addEventListener("touchcancel", finishTouch, { capture: true, passive: false });
+
+    messages.addEventListener("click", event => {
+      if (event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+      if (Date.now() < suppressNextClickUntil) {
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (rowFromEvent(event)) {
+        event.stopImmediatePropagation();
+        if (typeof closeChatActionMenu === "function") closeChatActionMenu();
+      }
+    }, { capture: true });
+
+    messages.addEventListener("contextmenu", event => {
+      const row = rowFromEvent(event);
+      if (!row || event.target.closest?.(".chat-image-button,[data-chat-image-src]")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openMenuForRow(row, pointFromEvent(event));
+    }, { capture: true });
+  }
+
+  function closeMenuOnOutsidePress(event) {
+    const menu = document.getElementById("chatActionMenu");
+    if (!menu || menu.classList.contains("hidden")) return;
+    if (menu.contains(event.target)) return;
+    if (event.type === "click" && Date.now() < suppressNextClickUntil) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (typeof closeChatActionMenu === "function") closeChatActionMenu();
+    if (event.target.closest?.("#chatPanel, #chatMessages, .chat-message-row")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }
+
+  document.addEventListener("pointerdown", closeMenuOnOutsidePress, { capture: true });
+  document.addEventListener("touchstart", closeMenuOnOutsidePress, { capture: true, passive: false });
+
+  bindV96();
+  document.addEventListener("DOMContentLoaded", bindV96);
+  setTimeout(bindV96, 350);
+})();
+
+
+// v99 - abertura do chat mais rapida e sem bloquear no primeiro toque.
+(function setupChatOpenFastV99(){
+  if (window.__chatOpenFastV99) return;
+  window.__chatOpenFastV99 = true;
+
+  function isMobileV99() {
+    return window.matchMedia?.("(max-width: 760px)")?.matches || window.innerWidth <= 760;
+  }
+
+  function applyOpenClasses(open) {
+    const mobile = isMobileV99();
+    document.body.classList.toggle("chat-mobile-page-open", Boolean(open && mobile));
+    document.body.classList.toggle("chat-fullscreen-open", Boolean(open && mobile));
+    document.body.classList.toggle("chat-window-open", Boolean(open && !mobile));
+    document.documentElement.classList.toggle("chat-mobile-page-open", Boolean(open && mobile));
+  }
+
+  window.openChatPanel = function openChatPanelFastV99(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    }
+
+    const panel = document.getElementById("chatPanel");
+    const messages = document.getElementById("chatMessages");
+    if (!panel) return false;
+
+    panel.classList.remove("hidden");
+    panel.style.pointerEvents = "auto";
+    applyOpenClasses(true);
+
+    if (isMobileV99() && window.location.hash !== "#chat") {
+      try { history.pushState({ chatOpen: true }, "", "#chat"); } catch {}
+    }
+
+    try { if (typeof setupChatUi === "function") setupChatUi(); } catch {}
+    try { if (typeof renderChatTabs === "function") renderChatTabs(); } catch {}
+    try { if (typeof closeChatActionMenu === "function") closeChatActionMenu(); } catch {}
+
+    try {
+      chatOpenedOnce = true;
+      chatLastSeenAt = Date.now();
+      localStorage.setItem("mundial_chat_last_seen_at", String(chatLastSeenAt));
+    } catch {}
+
+    if (!currentUser) {
+      try { if (typeof renderChatMessages === "function") renderChatMessages(); } catch {}
+    } else if (messages && (!Array.isArray(chatMessagesCache) || !chatMessagesCache.length)) {
+      messages.innerHTML = `<div class="empty small-empty">A carregar chat...</div>`;
+    }
+
+    try { if (typeof startChatListenerSafe === "function") startChatListenerSafe(); } catch {}
+    try { if (typeof startPinnedChatListenerSafe === "function") startPinnedChatListenerSafe(); } catch {}
+    try { if (typeof startChatTypingListenerSafe === "function") startChatTypingListenerSafe(); } catch {}
+    try { if (typeof updateChatUnreadBadge === "function") updateChatUnreadBadge(); } catch {}
+    try { if (typeof chatNotifyNewMessages === "function") chatNotifyNewMessages(); } catch {}
+    try { if (typeof renderChatPinnedMessage === "function") renderChatPinnedMessage(); } catch {}
+
+    setTimeout(() => {
+      try { if (typeof scrollChatToBottom === "function") scrollChatToBottom(); } catch {}
+      if (!isMobileV99()) {
+        try { document.getElementById("chatInput")?.focus(); } catch {}
+      }
+    }, 40);
+
+    setTimeout(() => {
+      try {
+        if ((!Array.isArray(chatMessagesCache) || !chatMessagesCache.length) && typeof loadChatMessagesOnce === "function") {
+          loadChatMessagesOnce();
+        }
+      } catch {}
+    }, 450);
+
+    return false;
+  };
+
+  function bindV99() {
+    const openBtn = document.getElementById("chatOpenBtn");
+    if (!openBtn || openBtn.dataset.v99Open === "1") return;
+    openBtn.dataset.v99Open = "1";
+    openBtn.addEventListener("click", event => window.openChatPanel(event), { capture: true });
+    openBtn.addEventListener("touchend", event => window.openChatPanel(event), { capture: true, passive: false });
+  }
+
+  bindV99();
+  document.addEventListener("DOMContentLoaded", bindV99);
+  setTimeout(bindV99, 350);
+})();
+
+
+// v100 - botoes do menu de chat respondem no mobile sem bloquear.
+(function setupChatActionButtonsV100(){
+  if (window.__chatActionButtonsV100) return;
+  window.__chatActionButtonsV100 = true;
+
+  function handleAction(event, action) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+    }
+
+    const id = chatActionMessageId;
+    closeChatActionMenu();
+    if (!id) return false;
+
+    if (action === "reply") setChatReply(id);
+    if (action === "pin") pinChatMessage(id);
+    if (action === "delete") deleteChatMessage(id);
+    return false;
+  }
+
+  function bindButton(button, action) {
+    if (!button || button.dataset.v100Bound === "1") return;
+    button.dataset.v100Bound = "1";
+    ["click", "pointerup", "touchend"].forEach(name => {
+      button.addEventListener(name, event => handleAction(event, action), { capture: true, passive: false });
+    });
+  }
+
+  function bindV100() {
+    bindButton(document.getElementById("chatActionReplyBtn"), "reply");
+    bindButton(document.getElementById("chatActionPinBtn"), "pin");
+    bindButton(document.getElementById("chatActionDeleteBtn"), "delete");
+  }
+
+  bindV100();
+  document.addEventListener("DOMContentLoaded", bindV100);
+  setTimeout(bindV100, 350);
+})();
+
+
+// v103 - recupera o chat quando algum estado antigo deixa o painel sem toque.
+(function setupChatTouchRecoveryV103(){
+  if (window.__chatTouchRecoveryV103) return;
+  window.__chatTouchRecoveryV103 = true;
+
+  let recoveryTimer = null;
+
+  function isMobileV103() {
+    return window.matchMedia?.("(max-width: 760px)")?.matches || window.innerWidth <= 760;
+  }
+
+  function chatIsOpen() {
+    const panel = document.getElementById("chatPanel");
+    return Boolean(panel && !panel.classList.contains("hidden"));
+  }
+
+  function closeImageViewerIfHiddenOrIdle() {
+    const viewer = document.getElementById("chatImageViewer");
+    const img = document.getElementById("chatImageViewerImg");
+    if (!viewer) return;
+    if (viewer.classList.contains("hidden")) {
+      viewer.style.pointerEvents = "none";
+      viewer.style.visibility = "";
+      viewer.style.opacity = "";
+      viewer.style.display = "";
+      document.body.classList.remove("chat-image-viewer-open");
+      document.documentElement.classList.remove("chat-image-viewer-open");
+      if (img && !viewer.classList.contains("hidden")) img.removeAttribute("src");
+    }
+  }
+
+  function forceChatInteractive() {
+    const panel = document.getElementById("chatPanel");
+    if (!panel || panel.classList.contains("hidden")) return;
+
+    const mobile = isMobileV103();
+    document.body.classList.toggle("chat-mobile-page-open", mobile);
+    document.body.classList.toggle("chat-fullscreen-open", mobile);
+    document.body.classList.toggle("chat-window-open", !mobile);
+    document.documentElement.classList.toggle("chat-mobile-page-open", mobile);
+
+    panel.style.pointerEvents = "auto";
+    panel.style.visibility = "visible";
+    panel.style.opacity = "1";
+
+    panel.querySelectorAll("button,input,textarea,select,.chat-messages,.chat-form,.chat-room-switch").forEach(el => {
+      el.style.pointerEvents = "auto";
+    });
+
+    closeImageViewerIfHiddenOrIdle();
+
+    if (typeof setupChatUi === "function") {
+      try { setupChatUi(); } catch {}
+    }
+    if (typeof setupChatCloseButtonSafe === "function") {
+      try { setupChatCloseButtonSafe(); } catch {}
+    }
+  }
+
+  function scheduleRecovery() {
+    if (recoveryTimer) clearTimeout(recoveryTimer);
+    forceChatInteractive();
+    recoveryTimer = setTimeout(forceChatInteractive, 80);
+  }
+
+  const previousOpen = window.openChatPanel;
+  window.openChatPanel = function openChatPanelRecoveredV103(event) {
+    const result = typeof previousOpen === "function" ? previousOpen(event) : false;
+    scheduleRecovery();
+    setTimeout(scheduleRecovery, 350);
+    return result;
+  };
+
+  document.addEventListener("pointerdown", event => {
+    if (!chatIsOpen()) return;
+    if (event.target.closest?.("#chatPanel, #chatActionMenu, #chatImageViewer")) scheduleRecovery();
+  }, { capture: true, passive: true });
+
+  document.addEventListener("touchstart", event => {
+    if (!chatIsOpen()) return;
+    if (event.target.closest?.("#chatPanel, #chatActionMenu, #chatImageViewer")) scheduleRecovery();
+  }, { capture: true, passive: true });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && chatIsOpen()) scheduleRecovery();
+  });
+
+  window.addEventListener("resize", () => {
+    if (chatIsOpen()) scheduleRecovery();
+  });
+
+  setInterval(() => {
+    if (chatIsOpen()) forceChatInteractive();
+  }, 2500);
+})();
