@@ -709,7 +709,7 @@ function queueRealtimeRender(reason = "firebase realtime") {
     ensureKnockoutSettings();
     saveLocalData(reason);
     renderAll();
-  }, 120);
+  }, 900);
 }
 
 function setupRealtimeSync() {
@@ -1645,8 +1645,8 @@ function authFriendlyError(error) {
 
 const PRESENCE_COLLECTION = "presence";
 const ONLINE_WINDOW_MS = 2 * 60 * 1000;
-const PRESENCE_UPDATE_MS = 30 * 1000;
-const ONLINE_USERS_REFRESH_MS = 30 * 1000;
+const PRESENCE_UPDATE_MS = 120 * 1000;
+const ONLINE_USERS_REFRESH_MS = 120 * 1000;
 
 function displayNameFromEmail(email) {
   const value = String(email || "").trim();
@@ -1769,18 +1769,6 @@ async function loadOnlineUsers() {
     const { collection, getDocs } = firebaseApi;
     const snap = await withTimeout(getDocs(collection(db, PRESENCE_COLLECTION)), 10000, "ler utilizadores online");
 
-    const profileNames = new Map();
-    try {
-      const usersSnap = await withTimeout(getDocs(collection(db, "users")), 10000, "ler nomes dos utilizadores");
-      usersSnap.docs.forEach(docSnap => {
-        const data = docSnap.data() || {};
-        const email = normalizeEmail(data.email || docSnap.id);
-        if (email && data.name) profileNames.set(email, String(data.name).trim());
-      });
-    } catch (profileError) {
-      console.warn("Nomes dos utilizadores não carregaram para o painel online:", profileError);
-    }
-
     onlineUsersCache = snap.docs
       .map(docSnap => {
         const data = { id: docSnap.id, ...(docSnap.data() || {}) };
@@ -1788,7 +1776,7 @@ async function loadOnlineUsers() {
         return {
           ...data,
           email,
-          name: profileNames.get(email) || data.name || displayNameFromEmail(email)
+          name: data.name || displayNameFromEmail(email)
         };
       })
       .sort((a, b) => {
@@ -1884,7 +1872,7 @@ function stopOnlineFeaturesSafe() {
 
 
 const CHAT_COLLECTION = "chatMessages";
-const CHAT_LIMIT = 150;
+const CHAT_LIMIT = 60;
 
 function chatUserName() {
   return String(currentProfile?.name || "").trim() || displayNameFromEmail(currentUser?.email || "") || currentUser?.email || "User";
@@ -2868,6 +2856,16 @@ async function loadChatMessagesOnce() {
 }
 
 function startChatListenerSafe() {
+  const chatBtn = $("chatOpenBtn");
+  const chatPanel = $("chatPanel");
+  const chatVisible = chatBtn && !chatBtn.classList.contains("hidden") && chatBtn.style.display !== "none";
+  const chatOpen = chatPanel && !chatPanel.classList.contains("hidden");
+
+  if (!chatVisible && !chatOpen) {
+    stopChatListenerSafe();
+    return;
+  }
+
   if (!db || !firebaseApi || storageMode !== "firebase" || !currentUser) return;
   if (!canUseChatRoom()) return;
   if (chatUnsubscribe) return;
@@ -3049,6 +3047,17 @@ function setupChatUi() {
 function startChatSafe() {
   try {
     setupChatUi();
+
+    const chatBtn = $("chatOpenBtn");
+    const chatPanel = $("chatPanel");
+    const chatVisible = chatBtn && !chatBtn.classList.contains("hidden") && chatBtn.style.display !== "none";
+    const chatOpen = chatPanel && !chatPanel.classList.contains("hidden");
+
+    if (!chatVisible && !chatOpen) {
+      stopChatSafe();
+      return;
+    }
+
     startChatListenerSafe();
     startPinnedChatListenerSafe();
     startChatTypingListenerSafe();
@@ -6601,6 +6610,8 @@ function setChatVisibleV98(enabled) {
     chatBtn.style.display = chatSystemEnabled ? "" : "none";
   }
 
+  if (!chatSystemEnabled) { try { stopChatSafe(); } catch {} }
+
   if (!chatSystemEnabled && chatPanel) {
     chatPanel.classList.add("hidden");
     try { document.body.classList.remove("chat-fullscreen-open", "chat-mobile-page-open", "chat-window-open"); } catch {}
@@ -6666,26 +6677,7 @@ async function loadChatSystemEnabledV98() {
     const ref = chatSettingsDocRefV98();
     if (!ref) throw new Error("Sem referência Firebase");
 
-    const { onSnapshot, getDoc, setDoc, serverTimestamp } = firebaseApi;
-
-    if (typeof getDoc === "function") {
-      const snap = await getDoc(ref);
-      chatSettingsLoadedV98 = true;
-
-      if (!snap.exists?.() && isCurrentUserAdminV98() && typeof setDoc === "function") {
-        await setDoc(ref, {
-          enabled: false,
-          createdAt: typeof serverTimestamp === "function" ? serverTimestamp() : new Date().toISOString(),
-          createdBy: currentUser?.uid || "",
-          createdByEmail: String(currentUser?.email || "").toLowerCase()
-        }, { merge: true });
-        setChatVisibleV98(false);
-      } else if (snap.exists?.()) {
-        setChatVisibleV98(Boolean((snap.data?.() || {}).enabled));
-      } else {
-        setChatVisibleV98(false);
-      }
-    }
+    const { onSnapshot } = firebaseApi;
 
     if (typeof onSnapshot === "function") {
       chatSettingsUnsubscribeV98 = onSnapshot(ref, snap => {
@@ -6772,8 +6764,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  setInterval(tick, 2500);
-  setTimeout(tick, 600);
-  setTimeout(tick, 1600);
-  setTimeout(tick, 3200);
+  setInterval(tick, 60000);
+  setTimeout(tick, 800);
+  setTimeout(tick, 3000);
 })();
+
+
+// v107 — diagnóstico rápido no console.
+window.firestoreReadsOptimizerInfo = function firestoreReadsOptimizerInfo() {
+  return {
+    realtimeListeners: Array.isArray(realtimeUnsubscribers) ? realtimeUnsubscribers.length : null,
+    chatListener: Boolean(chatUnsubscribe),
+    pinnedChatListener: Boolean(chatPinnedUnsubscribe),
+    typingChatListener: Boolean(chatTypingUnsubscribe),
+    presenceEveryMs: typeof PRESENCE_UPDATE_MS !== "undefined" ? PRESENCE_UPDATE_MS : null,
+    onlineUsersEveryMs: typeof ONLINE_USERS_REFRESH_MS !== "undefined" ? ONLINE_USERS_REFRESH_MS : null,
+    chatLimit: typeof CHAT_LIMIT !== "undefined" ? CHAT_LIMIT : null
+  };
+};
