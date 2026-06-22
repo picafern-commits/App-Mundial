@@ -533,7 +533,126 @@ function setFirebaseStatus(type, message) {
   box.textContent = message;
 }
 
+
+
+// v114 — Modo económico Firebase oficial.
+// Reduz listeners de snapshot trocando onSnapshot permanentes por leitura inicial + polling lento.
+const FIRESTORE_ECONOMY_V114 = {
+  installed: false,
+  pollers: new Set(),
+  normalPollMs: 150000,
+  chatPollMs: 120000,
+  settingsPollMs: 180000
+};
+
+function economySnapshotDelayV114(target) {
+  try {
+    const path = String(
+      target?.path ||
+      target?._query?.path?.canonicalString?.() ||
+      target?._query?.path?.segments?.join?.("/") ||
+      target?._path?.canonicalString?.() ||
+      ""
+    ).toLowerCase();
+
+    if (path.includes("chat")) return FIRESTORE_ECONOMY_V114.chatPollMs;
+    if (path.includes("settings") || path.includes("appsettings")) return FIRESTORE_ECONOMY_V114.settingsPollMs;
+    if (path.includes("presence")) return 180000;
+  } catch {}
+  return FIRESTORE_ECONOMY_V114.normalPollMs;
+}
+
+function isDocRefV114(target) {
+  try {
+    if (target?.type === "document") return true;
+    if (target?.path && !target?._query) return true;
+    const segments = target?._key?.path?.segments || target?._path?.segments || [];
+    return Array.isArray(segments) && segments.length > 0 && segments.length % 2 === 0;
+  } catch {
+    return false;
+  }
+}
+
+function installFirestoreEconomyModeV114() {
+  if (FIRESTORE_ECONOMY_V114.installed) return;
+  if (!firebaseApi || typeof firebaseApi.onSnapshot !== "function") return;
+  if (typeof firebaseApi.getDoc !== "function" || typeof firebaseApi.getDocs !== "function") return;
+
+  const originalOnSnapshot = firebaseApi.onSnapshot;
+  firebaseApi.__originalOnSnapshotV114 = firebaseApi.__originalOnSnapshotV114 || originalOnSnapshot;
+
+  firebaseApi.onSnapshot = function economyOnSnapshotV114(target, ...args) {
+    let next = null;
+    let errorCb = null;
+
+    for (const arg of args) {
+      if (typeof arg === "function" && !next) next = arg;
+      else if (typeof arg === "function" && !errorCb) errorCb = arg;
+      else if (arg && typeof arg.next === "function") {
+        next = arg.next.bind(arg);
+        if (typeof arg.error === "function") errorCb = arg.error.bind(arg);
+      }
+    }
+
+    if (!next) return firebaseApi.__originalOnSnapshotV114.call(this, target, ...args);
+
+    let stopped = false;
+    let running = false;
+    let timer = null;
+    const delay = economySnapshotDelayV114(target);
+
+    const run = async () => {
+      if (stopped || running) return;
+      running = true;
+
+      try {
+        const isDoc = isDocRefV114(target);
+        const snap = isDoc ? await firebaseApi.getDoc(target) : await firebaseApi.getDocs(target);
+        if (!stopped) next(snap);
+      } catch (error) {
+        if (typeof errorCb === "function") errorCb(error);
+        else console.warn("Firestore económico v114:", error);
+      } finally {
+        running = false;
+        if (!stopped) timer = setTimeout(run, delay);
+      }
+    };
+
+    timer = setTimeout(run, 300);
+
+    const unsubscribe = () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      FIRESTORE_ECONOMY_V114.pollers.delete(unsubscribe);
+    };
+
+    FIRESTORE_ECONOMY_V114.pollers.add(unsubscribe);
+    return unsubscribe;
+  };
+
+  FIRESTORE_ECONOMY_V114.installed = true;
+  console.info("Firestore modo económico v114 ativo.");
+}
+
+function stopFirestoreEconomyPollersV114() {
+  FIRESTORE_ECONOMY_V114.pollers.forEach(unsub => {
+    try { unsub(); } catch {}
+  });
+  FIRESTORE_ECONOMY_V114.pollers.clear();
+}
+
+window.firestoreEconomyInfoV114 = function firestoreEconomyInfoV114() {
+  return {
+    installed: FIRESTORE_ECONOMY_V114.installed,
+    activePollers: FIRESTORE_ECONOMY_V114.pollers.size,
+    normalPollMs: FIRESTORE_ECONOMY_V114.normalPollMs,
+    chatPollMs: FIRESTORE_ECONOMY_V114.chatPollMs,
+    settingsPollMs: FIRESTORE_ECONOMY_V114.settingsPollMs
+  };
+};
+
 async function initFirebase() {
+  setTimeout(installFirestoreEconomyModeV114, 0);
   const config = APP_CONFIG.firebase || {};
 
   if (!config.apiKey || !config.projectId) {
@@ -709,7 +828,7 @@ function queueRealtimeRender(reason = "firebase realtime") {
     ensureKnockoutSettings();
     saveLocalData(reason);
     renderAll();
-  }, 900);
+  }, 1200);
 }
 
 function setupRealtimeSync() {
@@ -1645,8 +1764,8 @@ function authFriendlyError(error) {
 
 const PRESENCE_COLLECTION = "presence";
 const ONLINE_WINDOW_MS = 2 * 60 * 1000;
-const PRESENCE_UPDATE_MS = 120 * 1000;
-const ONLINE_USERS_REFRESH_MS = 120 * 1000;
+const PRESENCE_UPDATE_MS = 180 * 1000;
+const ONLINE_USERS_REFRESH_MS = 180 * 1000;
 
 function displayNameFromEmail(email) {
   const value = String(email || "").trim();
@@ -1872,7 +1991,7 @@ function stopOnlineFeaturesSafe() {
 
 
 const CHAT_COLLECTION = "chatMessages";
-const CHAT_LIMIT = 60;
+const CHAT_LIMIT = 35;
 
 function chatUserName() {
   return String(currentProfile?.name || "").trim() || displayNameFromEmail(currentUser?.email || "") || currentUser?.email || "User";
@@ -3937,7 +4056,9 @@ function renderAll() {
   setupSearchResultsAdminButton();
   setTimeout(addSearchButtonsToResultCards, 0);
   setupOnlineUsersCloseControls();
-  setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); applyPermissionsToUi(); updateActiveAppSection(); }
+  setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); applyPermissionsToUi(); updateActiveAppSection(); 
+  setTimeout(addSearchButtonsToResultCards, 250);
+}
 
 function renderCalendarFilterState() {
   const missingBtn = $("calendarMissingResultsBtn");
@@ -4133,18 +4254,26 @@ function renderGroups() {
 }
 
 
-function openResultSearchForGame(game) {
+
+
+function openResultSearchForGame(gameOrId) {
+  const game = typeof gameOrId === "string"
+    ? games.find(item => item.id === gameOrId)
+    : gameOrId;
+
   if (!game) return toast("Jogo não encontrado.");
 
-  const home = game.homeTeam || game.home || game.teamA || "";
-  const away = game.awayTeam || game.away || game.teamB || "";
+  const home = String(game.homeTeam || game.home || game.teamA || "").trim();
+  const away = String(game.awayTeam || game.away || game.teamB || "").trim();
+
   if (!home || !away) return toast("Este jogo ainda não tem as duas equipas definidas.");
 
-  const date = game.matchDate || game.date || "";
-  const query = `${home} vs ${away} ${date} resultado Mundial 2026`;
+  const query = `${home} vs ${away}`;
   const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+
 
 function openResultsSearchDashboard() {
   if (!hasPermission("editResults")) {
@@ -4175,7 +4304,12 @@ function openResultsSearchDashboard() {
   toast("Não existem jogos pendentes para pesquisar.");
 }
 
+
+
 function setupSearchResultsAdminButton() {
+  // v117: o botão Pesquisar por jogo é público.
+  addSearchButtonsToResultCards();
+
   const button = $("searchAllResultsBtn");
   if (!button || button.dataset.bound === "1") return;
 
@@ -4183,31 +4317,67 @@ function setupSearchResultsAdminButton() {
   button.addEventListener("click", () => openResultsSearchDashboard());
 }
 
-function addSearchButtonsToResultCards() {
-  if (!hasPermission("editResults")) return;
 
-  document.querySelectorAll("[data-result-game]").forEach(resultButton => {
+
+
+
+function addSearchButtonsToResultCards() {
+  const resultButtons = document.querySelectorAll("[data-result-game]");
+
+  resultButtons.forEach(resultButton => {
     const gameId = resultButton.dataset.resultGame;
     if (!gameId) return;
 
     const parent = resultButton.parentElement;
-    if (!parent || parent.querySelector(`[data-search-result-game="${CSS.escape(gameId)}"]`)) return;
+    if (!parent) return;
+
+    if (parent.querySelector(`[data-search-result-game="${CSS.escape(gameId)}"]`)) return;
+
+    const game = games.find(item => item.id === gameId);
+    if (!game) return;
 
     const searchButton = document.createElement("button");
     searchButton.type = "button";
-    searchButton.className = "secondary small search-game-result-btn admin-only";
+    searchButton.className = "secondary small search-game-result-btn search-result-btn-v117";
     searchButton.dataset.searchResultGame = gameId;
     searchButton.textContent = "Pesquisar";
+    searchButton.title = `${game.homeTeam || game.home || game.teamA || ""} vs ${game.awayTeam || game.away || game.teamB || ""}`.trim();
+
     searchButton.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
-      const game = games.find(item => item.id === gameId);
       openResultSearchForGame(game);
     });
 
     parent.insertBefore(searchButton, resultButton);
   });
+
+  document.querySelectorAll("[data-game-id]").forEach(card => {
+    const gameId = card.getAttribute("data-game-id");
+    if (!gameId || card.querySelector(`[data-search-result-game="${CSS.escape(gameId)}"]`)) return;
+
+    const game = games.find(item => item.id === gameId);
+    if (!game) return;
+
+    const actions = card.querySelector(".match-actions,.match-card-actions,.actions,.card-actions") || card;
+    const searchButton = document.createElement("button");
+    searchButton.type = "button";
+    searchButton.className = "secondary small search-game-result-btn search-result-btn-v117";
+    searchButton.dataset.searchResultGame = gameId;
+    searchButton.textContent = "Pesquisar";
+    searchButton.title = `${game.homeTeam || game.home || game.teamA || ""} vs ${game.awayTeam || game.away || game.teamB || ""}`.trim();
+
+    searchButton.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openResultSearchForGame(game);
+    });
+
+    actions.appendChild(searchButton);
+  });
 }
+
+
 
 function renderAdminState() {
   $("adminLocked").classList.toggle("hidden", isAdmin || isAdminProfile());
@@ -6782,3 +6952,91 @@ window.firestoreReadsOptimizerInfo = function firestoreReadsOptimizerInfo() {
     chatLimit: typeof CHAT_LIMIT !== "undefined" ? CHAT_LIMIT : null
   };
 };
+
+setTimeout(installFirestoreEconomyModeV114, 800);
+setTimeout(installFirestoreEconomyModeV114, 1800);
+setTimeout(installFirestoreEconomyModeV114, 3500);
+
+let v115PesquisarTodosInterval = null;
+document.addEventListener("DOMContentLoaded", () => {
+  if (!v115PesquisarTodosInterval && typeof addSearchButtonsToResultCards === "function") {
+    v115PesquisarTodosInterval = setInterval(addSearchButtonsToResultCards, 5000);
+  }
+});
+
+
+// v116 — barra de pesquisa funcional sem guardar texto.
+function setupSearchBarNoPersistV116() {
+  const candidates = [
+    "searchInput",
+    "searchBox",
+    "globalSearchInput",
+    "calendarSearchInput",
+    "gameSearchInput",
+    "gamesSearchInput",
+    "topSearchInput"
+  ];
+
+  let input = null;
+  for (const id of candidates) {
+    const el = document.getElementById(id);
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
+      input = el;
+      break;
+    }
+  }
+
+  if (!input) {
+    input = Array.from(document.querySelectorAll('input[type="search"], input[placeholder*="Pesquisar" i], input[placeholder*="Procurar" i], input[aria-label*="Pesquisar" i]'))[0] || null;
+  }
+
+  if (!input || input.dataset.noPersistV116 === "1") return;
+
+  input.dataset.noPersistV116 = "1";
+  input.autocomplete = "off";
+  input.setAttribute("data-lpignore", "true");
+
+  // Não recuperar texto antigo.
+  input.value = "";
+  searchText = "";
+
+  const applySearch = () => {
+    searchText = String(input.value || "").trim();
+    try { renderCalendar(); } catch {}
+    try { renderCalendarFilterState(); } catch {}
+  };
+
+  input.addEventListener("input", applySearch);
+  input.addEventListener("search", applySearch);
+  input.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      input.value = "";
+      searchText = "";
+      applySearch();
+      input.blur();
+    }
+  });
+
+  // Ao fechar/atualizar, não deixa o texto ficar guardado no input pelo browser.
+  window.addEventListener("beforeunload", () => {
+    try { input.value = ""; searchText = ""; } catch {}
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupSearchBarNoPersistV116();
+  setTimeout(setupSearchBarNoPersistV116, 500);
+  setTimeout(setupSearchBarNoPersistV116, 1500);
+});
+document.addEventListener("click", () => setTimeout(setupSearchBarNoPersistV116, 120));
+
+
+let v117PesquisarReapply = null;
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(addSearchButtonsToResultCards, 400);
+  setTimeout(addSearchButtonsToResultCards, 1200);
+  if (!v117PesquisarReapply) {
+    v117PesquisarReapply = setInterval(addSearchButtonsToResultCards, 4000);
+  }
+});
+document.addEventListener("click", () => setTimeout(addSearchButtonsToResultCards, 150));
