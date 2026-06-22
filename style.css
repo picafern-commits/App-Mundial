@@ -8962,3 +8962,195 @@ body.modal-open-v162{
     font-size:24px!important;
   }
 }
+
+/* v164 - centro de notificacoes, instalacao guiada e acesso admin. */
+.tab-badge-v164{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-width:20px!important;
+  height:20px!important;
+  margin-left:6px!important;
+  border-radius:999px!important;
+  padding:0 6px!important;
+  color:#fff!important;
+  background:linear-gradient(135deg,#3b82f6,#8b5cf6)!important;
+  font-size:11px!important;
+  font-weight:1000!important;
+}
+
+.notifications-summary-v164{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:12px!important;
+  margin-bottom:12px!important;
+}
+
+.notifications-summary-v164 article,
+.notification-row-v164,
+.install-guide-v164{
+  border:1px solid rgba(255,255,255,.13)!important;
+  border-radius:10px!important;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.035)),
+    rgba(12,19,32,.92)!important;
+  box-shadow:0 14px 36px rgba(0,0,0,.18)!important;
+}
+
+.notifications-summary-v164 article{
+  padding:14px!important;
+}
+
+.notifications-summary-v164 span{
+  display:block!important;
+  color:rgba(255,255,255,.64)!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  text-transform:uppercase!important;
+}
+
+.notifications-summary-v164 strong{
+  display:block!important;
+  margin-top:6px!important;
+  color:#fff!important;
+  font-size:28px!important;
+  line-height:1!important;
+  font-weight:1000!important;
+}
+
+.notifications-summary-v164 p{
+  margin:8px 0 0!important;
+  color:rgba(255,255,255,.68)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+}
+
+.notifications-list-v164{
+  display:grid!important;
+  gap:10px!important;
+}
+
+.notification-row-v164{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:12px!important;
+  align-items:start!important;
+  padding:14px!important;
+  border-left:3px solid rgba(139,92,246,.62)!important;
+}
+
+.notification-row-v164.unread{
+  background:
+    linear-gradient(90deg,rgba(59,130,246,.16),rgba(139,92,246,.08)),
+    rgba(12,19,32,.94)!important;
+}
+
+.notification-row-v164.result{ border-left-color:#3b82f6!important; }
+.notification-row-v164.knockout{ border-left-color:#8b5cf6!important; }
+.notification-row-v164.sync{ border-left-color:#fbbf24!important; }
+.notification-row-v164.install{ border-left-color:#22d3ee!important; }
+.notification-row-v164.suspended,
+.notification-row-v164.warning{ border-left-color:#fb7185!important; }
+
+.notification-row-v164 span,
+.notification-row-v164 small{
+  color:rgba(255,255,255,.62)!important;
+  font-size:12px!important;
+  font-weight:850!important;
+}
+
+.notification-row-v164 strong{
+  display:block!important;
+  margin-top:3px!important;
+  color:#fff!important;
+  font-size:15px!important;
+  font-weight:1000!important;
+}
+
+.notification-row-v164 p{
+  margin:5px 0 0!important;
+  color:rgba(255,255,255,.72)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+}
+
+.install-guide-v164{
+  display:grid!important;
+  gap:14px!important;
+  margin-top:14px!important;
+  padding:16px!important;
+}
+
+.install-guide-head-v164{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+
+.install-guide-head-v164 h3{
+  margin:0!important;
+  color:#fff!important;
+  font-size:18px!important;
+  font-weight:1000!important;
+}
+
+.install-guide-head-v164 p{
+  margin:4px 0 0!important;
+  color:rgba(255,255,255,.68)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+}
+
+.install-status-v164,
+.install-steps-v164{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+
+.install-status-v164 span,
+.install-steps-v164 article{
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:9px!important;
+  background:rgba(255,255,255,.055)!important;
+  padding:11px!important;
+}
+
+.install-status-v164 span{
+  color:#fff!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  text-align:center!important;
+}
+
+.install-steps-v164 strong{
+  display:block!important;
+  color:#fff!important;
+  font-size:14px!important;
+  font-weight:1000!important;
+}
+
+.install-steps-v164 p{
+  margin:6px 0 0!important;
+  color:rgba(255,255,255,.70)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+}
+
+@media(max-width:760px){
+  .notifications-summary-v164,
+  .install-status-v164,
+  .install-steps-v164{
+    grid-template-columns:1fr!important;
+  }
+
+  .notification-row-v164{
+    grid-template-columns:1fr!important;
+  }
+
+  .install-guide-head-v164{
+    align-items:stretch!important;
+    flex-direction:column!important;
+  }
+}

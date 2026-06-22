@@ -10,7 +10,8 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "25959";
-const APP_VERSION_LABEL = "v162";
+const APP_VERSION_LABEL = "v164";
+const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 
 let db = null;
 let firebaseApi = null;
@@ -1831,9 +1832,10 @@ function permissionTabAllowed(tabId) {
   if (tabId === "calendarTab") return hasPermission("calendar");
   if (tabId === "scoreTab") return hasPermission("score");
   if (tabId === "knockoutTab") return hasPermission("knockout");
+  if (tabId === "notificationsTab") return true;
   if (tabId === "adminTab") return hasPermission("admin");
-  if (tabId === "logsTab") return true;
-  if (tabId === "settingsTab") return true;
+  if (tabId === "logsTab") return hasPermission("admin");
+  if (tabId === "settingsTab") return hasPermission("admin");
   return true;
 }
 
@@ -1852,9 +1854,13 @@ function applyPermissionsToUi() {
   document.querySelector('[data-tab="calendarTab"]')?.classList.toggle("hidden", !hasPermission("calendar"));
   document.querySelector('[data-tab="scoreTab"]')?.classList.toggle("hidden", !hasPermission("score"));
   document.querySelector('[data-tab="knockoutTab"]')?.classList.toggle("hidden", !hasPermission("knockout"));
-  document.querySelector('[data-tab="logsTab"]')?.classList.toggle("hidden", false);
+  document.querySelector('[data-tab="notificationsTab"]')?.classList.toggle("hidden", false);
+  document.querySelector('[data-tab="logsTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
   document.querySelector('[data-tab="adminTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
-  document.querySelector('[data-tab="settingsTab"]')?.classList.toggle("hidden", false);
+  document.querySelector('[data-tab="settingsTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
+
+  const activeTab = document.querySelector(".tab.active");
+  if (activeTab && !permissionTabAllowed(activeTab.dataset.tab)) switchToFirstAllowedTab();
 
   $("adminTab")?.classList.toggle("no-access", !hasPermission("admin"));
 
@@ -4626,7 +4632,7 @@ function renderAll() {
   setupSearchResultsAdminButton();
   setTimeout(addSearchButtonsToResultCards, 0);
   setupOnlineUsersCloseControls();
-  setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSystemLogs(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); renderAdminOverviewV162(); renderAppSettingsPanelV162(); applyPermissionsToUi(); updateActiveAppSection(); 
+  setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSystemLogs(); renderNotificationsCenterV164(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); renderAdminOverviewV162(); renderAppSettingsPanelV162(); renderInstallGuideV164(); applyPermissionsToUi(); updateActiveAppSection(); 
   setTimeout(addSearchButtonsToResultCards, 250);
 }
 
@@ -6378,8 +6384,9 @@ document.querySelectorAll(".tab").forEach(button => {
     $(button.dataset.tab).classList.add("active");
     updateActiveAppSection();
     if (button.dataset.tab === "knockoutTab") renderKnockout();
+    if (button.dataset.tab === "notificationsTab") renderNotificationsCenterV164();
     if (button.dataset.tab === "logsTab") renderSystemLogs();
-    if (button.dataset.tab === "settingsTab") renderAppSettingsPanelV162();
+    if (button.dataset.tab === "settingsTab") { renderAppSettingsPanelV162(); renderInstallGuideV164(); }
   });
 });
 $("unlockAdminBtn").addEventListener("click", () => {
@@ -6546,6 +6553,8 @@ function showRefreshAppButton(message = "Nova versao disponivel.") {
   button.classList.remove("hidden");
   button.classList.add("has-update");
   button.title = message;
+  renderNotificationsCenterV164();
+  renderAppSettingsPanelV162();
 }
 
 async function refreshAppNow() {
@@ -9388,6 +9397,202 @@ function closeTopModalV162() {
   return true;
 }
 
+function notificationReadAtV164() {
+  return Number(localStorage.getItem(NOTIFICATIONS_READ_KEY_V164) || "0") || 0;
+}
+
+function notificationTypeLabelV164(type) {
+  return ({
+    result: "Resultado",
+    knockout: "Fase Final",
+    sync: "Sincronização",
+    install: "Instalação",
+    suspended: "Suspenso",
+    admin: "Admin",
+    warning: "Aviso"
+  })[type] || "Notificação";
+}
+
+function notificationFromLogV164(log) {
+  const category = logCategoryV162(log);
+  const type = category === "results" ? "result" :
+    category === "knockout" ? "knockout" :
+    category === "sync" ? "sync" :
+    category === "errors" ? "warning" :
+    "admin";
+
+  return {
+    id: `log:${log.id || log.at || log.action}`,
+    type,
+    at: log.at || new Date().toISOString(),
+    title: log.action || "Ação registada",
+    detail: log.detail || "A app registou uma alteração.",
+    actor: log.actorName || "Sistema"
+  };
+}
+
+function buildNotificationsV164() {
+  const notes = [];
+  const missing = games.filter(needsFinalResult).length;
+  const suspended = games.filter(isSuspendedGame);
+
+  if (!isStandaloneMode()) {
+    notes.push({
+      id: "install:pwa",
+      type: "install",
+      at: "2000-01-01T00:00:00.000Z",
+      title: "Instala a app neste dispositivo",
+      detail: isIosDevice()
+        ? "No iPhone, usa Safari > Partilhar > Adicionar ao Ecrã Principal."
+        : "No Android ou PC, usa o botão Instalar app quando o navegador o mostrar.",
+      actor: "PWA"
+    });
+  }
+
+  if ($("refreshAppBtn")?.classList.contains("has-update")) {
+    notes.push({
+      id: "app:update-ready",
+      type: "sync",
+      at: new Date().toISOString(),
+      title: "Nova versão disponível",
+      detail: "Toca em Atualizar app para aplicar a versão mais recente.",
+      actor: "Sistema"
+    });
+  }
+
+  if (!navigator.onLine) {
+    notes.push({
+      id: "device:offline",
+      type: "warning",
+      at: new Date().toISOString(),
+      title: "Dispositivo offline",
+      detail: "As alterações ficam guardadas localmente até a ligação voltar.",
+      actor: "Sistema"
+    });
+  }
+
+  if (suspended.length) {
+    const latest = suspended.map(game => game.suspendedAt || game.updatedAt || game.matchDate).filter(Boolean).sort().at(-1);
+    notes.push({
+      id: "games:suspended",
+      type: "suspended",
+      at: latest || new Date().toISOString(),
+      title: `${suspended.length} jogo${suspended.length === 1 ? "" : "s"} suspenso${suspended.length === 1 ? "" : "s"}`,
+      detail: "Continuam em Faltam resultados até serem fechados com resultado final.",
+      actor: "Admin"
+    });
+  }
+
+  if (missing) {
+    notes.push({
+      id: "games:missing-results",
+      type: "result",
+      at: "2000-01-01T00:00:00.000Z",
+      title: `${missing} jogo${missing === 1 ? "" : "s"} sem resultado final`,
+      detail: "Usa o filtro Faltam resultados para fechar os jogos pendentes.",
+      actor: "Calendário"
+    });
+  }
+
+  if (hasPermission("admin")) {
+    systemLogs().slice(0, 18).forEach(log => notes.push(notificationFromLogV164(log)));
+  }
+
+  return notes
+    .filter(note => note.title)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+function renderNotificationsCenterV164() {
+  const list = $("notificationsListV164");
+  const summary = $("notificationsSummaryV164");
+  const badge = $("notificationsBadgeV164");
+  if (!list || !summary) {
+    if (badge) badge.classList.add("hidden");
+    return;
+  }
+
+  const notes = buildNotificationsV164();
+  const readAt = notificationReadAtV164();
+  const unread = notes.filter(note => new Date(note.at).getTime() > readAt).length;
+  const important = notes.filter(note => ["warning", "suspended", "sync"].includes(note.type)).length;
+
+  if (badge) {
+    badge.textContent = String(unread);
+    badge.classList.toggle("hidden", unread <= 0);
+  }
+
+  summary.innerHTML = `
+    <article><span>Por ver</span><strong>${unread}</strong><p>Notificações desde a última leitura</p></article>
+    <article><span>Total</span><strong>${notes.length}</strong><p>Alertas recentes e estado da app</p></article>
+    <article><span>Importantes</span><strong>${important}</strong><p>Offline, suspensos ou atualização</p></article>
+  `;
+
+  if (!notes.length) {
+    list.innerHTML = `<div class="empty small-empty">Ainda não há notificações.</div>`;
+    return;
+  }
+
+  list.innerHTML = notes.map(note => {
+    const isUnread = new Date(note.at).getTime() > readAt;
+    return `
+      <article class="notification-row-v164 ${escapeHtml(note.type)} ${isUnread ? "unread" : ""}">
+        <div>
+          <span>${escapeHtml(notificationTypeLabelV164(note.type))} · ${escapeHtml(formatLogTime(note.at))}</span>
+          <strong>${escapeHtml(note.title)}</strong>
+          <p>${escapeHtml(note.detail || "")}</p>
+        </div>
+        <small>${escapeHtml(note.actor || "Sistema")}</small>
+      </article>
+    `;
+  }).join("");
+}
+
+function markNotificationsReadV164() {
+  localStorage.setItem(NOTIFICATIONS_READ_KEY_V164, String(Date.now()));
+  renderNotificationsCenterV164();
+  toast("Notificações marcadas como vistas.");
+}
+
+function renderInstallGuideV164() {
+  const container = $("installGuideV164");
+  if (!container) return;
+
+  const standalone = isStandaloneMode();
+  const installText = standalone ? "Instalada" : "Por instalar";
+  const swText = "serviceWorker" in navigator ? "Service Worker disponível" : "Service Worker indisponível";
+  const connectionText = navigator.onLine ? "Online" : "Offline";
+
+  container.innerHTML = `
+    <div class="install-guide-head-v164">
+      <div>
+        <h3>Guia de instalação</h3>
+        <p>Passos rápidos para instalar a PWA em iPhone, Android e PC.</p>
+      </div>
+      <button type="button" class="primary" data-install-now-v164>Instalar agora</button>
+    </div>
+    <div class="install-status-v164">
+      <span>${escapeHtml(installText)}</span>
+      <span>${escapeHtml(swText)}</span>
+      <span>${escapeHtml(connectionText)}</span>
+    </div>
+    <div class="install-steps-v164">
+      <article>
+        <strong>iPhone</strong>
+        <p>Abre no Safari, toca em Partilhar e escolhe Adicionar ao Ecrã Principal.</p>
+      </article>
+      <article>
+        <strong>Android</strong>
+        <p>Abre no Chrome, toca no menu e escolhe Instalar app ou Adicionar ao ecrã principal.</p>
+      </article>
+      <article>
+        <strong>PC</strong>
+        <p>No Edge ou Chrome, usa o ícone de instalação na barra de endereço ou o menu Apps.</p>
+      </article>
+    </div>
+  `;
+}
+
 function setupV162Controls() {
   if (window.__mundialV162ControlsBound) return;
   window.__mundialV162ControlsBound = true;
@@ -9403,6 +9608,11 @@ function setupV162Controls() {
   }
 
   document.addEventListener("click", event => {
+    if (event.target.closest("[data-install-now-v164]")) {
+      $("installAppBtn")?.click() || toast("Usa o menu do navegador para instalar a app neste dispositivo.");
+      return;
+    }
+
     const chip = event.target.closest("[data-log-filter]");
     if (chip) {
       const select = $("logsTypeFilter");
@@ -9430,15 +9640,22 @@ function setupV162Controls() {
   $("clearCacheBtnV162")?.addEventListener("click", clearAppCachesV162);
   $("installAppFromSettingsBtnV162")?.addEventListener("click", () => $("installAppBtn")?.click());
   $("openLogsFromSettingsBtnV162")?.addEventListener("click", () => openTabV162("logsTab"));
+  $("markNotificationsReadBtnV164")?.addEventListener("click", markNotificationsReadV164);
+  $("openNotificationSettingsBtnV164")?.addEventListener("click", () => {
+    if (hasPermission("admin")) openTabV162("settingsTab");
+    else $("installAppBtn")?.click() || toast("No iPhone usa Safari > Partilhar > Adicionar ao Ecrã Principal.");
+  });
   $("openAdminFromSettingsBtnV162")?.addEventListener("click", () => openTabV162("adminTab") || toast("Sem permissão para abrir Admin."));
 
-  window.addEventListener("online", renderAppSettingsPanelV162);
-  window.addEventListener("offline", renderAppSettingsPanelV162);
+  window.addEventListener("online", () => { renderAppSettingsPanelV162(); renderNotificationsCenterV164(); });
+  window.addEventListener("offline", () => { renderAppSettingsPanelV162(); renderNotificationsCenterV164(); });
   setInterval(setupModalStateV162, 600);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setupV162Controls();
+  renderNotificationsCenterV164();
   renderAdminOverviewV162();
   renderAppSettingsPanelV162();
+  renderInstallGuideV164();
 });
