@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt">
+<html lang="pt" class="desktop-fullscreen-instant-v148">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mundial Pontos 2026 · Pontuação Apostas Corrigidas</title>
+  <title>Mundial Pontos 2026 · Cores Oficial</title>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Mundial 2026" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,17 +14,13 @@
   <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png" />
   <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-
-
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#070b13" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="application-name" content="Mundial Pontos 2026" />
-  <meta name="msapplication-TileColor" content="#070b13" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="desktop-fullscreen-instant-v148">
 
   <section id="loginScreen" class="login-screen">
     <div class="login-card">
@@ -69,25 +65,30 @@
         <p class="eyebrow">Calendário da Fase de Grupos</p>
         <h1>Mundial Pontos 2026</h1>
       </div>
-      
-          <button id="chatAdminToggleBtn" class="topbar-btn chat-admin-toggle hidden" type="button" title="Ativar/desativar chat">
-            Chat: <span id="chatAdminToggleLabel">...</span>
-          </button>
-<button id="chatOpenBtn" class="secondary chat-open-btn" type="button">Chat <span id="chatUnreadBadge" class="chat-unread-badge hidden">0</span></button>
-        <div id="sessionBox" class="session-box hidden">
+
+      <button id="chatAdminToggleBtn" class="topbar-btn chat-admin-toggle hidden" type="button" title="Ativar/desativar chat">
+        Chat: <span id="chatAdminToggleLabel">...</span>
+      </button>
+
+      <button id="chatOpenBtn" class="secondary chat-open-btn" type="button">
+        Chat <span id="chatUnreadBadge" class="chat-unread-badge hidden">0</span>
+      </button>
+
+      <div id="sessionBox" class="session-box hidden">
         <span id="sessionUserLabel">Sem login</span>
         <button id="logoutBtn" class="secondary small" type="button">Sair</button>
       </div>
+
       <div class="copy-actions" aria-label="Copiar para WhatsApp">
         <button id="calendarMissingResultsBtn" class="primary" type="button">Faltam resultados</button>
-            <button id="calendarPlayedGamesBtn" class="secondary" type="button">Já jogaram</button>
-            <button id="calendarAllGamesBtn" class="secondary" type="button">Todos os jogos</button>
+        <button id="calendarPlayedGamesBtn" class="secondary" type="button">Já jogaram</button>
+        <button id="calendarAllGamesBtn" class="secondary" type="button">Todos os jogos</button>
         <details id="onlineUsersPanel" class="online-users-panel topbar-online-users">
           <summary class="secondary online-users-trigger">
             <span class="online-users-trigger-label">Users</span>
             <span id="onlineUsersBadge" class="online-users-badge">0 online</span>
           </summary>
-<div id="onlineUsersList" class="online-users-list">
+          <div id="onlineUsersList" class="online-users-list">
             <div class="online-users-popup-head">
               <strong>Utilizadores online</strong>
               <button id="closeOnlineUsersBtn" class="online-users-close" type="button" aria-label="Fechar utilizadores online" onclick="return window.closeOnlineUsersPanelNow(event)">×</button>
@@ -105,6 +106,7 @@
       <button class="tab active" type="button" data-tab="calendarTab">Calendário</button>
       <button class="tab" type="button" data-tab="scoreTab">Pontuação</button>
       <button class="tab" type="button" data-tab="knockoutTab">Fase Final</button>
+      <button class="tab" type="button" data-tab="logsTab">Logs</button>
       <button class="tab" type="button" data-tab="adminTab">Admin</button>
     </nav>
 
@@ -139,6 +141,39 @@
         </div>
         <div id="knockoutLockNotice" class="knockout-lock-notice"></div>
         <div id="knockoutBracket" class="knockout-bracket"></div>
+      </section>
+
+      <section id="logsTab" class="tab-panel">
+        <div class="section-head">
+          <div>
+            <h2>Logs do sistema</h2>
+            <p>Histórico em tempo real das ações importantes feitas na app.</p>
+          </div>
+        </div>
+
+        <div id="logsLockedPanel" class="logs-lock-card">
+          <h3>Aba protegida</h3>
+          <p>Introduz o PIN para consultar os logs desta sessão.</p>
+          <div class="pin-row">
+            <input id="logsPinInput" type="password" inputmode="numeric" placeholder="PIN dos logs" />
+            <button id="unlockLogsBtn" class="primary" type="button">Abrir logs</button>
+          </div>
+        </div>
+
+        <div id="logsUnlockedPanel" class="logs-live-panel hidden">
+          <div class="logs-toolbar">
+            <div>
+              <strong>Logs em tempo real</strong>
+              <span>Atualiza automaticamente quando a app sincroniza.</span>
+            </div>
+            <div class="collapse-actions">
+              <button id="exportLogsBtn" class="secondary" type="button">Exportar logs</button>
+              <button id="clearLogsBtn" class="secondary danger-soft" type="button">Limpar logs</button>
+              <button id="lockLogsBtn" class="secondary" type="button">Bloquear</button>
+            </div>
+          </div>
+          <div id="systemLogsList" class="system-logs-list"></div>
+        </div>
       </section>
 
       <section id="adminTab" class="tab-panel">
@@ -264,6 +299,7 @@
             <div class="collapse-actions">
               <button id="exportResultadosBtn" class="secondary" type="button">Exportar Excel Resultados</button>
                 <button id="searchAllResultsBtn" class="secondary admin-only search-results-admin-btn" type="button">Pesquisar resultados</button>
+              <button id="syncFootballDataBtn" class="primary" type="button">Atualizar resultados automáticos</button>
               <button id="openExcelModalBtn" class="primary" type="button">Importar Excel Resultados</button>
             </div>
             <div id="importStatusBox" class="import-status-box idle">Ainda não foi feita nenhuma importação.</div>
@@ -296,6 +332,30 @@
               </label>
               <label>Equipa vencedora
                 <input id="pointsChampionInput" type="number" min="0" step="1" />
+              </label>
+            </div>
+            <div class="points-settings-separator">
+              <h3>Sistema de Pontos da Fase Final</h3>
+              <p>Valores usados apenas nos jogos da Fase Final. O acerto nos penáltis soma aos pontos do resultado/vencedor.</p>
+            </div>
+            <div class="points-settings-grid">
+              <label>Resultado exato
+                <input id="knockoutPointsExactInput" type="number" min="0" step="1" />
+              </label>
+              <label>Equipa vencedora
+                <input id="knockoutPointsWinnerInput" type="number" min="0" step="1" />
+              </label>
+              <label>Acerto nos penáltis
+                <input id="knockoutPointsPenaltiesInput" type="number" min="0" step="1" />
+              </label>
+              <label>MVP
+                <input id="knockoutPointsMvpInput" type="number" min="0" step="1" />
+              </label>
+              <label>Melhor marcador
+                <input id="knockoutPointsTopScorerInput" type="number" min="0" step="1" />
+              </label>
+              <label>Equipa vencedora final
+                <input id="knockoutPointsChampionInput" type="number" min="0" step="1" />
               </label>
             </div>
           </details>
@@ -508,3 +568,4 @@
       </div>
 </body>
 </html>
+

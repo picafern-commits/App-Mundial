@@ -13,7 +13,6 @@
   --shadow: 0 18px 50px rgba(0, 0, 0, .26);
 }
 
-/* v54 Fase Final como cartaz da referencia */
 #knockoutBracket.knockout-bracket{
   display:block!important;
   overflow:auto!important;
@@ -894,8 +893,6 @@ h2 {
   }
 }
 
-
-/* v16 Excel import + multiuser leaderboard */
 .admin-stack { display: grid; gap: 12px; }
 .admin-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); padding: 14px; }
 .points-settings-grid, .modal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
@@ -924,8 +921,6 @@ h2 {
 .match-row { grid-template-columns: 78px minmax(130px, 1fr) 58px minmax(130px, 1fr) 70px 86px minmax(120px, 1fr) 106px; }
 @media (max-width: 820px) { .leaderboard-table { overflow-x: auto; } .leaderboard-row { min-width: 760px; } .modal-card { padding: 14px; } .modal-actions { display: grid; } }
 
-
-/* v17 users + calendario sem pesquisa */
 .toolbar{display:none!important}
 .user-add-row{
   display:grid;
@@ -973,19 +968,12 @@ h2 {
   .user-pill-row{align-items:flex-start;flex-direction:column}
 }
 
-
-/* v18 sem vencedor/empate certo */
 .points-settings-grid{
   grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
 }
 
-
-
-/* v20 resultados manuais */
 .manual-flow-note{ color:var(--muted); }
 
-
-/* v21 modal de resultados por jogo */
 .modal-result-actions{
   justify-content:flex-end;
 }
@@ -1093,8 +1081,6 @@ h2 {
   }
 }
 
-
-/* v22 botões de resultado no calendário */
 .match-row{
   grid-template-columns:78px minmax(130px,1fr) 58px minmax(130px,1fr) 70px 86px minmax(130px,1fr) 190px!important;
 }
@@ -1119,8 +1105,6 @@ h2 {
   }
 }
 
-
-/* v23 sem bandeiras + total vindo do Excel */
 .team span,
 .result-team span{
   display:none!important;
@@ -1143,8 +1127,6 @@ h2 {
   }
 }
 
-
-/* v24 import robusto */
 .excel-preview details summary{
   cursor:pointer;
   color:var(--gold);
@@ -1154,8 +1136,6 @@ h2 {
   margin:4px 0;
 }
 
-
-/* v25 admin colapsável + filtro calendário */
 .admin-accordion{
   gap:10px;
 }
@@ -1216,8 +1196,6 @@ h2 {
   white-space:nowrap;
 }
 
-
-/* v26 sem Grupos + Pontuação simples */
 .simple-score-table .leaderboard-row,
 .leaderboard-row{
   grid-template-columns:44px minmax(180px,1fr) 100px!important;
@@ -1236,8 +1214,6 @@ h2 {
   }
 }
 
-
-/* v27 filtros calendário + pontos corrigidos */
 #searchInput::placeholder{
   color:transparent!important;
 }
@@ -1251,8 +1227,6 @@ h2 {
   white-space:nowrap;
 }
 
-
-/* v28 admin limpo */
 #copyTodayBtn{display:none!important}
 .admin-accordion > .section-head{
   display:none!important;
@@ -1264,8 +1238,6 @@ h2 {
   margin:0 14px 14px;
 }
 
-
-/* v29 export/import resultados */
 .collapse-actions{
   display:flex;
   flex-wrap:wrap;
@@ -1275,8 +1247,6 @@ h2 {
   border-color:rgba(255,216,87,.35);
 }
 
-
-/* v30 editar apostas por utilizador */
 .user-editor-toolbar{
   display:flex;
   gap:12px;
@@ -1381,28 +1351,20 @@ h2 {
   }
 }
 
-
-/* v31 corrigido: Resultados dos jogos dentro da própria aba */
 .admin-collapse #adminGamesList{
   display:grid!important;
   margin:0 14px 14px;
 }
 
-
-/* v32 import por ID do jogo */
 .excel-preview strong{
   color:var(--gold);
 }
 
-
-/* v33 persistência apostas */
 .save-hint{
   color:var(--gold);
   font-weight:900;
 }
 
-
-/* v34 estado da importação */
 .import-status-box{
   margin:0 0 12px;
   padding:12px 14px;
@@ -1445,8 +1407,6 @@ h2 {
   color:#ff9a9a;
 }
 
-
-/* v35 refresh/apostas corrigido */
 .import-status-box.success strong::before{
   content:"✓ ";
 }
@@ -1454,8 +1414,6 @@ h2 {
   content:"⚠ ";
 }
 
-
-/* v36 Firebase total */
 .firebase-status-box{
   padding:12px 14px;
   border-radius:12px;
@@ -1483,26 +1441,18 @@ button:disabled{
   cursor:not-allowed;
 }
 
-
-/* v37 guardar rápido */
 .firebase-status-box.error{
   white-space:normal;
 }
 
-
-/* v38 refresh seguro */
 .firebase-status-box.success::after{
   content:"";
 }
 
-
-/* v39 Firebase load robusto */
 .firebase-status-box{
   overflow-wrap:anywhere;
 }
 
-
-/* v40 Firebase estável */
 .firebase-status-box{
   padding:12px 14px;
   border-radius:12px;
@@ -1527,8 +1477,6 @@ button:disabled{
   background:rgba(255,98,98,.08);
 }
 
-
-/* v41 Firebase save confirmado */
 .firebase-status-box.error{
   font-weight:950;
 }
@@ -1537,16 +1485,12 @@ button:disabled{
   cursor:not-allowed;
 }
 
-
-/* v42 regras pontuação certas */
 .total-highlight{
   color:var(--gold)!important;
   font-size:20px;
   font-weight:950;
 }
 
-
-/* v43 Pontuação detalhada por jogador */
 .score-detail-list{
   display:grid;
   gap:12px;
@@ -1696,8 +1640,6 @@ button:disabled{
   }
 }
 
-
-/* v44 Fase Final bloqueada + eliminatórias */
 .knockout-entry-card{
   display:flex;
   align-items:center;
@@ -1890,8 +1832,6 @@ button:disabled{
   }
 }
 
-
-/* v47 Fase Final estilo foto/bracket */
 #knockoutTab{
   overflow:hidden;
 }
@@ -2119,8 +2059,6 @@ button:disabled{
   }
 }
 
-
-/* v48 — app ocupa o ecrã todo e adapta ao tamanho */
 html{
   width:100%;
   min-height:100%;
@@ -2192,7 +2130,6 @@ main{
   width:min(820px, calc(100vw - 28px))!important;
 }
 
-/* Calendário aproveita melhor monitores grandes */
 @media(min-width:1280px){
   .match-row{
     grid-template-columns:86px minmax(180px,1fr) 64px minmax(180px,1fr) 82px 96px minmax(180px,1fr) 210px!important;
@@ -2208,7 +2145,6 @@ main{
   }
 }
 
-/* Admin em ecrãs grandes fica mais confortável */
 @media(min-width:1180px){
   .admin-row{
     grid-template-columns:minmax(360px,1fr) auto;
@@ -2218,7 +2154,6 @@ main{
   }
 }
 
-/* Bracket usa o ecrã inteiro e reduz o scroll quando há espaço */
 #knockoutBracket.knockout-bracket{
   width:100%;
 }
@@ -2246,7 +2181,6 @@ main{
   }
 }
 
-/* Em tablets/telemóveis, mantém ecrã inteiro mas com scroll horizontal só onde precisa */
 @media(max-width:980px){
   .app-shell{
     padding-inline:max(10px, env(safe-area-inset-left), env(safe-area-inset-right))!important;
@@ -2272,7 +2206,6 @@ main{
   }
 }
 
-/* Em PC baixo, reduz um pouco espaços para caber melhor */
 @media(max-height:760px) and (min-width:900px){
   .app-shell{
     padding-top:10px!important;
@@ -2301,7 +2234,6 @@ main{
   }
 }
 
-/* Remove limites antigos que comprimiam tabelas */
 @media(max-width:820px){
   .simple-score-table .leaderboard-row,
   .leaderboard-row{
@@ -2312,8 +2244,6 @@ main{
   }
 }
 
-
-/* v49 PWA Edge */
 .install-btn{
   border-color:rgba(255,216,87,.4)!important;
   background:rgba(255,216,87,.12)!important;
@@ -2324,8 +2254,6 @@ main{
   }
 }
 
-
-/* v50 — Fase Final: primeira ronda manual, restantes automáticas */
 .ko-admin-note strong{
   color:var(--gold);
 }
@@ -2350,8 +2278,6 @@ main{
   opacity:.55;
 }
 
-
-/* v51 — Penáltis na Fase Final */
 .ko-admin-row-penalties{
   grid-template-columns:110px minmax(140px,1fr) auto minmax(140px,1fr) minmax(150px,180px) minmax(150px,180px) auto!important;
 }
@@ -2405,8 +2331,6 @@ main{
   }
 }
 
-
-/* v52 — Fase Final: cards alinhados em frente a cada 2 jogos */
 #knockoutBracket.knockout-bracket{
   overflow-x:auto;
   overflow-y:auto;
@@ -2434,7 +2358,6 @@ main{
   min-height:1320px!important;
 }
 
-/* Medida base: card compacto para conseguir alinhar o bracket todo */
 .bracket-photo-grid .knockout-match{
   min-height:72px!important;
   height:72px!important;
@@ -2470,14 +2393,6 @@ main{
   font-size:10px!important;
 }
 
-/*
-  Alinhamento real:
-  - 16 avos: todos seguidos
-  - Oitavos: 1 card centrado entre cada 2 dos 16 avos
-  - Quartos: 1 card centrado entre cada 2 dos oitavos
-  - Meias: 1 card centrado entre cada 2 quartos
-  - Final: centrada entre as 2 meias
-*/
 .round-r32 .bracket-photo-matches{
   padding-top:0!important;
   gap:8px!important;
@@ -2499,7 +2414,6 @@ main{
   gap:0!important;
 }
 
-/* Linhas de ligação redesenhadas para os novos alinhamentos */
 .bracket-photo-round:not(.round-final) .knockout-match::after{
   content:""!important;
   position:absolute!important;
@@ -2517,7 +2431,6 @@ main{
   border-right:2px solid rgba(255,212,90,.30)!important;
 }
 
-/* altura vertical entre cada par, ajustada para os gaps da ronda */
 .round-r32 .knockout-match:nth-child(odd)::before{ top:50%!important; height:80px!important; }
 .round-r32 .knockout-match:nth-child(even)::before{ bottom:50%!important; height:80px!important; }
 
@@ -2536,7 +2449,6 @@ main{
   min-height:132px!important;
 }
 
-/* Em ecrãs grandes mantém proporcional sem esmagar o alinhamento */
 @media(min-width:1600px){
   .bracket-photo-shell{
     min-width:1520px!important;
@@ -2554,8 +2466,6 @@ main{
   }
 }
 
-
-/* v53 — Login + permissões */
 .auth-hidden{
   display:none!important;
 }
@@ -2750,8 +2660,6 @@ main{
   }
 }
 
-
-/* v54 — iPhone: modo app verdadeira ao adicionar ao Ecrã Principal */
 html,
 body{
   width:100%;
@@ -2770,7 +2678,7 @@ input,
 select,
 textarea,
 button{
-  font-size:16px!important; /* evita zoom automático do iPhone ao focar inputs */
+  font-size:16px!important; 
 }
 .ios-device body,
 .ios-device .app-shell,
@@ -2818,8 +2726,6 @@ button{
   }
 }
 
-
-/* v55 — Modal bonito para Ver Apostas */
 .bets-modal-card{
   width:min(980px, calc(100vw - 28px))!important;
 }
@@ -2982,8 +2888,6 @@ button{
   }
 }
 
-
-/* v56 — Memorizar conta no login */
 .remember-account-row{
   display:flex!important;
   align-items:center;
@@ -3000,8 +2904,6 @@ button{
   accent-color:#ffd45a;
 }
 
-
-/* v57 — Correção visual do modal Ver Apostas */
 #betsModal{
   padding:16px!important;
   align-items:center!important;
@@ -3131,7 +3033,6 @@ button{
   white-space:nowrap!important;
 }
 
-/* Tablet / janelas médias */
 @media(max-width:900px){
   #betsModal .bets-game-summary{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
@@ -3146,7 +3047,6 @@ button{
   }
 }
 
-/* iPhone/mobile: cada aposta vira card vertical, nada sai fora */
 @media(max-width:650px){
   #betsModal{
     padding:max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom))!important;
@@ -3233,7 +3133,6 @@ button{
   }
 }
 
-/* v54 override final: manter bracket espelhado no fim da cascata */
 #knockoutBracket .bracket-photo-grid-split{
   display:grid!important;
   grid-template-columns:190px 190px 190px 190px 240px 190px 190px 190px 190px!important;
@@ -3382,7 +3281,6 @@ button{
   content:none!important;
 }
 
-/* v55 Fase Final: caber no ecra, sem sair para a direita */
 #knockoutTab{
   overflow:hidden!important;
 }
@@ -3576,7 +3474,6 @@ button{
   }
 }
 
-/* v56 Fase Final: tudo dentro do ecra e texto dentro dos cartoes */
 html,
 body,
 .app-shell,
@@ -3639,7 +3536,6 @@ main,
   }
 }
 
-/* v57 Fase Final: cards iguais a referencia enviada */
 #knockoutBracket.knockout-bracket{
   overflow-x:hidden!important;
   overflow-y:visible!important;
@@ -3823,7 +3719,6 @@ main,
   }
 }
 
-/* v58: scroll normal na app; Fase Final cabe no primeiro ecra */
 html,
 body{
   height:auto!important;
@@ -4034,7 +3929,6 @@ main,
   margin-top:12px!important;
 }
 
-/* v59: scroll corrigido e cabecalhos da Fase Final uniformes */
 body:not(.knockout-layout-active){
   height:auto!important;
   min-height:100dvh!important;
@@ -4102,7 +3996,6 @@ body.knockout-layout-active #knockoutBracket.knockout-bracket{
   min-height:12px!important;
 }
 
-/* v60: cards centrados nas barras e scroll utilizavel no conteudo */
 body:not(.knockout-layout-active),
 body:not(.knockout-layout-active) .app-shell,
 body:not(.knockout-layout-active) main,
@@ -4165,7 +4058,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   left:calc(-3% - 8px)!important;
 }
 
-/* v61: editor admin para posicao dos cards da Fase Final */
 #knockoutBracket .bracket-photo-round .bracket-photo-matches{
   transform:translateY(var(--ko-column-offset, 0px))!important;
 }
@@ -4265,7 +4157,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-/* v62: editor de posicao dentro da pagina Fase Final, so Admin */
 #knockoutBracket .bracket-photo-shell{
   position:relative!important;
 }
@@ -4345,8 +4236,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   font-size:11px;
 }
 
-
-/* v58 — Estabilização dos ajustes da Fase Final */
 #knockoutBracket [data-ko-layout]{
   --ko-column-offset: var(--ko-column-offset, 0px);
   --ko-match-offset: var(--ko-match-offset, 0px);
@@ -4372,8 +4261,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   accent-color:#ffd45a;
 }
 
-
-/* v59 — Admin Fase Final: 16 avos manuais, restantes automáticos */
 .ko-admin-row.auto-round{
   opacity:.92;
 }
@@ -4395,8 +4282,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   opacity:.58;
 }
 
-
-/* v63 — Utilizadores online */
 .online-users-panel{
   margin:0 0 14px;
   border:1px solid var(--line);
@@ -4534,8 +4419,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v64 — Nomes visíveis dos users + jogos a decorrer */
 .match-row.live{
   border-color:rgba(255,212,90,.34);
   background:linear-gradient(135deg,rgba(255,212,90,.10),rgba(255,255,255,.03));
@@ -4595,8 +4478,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v65 — Users Online no lugar do botão Copiar pontuação */
 .topbar .topbar-online-users{
   position:relative!important;
   margin:0!important;
@@ -4704,8 +4585,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v66 — Botão Ajustar cards na barra da Fase Final */
 .knockout-top-actions{
   display:flex;
   justify-content:flex-end;
@@ -4738,8 +4617,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   display:block!important;
 }
 
-
-/* v67 — Corrigir dropdown Users Online no telemóvel */
 @media(max-width:760px){
   .topbar .topbar-online-users{
     position:static!important;
@@ -4794,8 +4671,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v68 — Fechar janela Users Online */
 .online-users-popup-head{
   display:flex;
   align-items:center;
@@ -4852,8 +4727,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v69 — X dos Users Online sempre visível no iPhone */
 .topbar .topbar-online-users .online-users-list{
   padding:10px!important;
 }
@@ -4926,8 +4799,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   }
 }
 
-
-/* v70 — garantir que o X recebe clique no iPhone */
 .topbar .topbar-online-users .online-users-close{
   pointer-events:auto!important;
   touch-action:manipulation!important;
@@ -4942,8 +4813,6 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   z-index:99998!important;
 }
 
-
-/* v71 — Android scroll fix */
 html,
 body{
   overflow-x:hidden;
@@ -4954,7 +4823,6 @@ body{
   touch-action:pan-y;
 }
 
-/* A app pode rolar normalmente em Android */
 .app,
 .app-shell,
 main,
@@ -4965,7 +4833,6 @@ main,
   touch-action:pan-y!important;
 }
 
-/* A janela dos users tem o seu próprio scroll e não bloqueia a página */
 .topbar .topbar-online-users .online-users-list{
   overflow-y:auto!important;
   overflow-x:hidden!important;
@@ -4974,14 +4841,12 @@ main,
   touch-action:pan-y!important;
 }
 
-/* Linhas/tabela dentro dos users também deixam arrastar verticalmente */
 .topbar .topbar-online-users .online-users-table,
 .topbar .topbar-online-users .online-users-row,
 .topbar .topbar-online-users .online-users-popup-head{
   touch-action:pan-y!important;
 }
 
-/* Só o X usa toque de botão; o resto pode fazer scroll */
 .topbar .topbar-online-users .online-users-close{
   touch-action:manipulation!important;
 }
@@ -4998,8 +4863,6 @@ main,
   }
 }
 
-
-/* v72 — Pesquisa de resultados só Admin */
 .search-results-admin-btn{
   min-height:40px!important;
   height:40px!important;
@@ -5031,8 +4894,6 @@ main,
   display:none!important;
 }
 
-
-/* v73 — Chat estilo WhatsApp */
 .chat-open-btn{position:relative;min-height:40px!important;height:40px!important;box-sizing:border-box!important;border-radius:8px!important;padding:9px 13px!important;font-size:14px!important;font-weight:850!important;white-space:nowrap!important}
 .chat-unread-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:#ff4d6d;color:white;font-size:10px;font-weight:1000;border:2px solid rgba(7,11,19,.95)}
 .chat-unread-badge.hidden{display:none!important}
@@ -5059,8 +4920,6 @@ main,
 @media(max-width:760px){.chat-panel{left:8px;right:8px;bottom:8px;width:auto;height:min(620px,calc(100dvh - 16px));border-radius:20px}.chat-messages{padding:12px 10px}.chat-bubble{max-width:88%}}
 @media(max-width:420px){.chat-panel{left:0;right:0;bottom:0;height:calc(100dvh - 10px);border-radius:18px 18px 0 0}}
 
-
-/* v74 — Melhorias do chat */
 .chat-open-btn.has-chat-unread{
   animation:chatPulse 1.25s ease-in-out infinite;
   border-color:rgba(255,77,109,.55)!important;
@@ -5152,8 +5011,6 @@ main,
   .chat-pinned-content{ align-items:flex-start; }
 }
 
-
-/* v75 — Chat estilo WhatsApp: ações só ao carregar na mensagem */
 .chat-actions{
   display:none!important;
 }
@@ -5221,8 +5078,6 @@ main,
   }
 }
 
-
-/* v76 — Chat completo */
 .chat-tabs{
   display:flex;
   gap:8px;
@@ -5442,8 +5297,6 @@ main,
   .chat-form button#chatSendBtn{padding:0 12px!important}
 }
 
-
-/* v77 — Chat visual corrigido / estilo WhatsApp */
 .chat-panel{
   height:min(640px, calc(100dvh - 18px))!important;
   max-height:calc(100dvh - 18px)!important;
@@ -5451,7 +5304,6 @@ main,
   border-radius:20px!important;
 }
 
-/* Cabeçalho mais compacto */
 .chat-header{
   min-height:56px!important;
   padding:10px 14px!important;
@@ -5475,7 +5327,6 @@ main,
   border-radius:14px!important;
 }
 
-/* Corrige os separadores que estavam gigantes */
 .chat-panel .chat-tabs{
   display:flex!important;
   align-items:center!important;
@@ -5529,7 +5380,6 @@ main,
   box-shadow:0 0 0 3px rgba(38,194,129,.08)!important;
 }
 
-/* Pesquisa mais limpa */
 .chat-search-wrap{
   padding:8px 10px!important;
   background:rgba(7,11,19,.88)!important;
@@ -5543,7 +5393,6 @@ main,
   font-size:13px!important;
 }
 
-/* Mais área útil para mensagens */
 .chat-messages{
   padding:12px 10px!important;
   min-height:0!important;
@@ -5582,7 +5431,6 @@ main,
   margin-top:4px!important;
 }
 
-/* Caixa de resposta / input mais WhatsApp */
 .chat-reply-preview{
   padding:7px 10px!important;
 }
@@ -5619,7 +5467,6 @@ main,
   font-weight:950!important;
 }
 
-/* Mensagem fixada e typing compactos */
 .chat-pinned-box{
   padding:7px 10px!important;
 }
@@ -5629,13 +5476,11 @@ main,
   font-size:12px!important;
 }
 
-/* Imagens não rebentam o mobile */
 .chat-image{
   max-height:200px!important;
   border-radius:12px!important;
 }
 
-/* Menu long press mais elegante */
 .chat-action-menu{
   max-width:min(330px, calc(100vw - 20px))!important;
   padding:7px!important;
@@ -5660,7 +5505,6 @@ main,
   min-height:34px!important;
 }
 
-/* iPhone / Android */
 @media(max-width:760px){
   .chat-panel{
     left:8px!important;
@@ -5762,15 +5606,11 @@ main,
   }
 }
 
-/* Garante que regras globais de botões/cards nunca transformam tabs em círculos */
 .chat-panel .chat-tabs .chat-tab{
   clip-path:none!important;
   border-radius:999px!important;
 }
 
-
-/* v78 — Correção REAL dos separadores Geral/Admin do chat */
-/* Usar classes novas para fugir dos estilos globais da app que estavam a fazer círculos */
 #chatPanel .chat-room-switch{
   all:unset!important;
   box-sizing:border-box!important;
@@ -5853,13 +5693,11 @@ main,
   display:none!important;
 }
 
-/* Anular definitivamente qualquer regra antiga .chat-tabs/.chat-tab que ainda exista */
 #chatPanel .chat-tabs,
 #chatPanel .chat-tab{
   all:unset!important;
 }
 
-/* Melhor ajuste do chat completo */
 #chatPanel.chat-panel{
   grid-template-rows:auto auto auto auto auto 1fr auto auto!important;
 }
@@ -5883,8 +5721,6 @@ main,
   }
 }
 
-
-/* v79 — Chat fullscreen no mobile */
 @media(max-width:760px){
   body.chat-fullscreen-open{
     overflow:hidden!important;
@@ -6078,8 +5914,6 @@ main,
   }
 }
 
-
-/* v80 — Chat mobile até ao fundo do ecrã */
 @media(max-width:760px){
   #chatPanel.chat-panel{
     display:flex!important;
@@ -6135,7 +5969,6 @@ main,
   }
 }
 
-/* fallback para browsers que ainda mexem mal com 100dvh */
 @supports(height:100svh){
   @media(max-width:760px){
     #chatPanel.chat-panel{
@@ -6146,8 +5979,6 @@ main,
   }
 }
 
-
-/* v81 — botão sair/fechar chat robusto */
 #chatCloseBtn.chat-close-btn{
   pointer-events:auto!important;
   touch-action:manipulation!important;
@@ -6165,8 +5996,6 @@ body:not(.chat-fullscreen-open) #chatPanel.hidden{
   pointer-events:none!important;
 }
 
-
-/* v82 — Mobile: chat como página separada; PC: janela */
 body.chat-mobile-page-open{
   overflow:hidden!important;
   background:rgba(7,11,19,1)!important;
@@ -6189,7 +6018,6 @@ body.chat-mobile-page-open{
   }
 }
 
-/* No mobile deixa de parecer popup: é uma página */
 @media(max-width:760px){
   body.chat-mobile-page-open > *:not(#chatPanel):not(#chatActionMenu):not(script):not(style){
     visibility:hidden!important;
@@ -6284,8 +6112,6 @@ body.chat-mobile-page-open{
   }
 }
 
-
-/* v85 — Safari mobile chat fix */
 #chatPanel.chat-panel.hidden{
   display:none!important;
   pointer-events:none!important;
@@ -6358,7 +6184,6 @@ body.chat-mobile-page-open{
   }
 }
 
-/* fallback especial Safari iOS */
 @supports(-webkit-touch-callout:none){
   @media(max-width:760px){
     body.chat-mobile-page-open #chatPanel.chat-panel:not(.hidden){
@@ -6369,8 +6194,6 @@ body.chat-mobile-page-open{
   }
 }
 
-
-/* v86 — imagens do chat mais robustas */
 .chat-image{
   display:block!important;
   width:auto!important;
@@ -6382,8 +6205,6 @@ body.chat-mobile-page-open{
   background:rgba(255,255,255,.06)!important;
 }
 
-
-/* v89 — Chat mobile limpo */
 #chatPanel.chat-panel.hidden,
 .chat-image-viewer.hidden{
   display:none!important;
@@ -6468,7 +6289,6 @@ body.chat-mobile-page-open{
   }
 }
 
-/* Viewer imagem */
 .chat-image-viewer{
   position:fixed!important;
   inset:0!important;
@@ -6502,8 +6322,6 @@ body.chat-mobile-page-open{
   z-index:2147483500!important;
 }
 
-
-/* v91 — imagem por cima do chat + menu por toque */
 .chat-image-button{
   display:block!important;
   border:0!important;
@@ -6574,14 +6392,11 @@ body.chat-mobile-page-open{
   touch-action:manipulation!important;
 }
 
-/* menu de ações também por cima de tudo */
 #chatActionMenu.chat-action-menu{
   z-index:2147483550!important;
   pointer-events:auto!important;
 }
 
-
-/* v92 — o visualizador de imagem fica por cima do chat mobile */
 body.chat-mobile-page-open > #chatImageViewer,
 body.chat-fullscreen-open > #chatImageViewer,
 html.chat-image-viewer-open body > #chatImageViewer,
@@ -6632,7 +6447,6 @@ body.chat-image-viewer-open > #chatImageViewer.hidden{
   z-index:2147483647!important;
 }
 
-/* Garante que a regra antiga que escondia tudo por trás do chat não esconde o viewer */
 @media(max-width:760px){
   body.chat-mobile-page-open > #chatImageViewer{
     visibility:visible!important;
@@ -6645,8 +6459,6 @@ body.chat-image-viewer-open > #chatImageViewer.hidden{
   }
 }
 
-
-/* v93 — mostrar mesmo a foto no visualizador, por cima do chat */
 .chat-image-button{
   display:block!important;
   border:0!important;
@@ -6725,8 +6537,6 @@ body.chat-image-viewer-open > #chatImageViewer.hidden{
   }
 }
 
-
-/* v94 - chat de grupo tipo WhatsApp para 18 users */
 #chatPanel.chat-panel{
   background:#0b141a!important;
   border-color:rgba(255,255,255,.12)!important;
@@ -6947,8 +6757,6 @@ body.chat-image-viewer-open > #chatImageViewer.hidden{
   }
 }
 
-
-/* v103 - garante que o chat aberto recebe sempre toques */
 #chatPanel.chat-panel:not(.hidden){
   pointer-events:auto!important;
   visibility:visible!important;
@@ -6978,8 +6786,6 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   display:none!important;
 }
 
-
-/* v104 - botao atualizar app */
 .refresh-app-btn{
   border-color:rgba(255,212,90,.40)!important;
   color:#ffd45a!important;
@@ -7003,8 +6809,6 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   50%{ transform:translateY(-1px); }
 }
 
-
-/* v98 — botão admin para ativar/desativar chat */
 .chat-admin-toggle{
   border:1px solid rgba(255,255,255,.16)!important;
   background:rgba(255,255,255,.08)!important;
@@ -7028,8 +6832,6 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   display:none!important;
 }
 
-
-/* v104 — filtros do calendário mais claros */
 #calendarMissingResultsBtn,
 #calendarAllGamesBtn{
   display:inline-flex!important;
@@ -7069,8 +6871,6 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   box-shadow:0 0 0 2px rgba(255,255,255,.10) inset, 0 12px 30px rgba(0,0,0,.20)!important;
 }
 
-
-/* v105 — filtro Já jogaram */
 #calendarPlayedGamesBtn{
   display:inline-flex!important;
   align-items:center!important;
@@ -7102,16 +6902,12 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   box-shadow:0 0 0 2px rgba(255,255,255,.10) inset, 0 12px 30px rgba(0,0,0,.20)!important;
 }
 
-
-/* v114 — indicador discreto do modo económico Firebase */
 .firebase-status-box::after{
   content:" · modo económico";
   opacity:.68;
   font-weight:700;
 }
 
-
-/* v115 — botão Pesquisar visível para todos */
 .search-result-btn,
 .search-result-btn-v115{
   display:inline-flex!important;
@@ -7131,8 +6927,6 @@ body.chat-image-viewer-open #chatImageViewer.hidden{
   font-size:.95em;
 }
 
-
-/* v116 — barra de pesquisa funcional, sem persistir texto */
 input[type="search"],
 input[placeholder*="Pesquisar" i],
 input[placeholder*="Procurar" i]{
@@ -7144,8 +6938,6 @@ input[data-no-persist-v116]{
   border-radius:999px!important;
 }
 
-
-/* v117 — botão Pesquisar em cada jogo */
 .search-game-result-btn,
 .search-result-btn-v117{
   display:inline-flex!important;
@@ -7171,8 +6963,6 @@ input[data-no-persist-v116]{
   display:inline-flex!important;
 }
 
-
-/* v118 — Pontuação: detalhes por user mostram jogos já jogados recentes primeiro */
 #scoreTab .score-game-row,
 #scoreTab .player-game-row,
 #scoreTab .bet-row{
@@ -7185,14 +6975,1655 @@ input[data-no-persist-v116]{
   border-top-color:rgba(52,211,153,.35)!important;
 }
 
-
-/* v119 — Pontuação corrigida: só jogos com resultado real */
 #scoreTab .player-games-table .player-game-row:not(.head){
   display:grid!important;
 }
 
-
-/* v120 — Pontuação: apostas recuperadas nos jogos com resultado */
 #scoreTab .player-game-row:not(.head) span:nth-child(2){
   font-weight:900!important;
+}
+
+.knockout-mobile-v121{
+  display:none;
+}
+
+@media(max-width:760px){
+  #knockoutTab .knockout-mobile-v121{
+    display:block!important;
+  }
+
+  
+  #knockoutTab .knockout-bracket,
+  #knockoutTab .ko-bracket,
+  #knockoutTab .bracket,
+  #knockoutTab .knockout-rounds,
+  #knockoutTab .rounds-grid,
+  #knockoutTab .knockout-board,
+  #knockoutTab .knockout-grid{
+    display:none!important;
+  }
+
+  .ko-mobile-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px;
+    border-radius:22px;
+    background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+    border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 16px 40px rgba(0,0,0,.22);
+    margin-bottom:12px;
+  }
+
+  .ko-mobile-header span{
+    display:block;
+    font-size:12px;
+    font-weight:900;
+    color:rgba(255,255,255,.62);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+
+  .ko-mobile-header strong{
+    display:block;
+    margin-top:3px;
+    font-size:21px;
+    line-height:1.1;
+    color:#fff;
+  }
+
+  .ko-mobile-header small{
+    flex:0 0 auto;
+    border-radius:999px;
+    padding:7px 10px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.10);
+    color:rgba(255,255,255,.78);
+    font-weight:900;
+  }
+
+  .ko-mobile-tabs{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    padding:4px 2px 12px;
+    margin-bottom:4px;
+  }
+
+  .ko-mobile-tabs::-webkit-scrollbar{
+    display:none;
+  }
+
+  .ko-mobile-chip{
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-height:40px;
+    padding:9px 13px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.13);
+    background:rgba(255,255,255,.065);
+    color:#fff;
+    font-weight:950;
+  }
+
+  .ko-mobile-chip span{
+    display:inline-flex;
+    min-width:22px;
+    height:22px;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:rgba(255,255,255,.11);
+    color:rgba(255,255,255,.85);
+    font-size:12px;
+  }
+
+  .ko-mobile-chip.active{
+    background:linear-gradient(135deg,rgba(34,211,238,.28),rgba(16,185,129,.22));
+    border-color:rgba(125,255,231,.42);
+    box-shadow:0 14px 32px rgba(16,185,129,.16);
+  }
+
+  .ko-mobile-list{
+    display:grid;
+    gap:12px;
+  }
+
+  .ko-mobile-card{
+    border-radius:24px;
+    padding:14px;
+    border:1px solid rgba(255,255,255,.12);
+    background:
+      linear-gradient(90deg,rgba(34,211,238,.10),transparent 38%),
+      linear-gradient(180deg,rgba(15,23,42,.95),rgba(3,7,18,.96));
+    box-shadow:0 18px 44px rgba(0,0,0,.28);
+  }
+
+  .ko-mobile-card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:12px;
+    color:rgba(255,255,255,.65);
+    font-size:12px;
+    font-weight:900;
+  }
+
+  .ko-mobile-card-head strong{
+    color:rgba(255,255,255,.86);
+  }
+
+  .ko-mobile-team{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    gap:12px;
+    padding:12px;
+    border-radius:18px;
+    background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.08);
+  }
+
+  .ko-mobile-team span{
+    min-width:0;
+    font-size:17px;
+    font-weight:950;
+    color:#fff;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .ko-mobile-team b{
+    min-width:42px;
+    height:42px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:15px;
+    background:rgba(255,255,255,.08);
+    color:#fff;
+    font-size:22px;
+    font-weight:1000;
+  }
+
+  .ko-mobile-team.winner{
+    background:rgba(16,185,129,.13);
+    border-color:rgba(52,211,153,.34);
+  }
+
+  .ko-mobile-team.winner b{
+    background:rgba(16,185,129,.22);
+  }
+
+  .ko-mobile-versus{
+    text-align:center;
+    margin:7px 0;
+    color:rgba(255,255,255,.52);
+    font-weight:950;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+  }
+
+  .ko-mobile-pens{
+    margin-top:10px;
+    border-radius:16px;
+    padding:9px 11px;
+    background:rgba(250,204,21,.10);
+    border:1px solid rgba(250,204,21,.22);
+    color:#ffe58a;
+    font-weight:900;
+  }
+
+  .ko-mobile-status{
+    margin-top:10px;
+    border-radius:16px;
+    padding:10px 11px;
+    font-weight:900;
+    background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.09);
+    color:rgba(255,255,255,.76);
+  }
+
+  .ko-mobile-status.done{
+    background:rgba(16,185,129,.12);
+    border-color:rgba(52,211,153,.25);
+    color:#c9ffe6;
+  }
+
+  .ko-mobile-edit{
+    width:100%;
+    margin-top:10px;
+    border-radius:999px!important;
+  }
+
+  .ko-mobile-empty{
+    padding:18px;
+    border-radius:22px;
+    background:rgba(255,255,255,.045);
+    border:1px dashed rgba(255,255,255,.16);
+    color:rgba(255,255,255,.70);
+    text-align:center;
+    font-weight:900;
+  }
+
+  .ko-mobile-nav{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+  }
+
+  .ko-mobile-nav button{
+    flex:1 1 0;
+    border-radius:999px!important;
+    min-height:44px!important;
+    font-weight:950!important;
+  }
+}
+
+@media(max-width:760px){
+  body:not(.knockout-mobile-page-v137) #knockoutMobileV121,
+  #adminTab #knockoutMobileV121,
+  #scoreTab #knockoutMobileV121,
+  #calendarTab #knockoutMobileV121,
+  #betsTab #knockoutMobileV121,
+  #settingsTab #knockoutMobileV121,
+  #usersTab #knockoutMobileV121{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+
+  html.knockout-mobile-page-v137,
+  body.knockout-mobile-page-v137{
+    height:auto!important;
+    min-height:100%!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  body.knockout-mobile-page-v137 .app,
+  body.knockout-mobile-page-v137 .app-shell,
+  body.knockout-mobile-page-v137 #app,
+  body.knockout-mobile-page-v137 main,
+  body.knockout-mobile-page-v137 .main,
+  body.knockout-mobile-page-v137 .content,
+  body.knockout-mobile-page-v137 .app-content,
+  body.knockout-mobile-page-v137 .tab-content,
+  body.knockout-mobile-page-v137 .tabs-content,
+  body.knockout-mobile-page-v137 .tab-panel,
+  body.knockout-mobile-page-v137 .tab-panel.active{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    transform:none!important;
+    contain:none!important;
+  }
+
+  body.knockout-mobile-page-v137 .app-shell:has(#knockoutTab.active),
+  body.knockout-mobile-page-v137 .app-shell.knockout-screen-active{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    padding-top:max(14px, env(safe-area-inset-top))!important;
+    padding-bottom:max(28px, env(safe-area-inset-bottom))!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutTab.active{
+    display:block!important;
+    height:auto!important;
+    min-height:100vh!important;
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    padding:8px 10px calc(72px + env(safe-area-inset-bottom,0px))!important;
+    background:linear-gradient(180deg,rgba(7,17,31,.98),rgba(2,6,23,.99))!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121,
+  body.knockout-mobile-page-v137 #knockoutTab.active #knockoutMobileV121{
+    display:block!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    padding:0 0 calc(36px + env(safe-area-inset-bottom,0px))!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-header,
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-tabs{
+    position:static!important;
+    top:auto!important;
+    z-index:auto!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-tabs{
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-list,
+  body.knockout-mobile-page-v137 #knockoutTab.active #knockoutMobileV121 .ko-mobile-list{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:hidden!important;
+    position:static!important;
+    padding:2px 0 32px!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-card{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    height:auto!important;
+    min-height:auto!important;
+    max-height:none!important;
+    overflow:hidden!important;
+    position:relative!important;
+    flex:none!important;
+    margin:0 0 10px!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-mobile-nav:empty{
+    display:none!important;
+  }
+
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-force-hidden-v133,
+  body.knockout-mobile-page-v137 #knockoutMobileV121 .ko-force-active-v133{
+    display:block!important;
+    visibility:visible!important;
+    height:auto!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+}
+
+.points-settings-separator{
+  margin:18px 0 12px!important;
+  padding-top:16px!important;
+  border-top:1px solid var(--line)!important;
+}
+
+.points-settings-separator h3{
+  margin:0 0 5px!important;
+  color:var(--text)!important;
+  font-size:16px!important;
+  font-weight:1000!important;
+}
+
+.points-settings-separator p{
+  margin:0!important;
+  color:var(--muted)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+}
+
+.system-logs-list{
+  display:grid!important;
+  gap:10px!important;
+  max-height:520px!important;
+  overflow:auto!important;
+  padding-right:4px!important;
+}
+
+.system-log-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(160px,220px)!important;
+  gap:12px!important;
+  align-items:start!important;
+  padding:12px!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.045)!important;
+}
+
+.system-log-main,
+.system-log-actor{
+  min-width:0!important;
+}
+
+.system-log-main span,
+.system-log-actor span{
+  display:block!important;
+  color:var(--muted)!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+
+.system-log-main strong,
+.system-log-actor strong{
+  display:block!important;
+  color:var(--text)!important;
+  font-size:14px!important;
+  font-weight:1000!important;
+  overflow-wrap:anywhere!important;
+}
+
+.system-log-main p{
+  margin:4px 0 0!important;
+  color:var(--muted)!important;
+  font-size:13px!important;
+  font-weight:750!important;
+  overflow-wrap:anywhere!important;
+}
+
+.system-log-actor{
+  text-align:right!important;
+}
+
+body.ko-record-modal-open{
+  overflow:hidden!important;
+}
+
+body.ko-record-modal-open .app-shell{
+  pointer-events:none!important;
+}
+
+.ko-card-record-btn{
+  width:100%!important;
+  min-height:32px!important;
+  margin-top:6px!important;
+  border-radius:8px!important;
+  padding:6px 8px!important;
+  font-size:10px!important;
+  font-weight:950!important;
+}
+
+#knockoutMobileV121 .ko-card-record-btn{
+  min-height:42px!important;
+  margin-top:11px!important;
+  border-radius:14px!important;
+  font-size:14px!important;
+}
+
+.knockout-record-modal{
+  position:fixed!important;
+  inset:0!important;
+  z-index:200000!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:18px!important;
+  background:rgba(2,6,23,.74)!important;
+  backdrop-filter:blur(14px)!important;
+  pointer-events:auto!important;
+  touch-action:auto!important;
+}
+
+.knockout-record-card{
+  pointer-events:auto!important;
+  width:min(560px, calc(100vw - 28px))!important;
+  max-height:calc(100dvh - 36px)!important;
+  overflow:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  border-radius:20px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(3,7,18,.98))!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.55)!important;
+}
+
+.knockout-record-card .modal-head{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  margin-bottom:14px!important;
+}
+
+.knockout-record-card .modal-head strong{
+  display:block!important;
+  color:#fff!important;
+  font-size:20px!important;
+  font-weight:1000!important;
+}
+
+.knockout-record-card .modal-head span{
+  display:block!important;
+  margin-top:3px!important;
+  color:rgba(255,255,255,.68)!important;
+  font-size:13px!important;
+  font-weight:850!important;
+}
+
+.knockout-record-card .ko-card-editor.modal{
+  display:grid!important;
+  gap:12px!important;
+}
+
+.knockout-record-card .ko-card-editor-teams,
+.knockout-record-card .ko-card-editor-scores{
+  display:grid!important;
+  gap:10px!important;
+}
+
+.knockout-record-card .ko-card-editor-teams{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+}
+
+.knockout-record-card .ko-card-editor-scores{
+  grid-template-columns:1fr 1fr!important;
+}
+
+.knockout-record-card .ko-card-editor select,
+.knockout-record-card .ko-card-editor input{
+  width:100%!important;
+  min-width:0!important;
+  min-height:44px!important;
+  border-radius:13px!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  background:rgba(255,255,255,.08)!important;
+  color:#fff!important;
+  padding:10px 11px!important;
+  font-size:15px!important;
+  font-weight:850!important;
+}
+
+.knockout-record-card .ko-card-editor input:disabled,
+.knockout-record-card .ko-card-editor select:disabled{
+  opacity:.62!important;
+}
+
+.knockout-record-card .ko-card-editor label{
+  display:grid!important;
+  gap:6px!important;
+  color:rgba(255,255,255,.72)!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  text-transform:uppercase!important;
+}
+
+.knockout-record-card .ko-score-pair{
+  display:grid!important;
+  grid-template-columns:1fr auto 1fr!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+
+.knockout-record-card .ko-score-pair em{
+  color:rgba(255,255,255,.72)!important;
+  font-style:normal!important;
+  font-weight:1000!important;
+}
+
+.knockout-record-card .ko-card-save{
+  width:100%!important;
+  min-height:46px!important;
+  border-radius:14px!important;
+  font-size:15px!important;
+  font-weight:1000!important;
+}
+
+@media(max-width:760px){
+  .knockout-record-modal{
+    align-items:end!important;
+    padding:10px!important;
+  }
+
+  .knockout-record-card{
+    width:100%!important;
+    max-height:calc(92dvh - env(safe-area-inset-bottom,0px))!important;
+    border-radius:22px 22px 16px 16px!important;
+  }
+
+  .knockout-record-card .ko-card-editor-scores{
+    grid-template-columns:1fr!important;
+  }
+
+  .knockout-record-card .ko-card-editor-teams{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  }
+
+  .system-log-row{
+    grid-template-columns:1fr!important;
+  }
+
+  .system-log-actor{
+    text-align:left!important;
+  }
+}
+
+:root{
+  --surface-clean:rgba(13,21,34,.86);
+  --surface-clean-strong:rgba(17,28,44,.94);
+  --line-clean:rgba(255,255,255,.115);
+  --focus-clean:rgba(124,92,255,.42);
+}
+
+body{
+  background:
+    linear-gradient(180deg,#070b13 0%,#0a1020 52%,#070b13 100%)!important;
+}
+
+.app-shell{
+  max-width:1440px!important;
+}
+
+.topbar{
+  display:grid!important;
+  grid-template-columns:minmax(220px,1fr) auto auto auto!important;
+  gap:12px!important;
+  align-items:center!important;
+  padding:14px!important;
+  border:1px solid var(--line-clean)!important;
+  border-radius:10px!important;
+  background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(8,13,23,.92))!important;
+  box-shadow:0 14px 42px rgba(0,0,0,.24)!important;
+}
+
+.topbar h1{
+  margin:0!important;
+  font-size:clamp(22px,3vw,36px)!important;
+  line-height:1.05!important;
+}
+
+.topbar .eyebrow,
+.login-brand .eyebrow{
+  letter-spacing:0!important;
+}
+
+.copy-actions{
+  grid-column:1 / -1!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+}
+
+.tabs{
+  position:sticky!important;
+  top:8px!important;
+  z-index:30!important;
+  gap:6px!important;
+  padding:6px!important;
+  border-radius:10px!important;
+  background:rgba(7,11,19,.88)!important;
+  backdrop-filter:blur(14px)!important;
+}
+
+.tab{
+  min-height:42px!important;
+  border-radius:8px!important;
+  font-weight:950!important;
+}
+
+.tab.active{
+  background:linear-gradient(135deg,#2563eb,#7c3aed)!important;
+  box-shadow:0 10px 24px rgba(37,99,235,.22)!important;
+}
+
+.section-head,
+.admin-card,
+.match-row,
+.player-score-card,
+.ko-mobile-card,
+.knockout-lock-notice,
+.knockout-entry-card{
+  border-color:var(--line-clean)!important;
+  background:var(--surface-clean)!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.18)!important;
+}
+
+.admin-card{
+  padding:16px!important;
+}
+
+.admin-card summary{
+  border-radius:8px!important;
+}
+
+.admin-card[open]{
+  background:var(--surface-clean-strong)!important;
+}
+
+.section-head h2,
+.admin-card h2{
+  letter-spacing:0!important;
+}
+
+button,
+input,
+select,
+textarea,
+summary{
+  outline:none!important;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible{
+  box-shadow:0 0 0 3px var(--focus-clean)!important;
+  border-color:rgba(124,92,255,.62)!important;
+}
+
+.primary{
+  background:linear-gradient(135deg,#2563eb,#7c3aed)!important;
+  border-color:rgba(255,255,255,.10)!important;
+}
+
+.secondary{
+  background:rgba(255,255,255,.075)!important;
+  border-color:var(--line-clean)!important;
+}
+
+.danger-soft{
+  color:#fecaca!important;
+  border-color:rgba(248,113,113,.30)!important;
+  background:rgba(127,29,29,.24)!important;
+}
+
+.empty,
+.import-summary,
+.firebase-status-box,
+.login-status{
+  border-color:var(--line-clean)!important;
+  background:rgba(255,255,255,.045)!important;
+}
+
+.system-logs-list{
+  scrollbar-width:thin!important;
+  scrollbar-color:rgba(124,92,255,.55) transparent!important;
+}
+
+.system-log-row{
+  background:rgba(255,255,255,.052)!important;
+}
+
+.logs-lock-card,
+.logs-live-panel{
+  border:1px solid var(--line-clean)!important;
+  border-radius:10px!important;
+  background:var(--surface-clean)!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.18)!important;
+  padding:16px!important;
+}
+
+.logs-lock-card{
+  display:grid!important;
+  gap:10px!important;
+  max-width:560px!important;
+}
+
+.logs-lock-card h3{
+  margin:0!important;
+  color:var(--text)!important;
+  font-size:20px!important;
+  font-weight:1000!important;
+}
+
+.logs-lock-card p{
+  margin:0!important;
+  color:var(--muted)!important;
+  font-size:14px!important;
+  font-weight:750!important;
+}
+
+.logs-toolbar{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  align-items:center!important;
+  margin-bottom:12px!important;
+}
+
+.logs-toolbar strong{
+  display:block!important;
+  color:var(--text)!important;
+  font-size:16px!important;
+  font-weight:1000!important;
+}
+
+.logs-toolbar span{
+  display:block!important;
+  margin-top:2px!important;
+  color:var(--muted)!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+
+@media(max-width:760px){
+  .topbar{
+    grid-template-columns:1fr!important;
+    padding:12px!important;
+  }
+
+  .copy-actions{
+    justify-content:stretch!important;
+  }
+
+  .copy-actions > *,
+  .copy-actions button{
+    min-width:0!important;
+  }
+
+  .tabs{
+    top:0!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .section-head,
+  .admin-card{
+    padding:13px!important;
+  }
+
+  .logs-toolbar{
+    align-items:stretch!important;
+    flex-direction:column!important;
+  }
+}
+
+
+
+/* v139 — botão football-data */
+#syncFootballDataBtn{
+  background:linear-gradient(135deg,rgba(16,185,129,.95),rgba(34,197,94,.82))!important;
+  border-color:rgba(52,211,153,.45)!important;
+}
+#syncFootballDataBtn:disabled{
+  opacity:.65!important;
+  cursor:wait!important;
+}
+
+
+/* v142 — caixa do botão football-data no Admin */
+.football-data-admin-box-v142{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  width:100%!important;
+  margin:10px 0 14px!important;
+  padding:14px!important;
+  border:1px solid rgba(52,211,153,.24)!important;
+  border-radius:16px!important;
+  background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(15,23,42,.92))!important;
+}
+.football-data-admin-box-v142 div{
+  display:grid!important;
+  gap:3px!important;
+}
+.football-data-admin-box-v142 strong{
+  color:#fff!important;
+  font-size:15px!important;
+}
+.football-data-admin-box-v142 span{
+  color:rgba(255,255,255,.65)!important;
+  font-size:12px!important;
+}
+#syncFootballDataBtn{
+  min-height:42px!important;
+  white-space:nowrap!important;
+  background:linear-gradient(135deg,rgba(16,185,129,.96),rgba(34,197,94,.84))!important;
+  border-color:rgba(52,211,153,.45)!important;
+}
+#syncFootballDataBtn:disabled{
+  opacity:.45!important;
+  cursor:not-allowed!important;
+}
+@media(max-width:760px){
+  .football-data-admin-box-v142{
+    flex-direction:column!important;
+    align-items:stretch!important;
+  }
+  #syncFootballDataBtn{
+    width:100%!important;
+  }
+}
+
+
+/* v143 — botão fixo de resultados automáticos no topo do Admin */
+#footballDataAdminFixedBoxV143{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  margin:0 0 12px!important;
+  padding:14px 16px!important;
+  border:1px solid rgba(52,211,153,.32)!important;
+  border-radius:16px!important;
+  background:linear-gradient(135deg,rgba(16,185,129,.16),rgba(15,23,42,.96))!important;
+  box-shadow:0 14px 28px rgba(0,0,0,.22)!important;
+}
+#footballDataAdminFixedBoxV143 .football-data-admin-fixed-info-v143{
+  display:grid!important;
+  gap:4px!important;
+}
+#footballDataAdminFixedBoxV143 strong{
+  color:#ffffff!important;
+  font-size:15px!important;
+  font-weight:950!important;
+}
+#footballDataAdminFixedBoxV143 span{
+  color:rgba(255,255,255,.68)!important;
+  font-size:12px!important;
+  line-height:1.3!important;
+}
+#footballDataAdminFixedBoxV143 #syncFootballDataBtn{
+  min-height:42px!important;
+  padding:10px 14px!important;
+  border-radius:12px!important;
+  white-space:nowrap!important;
+  background:linear-gradient(135deg,rgba(16,185,129,.98),rgba(34,197,94,.88))!important;
+  border-color:rgba(52,211,153,.55)!important;
+}
+#footballDataAdminFixedBoxV143 #syncFootballDataBtn:disabled{
+  opacity:.45!important;
+  cursor:not-allowed!important;
+}
+@media(max-width:760px){
+  #footballDataAdminFixedBoxV143{
+    flex-direction:column!important;
+    align-items:stretch!important;
+  }
+  #footballDataAdminFixedBoxV143 #syncFootballDataBtn{
+    width:100%!important;
+  }
+}
+
+
+/* v144 — PC ocupa o ecrã todo */
+@media(min-width:901px){
+  html.pc-full-width-v144,
+  body.pc-full-width-v144{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+  }
+
+  body.pc-full-width-v144{
+    margin:0!important;
+  }
+
+  body.pc-full-width-v144 .app,
+  body.pc-full-width-v144 #app,
+  body.pc-full-width-v144 .app-shell,
+  body.pc-full-width-v144 .shell,
+  body.pc-full-width-v144 .page-shell,
+  body.pc-full-width-v144 .container,
+  body.pc-full-width-v144 .main-container,
+  body.pc-full-width-v144 main,
+  body.pc-full-width-v144 .main,
+  body.pc-full-width-v144 .content,
+  body.pc-full-width-v144 .app-content,
+  body.pc-full-width-v144 .tab-content,
+  body.pc-full-width-v144 .tab-panel.active{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    box-sizing:border-box!important;
+  }
+
+  body.pc-full-width-v144 .app,
+  body.pc-full-width-v144 #app{
+    min-height:100vh!important;
+  }
+
+  body.pc-full-width-v144 main,
+  body.pc-full-width-v144 .main,
+  body.pc-full-width-v144 .content,
+  body.pc-full-width-v144 .app-content{
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+
+  body.pc-full-width-v144 header,
+  body.pc-full-width-v144 .topbar,
+  body.pc-full-width-v144 .nav,
+  body.pc-full-width-v144 .tabs,
+  body.pc-full-width-v144 .tabbar,
+  body.pc-full-width-v144 .status-bar,
+  body.pc-full-width-v144 .firebase-status,
+  body.pc-full-width-v144 .panel,
+  body.pc-full-width-v144 .card,
+  body.pc-full-width-v144 .admin-section,
+  body.pc-full-width-v144 .admin-card,
+  body.pc-full-width-v144 .day-block,
+  body.pc-full-width-v144 .leaderboard-table,
+  body.pc-full-width-v144 #footballDataAdminFixedBoxV143{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+
+  body.pc-full-width-v144 .grid,
+  body.pc-full-width-v144 .cards-grid,
+  body.pc-full-width-v144 .admin-grid{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+
+
+/* v147 — GitHub Pages / PC: ocupar o ecrã todo de verdade */
+@media(min-width:900px){
+  html.desktop-fullscreen-v147,
+  body.desktop-fullscreen-v147,
+  html,
+  body{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding-left:0!important;
+    padding-right:0!important;
+    overflow-x:hidden!important;
+  }
+
+  body.desktop-fullscreen-v147 > *,
+  body.desktop-fullscreen-v147 #app,
+  body.desktop-fullscreen-v147 .app,
+  body.desktop-fullscreen-v147 .app-shell,
+  body.desktop-fullscreen-v147 .shell,
+  body.desktop-fullscreen-v147 .page-shell,
+  body.desktop-fullscreen-v147 .container,
+  body.desktop-fullscreen-v147 .main-container,
+  body.desktop-fullscreen-v147 main,
+  body.desktop-fullscreen-v147 .main,
+  body.desktop-fullscreen-v147 .content,
+  body.desktop-fullscreen-v147 .app-content,
+  body.desktop-fullscreen-v147 .tab-content,
+  body.desktop-fullscreen-v147 .tab-panel,
+  body.desktop-fullscreen-v147 .tab-panel.active{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    box-sizing:border-box!important;
+  }
+
+  body.desktop-fullscreen-v147 main,
+  body.desktop-fullscreen-v147 .main,
+  body.desktop-fullscreen-v147 .content,
+  body.desktop-fullscreen-v147 .app-content,
+  body.desktop-fullscreen-v147 .tab-panel.active{
+    padding-left:16px!important;
+    padding-right:16px!important;
+  }
+
+  body.desktop-fullscreen-v147 .card,
+  body.desktop-fullscreen-v147 .panel,
+  body.desktop-fullscreen-v147 .admin-section,
+  body.desktop-fullscreen-v147 .admin-card,
+  body.desktop-fullscreen-v147 .day-block,
+  body.desktop-fullscreen-v147 .leaderboard-table,
+  body.desktop-fullscreen-v147 .football-data-admin-fixed-box-v143,
+  body.desktop-fullscreen-v147 #footballDataAdminFixedBoxV143{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+}
+
+
+/* v148 — PC ecrã todo imediato, sem esperar pelo JavaScript */
+@media(min-width:900px){
+  html,
+  body,
+  html.desktop-fullscreen-instant-v148,
+  body.desktop-fullscreen-instant-v148{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin:0!important;
+    padding-left:0!important;
+    padding-right:0!important;
+    overflow-x:hidden!important;
+  }
+
+  body > *,
+  #app,
+  .app,
+  .app-shell,
+  .shell,
+  .page-shell,
+  .container,
+  .main-container,
+  .layout,
+  .layout-shell,
+  .workspace,
+  main,
+  .main,
+  .content,
+  .app-content,
+  .page-content,
+  .tab-content,
+  .tabs-content,
+  .tab-panel,
+  .tab-panel.active,
+  .view,
+  .views{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    box-sizing:border-box!important;
+  }
+
+  main,
+  .main,
+  .content,
+  .app-content,
+  .page-content,
+  .tab-content,
+  .tab-panel.active{
+    padding-left:16px!important;
+    padding-right:16px!important;
+  }
+
+  header,
+  .topbar,
+  .tabs,
+  .tabbar,
+  .nav,
+  .panel,
+  .card,
+  .admin-section,
+  .admin-card,
+  .day-block,
+  .leaderboard-table,
+  #footballDataAdminFixedBoxV143{
+    width:100%!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+  }
+}
+
+
+/* v149 — Football-data Free clean status */
+.football-free-status-box-v149{
+  width:100%!important;
+  box-sizing:border-box!important;
+  margin:10px 0 16px!important;
+  padding:14px!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:16px!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(2,6,23,.96))!important;
+  box-shadow:0 14px 30px rgba(0,0,0,.22)!important;
+}
+.football-free-status-head-v149{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  margin-bottom:10px!important;
+}
+.football-free-status-head-v149 strong{
+  color:#fff!important;
+  font-size:15px!important;
+  font-weight:950!important;
+}
+.football-free-status-head-v149 span{
+  color:rgba(255,255,255,.64)!important;
+  font-size:12px!important;
+}
+.football-free-status-grid-v149{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+.football-free-status-grid-v149 div{
+  padding:10px!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.055)!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+}
+.football-free-status-grid-v149 b{
+  display:block!important;
+  color:#d1fae5!important;
+  font-size:20px!important;
+  line-height:1!important;
+}
+.football-free-status-grid-v149 span{
+  display:block!important;
+  margin-top:4px!important;
+  color:rgba(255,255,255,.58)!important;
+  font-size:11px!important;
+}
+.football-free-upcoming-v149{
+  margin-top:12px!important;
+  padding-top:10px!important;
+  border-top:1px solid rgba(255,255,255,.08)!important;
+}
+.football-free-upcoming-v149 small{
+  display:block!important;
+  margin-bottom:6px!important;
+  color:rgba(255,255,255,.55)!important;
+  font-size:11px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+}
+.football-free-upcoming-v149 p{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  margin:0!important;
+  padding:7px 0!important;
+  border-bottom:1px solid rgba(255,255,255,.05)!important;
+}
+.football-free-upcoming-v149 p:last-child{
+  border-bottom:0!important;
+}
+.football-free-upcoming-v149 p span{
+  color:rgba(255,255,255,.54)!important;
+  font-size:12px!important;
+  white-space:nowrap!important;
+}
+.football-free-upcoming-v149 p strong{
+  color:#fff!important;
+  font-size:12px!important;
+  text-align:right!important;
+}
+@media(max-width:760px){
+  .football-free-status-grid-v149{
+    grid-template-columns:1fr!important;
+  }
+  .football-free-status-head-v149,
+  .football-free-upcoming-v149 p{
+    align-items:flex-start!important;
+    flex-direction:column!important;
+  }
+  .football-free-upcoming-v149 p strong{
+    text-align:left!important;
+  }
+}
+
+
+/* v150 — Fase Final mobile: fechar modal/aba sempre clicável */
+@media(max-width:760px){
+  .modal,
+  .dialog,
+  .popup,
+  .drawer,
+  .sheet,
+  .bottom-sheet{
+    max-height:calc(100dvh - 18px)!important;
+    overflow:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  .modal .close,
+  .modal .btn-close,
+  .modal-close,
+  .close-modal,
+  .sheet-close,
+  .drawer-close,
+  .popup-close,
+  [data-close],
+  [data-dismiss]{
+    position:relative!important;
+    z-index:2147483647!important;
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+  }
+
+  .modal-backdrop,
+  .backdrop,
+  .drawer-backdrop,
+  .overlay{
+    touch-action:manipulation!important;
+  }
+
+  body:not(.modal-open) #knockoutTab,
+  body:not(.modal-open) #knockoutMobileV121{
+    pointer-events:auto!important;
+  }
+
+  #knockoutTab .modal,
+  #knockoutMobileV121 .modal,
+  #knockoutTab .popup,
+  #knockoutMobileV121 .popup,
+  #knockoutTab .sheet,
+  #knockoutMobileV121 .sheet{
+    z-index:999999!important;
+  }
+}
+
+
+/* v151 — badge sync 24/7 */
+.football-247-badge-v151{
+  margin-top:10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  width:max-content!important;
+  max-width:100%!important;
+  padding:7px 10px!important;
+  border-radius:999px!important;
+  background:rgba(16,185,129,.14)!important;
+  border:1px solid rgba(52,211,153,.26)!important;
+  color:#d1fae5!important;
+  font-size:11px!important;
+  font-weight:900!important;
+}
+
+/* v154 — Esquema de cores da App Oficial aplicado na App Testes
+   Mantém sistemas, layout, API, chat e fase final da app de testes.
+*/
+:root {
+  --bg: #070b13;
+  --panel: #0d1522;
+  --panel-soft: #111c2c;
+  --line: rgba(255, 255, 255, .1);
+  --text: #f7fbff;
+  --muted: #96a3b6;
+  --gold: #ffd45a;
+  --red: #ef4444;
+  --green: #26c281;
+  --yellow: #eab308;
+  --blue: #22b8cf;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .26);
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at top left, rgba(255,216,87,.06), transparent 28%),
+    radial-gradient(circle at top right, rgba(34,184,207,.055), transparent 28%),
+    var(--bg) !important;
+  color: var(--text) !important;
+}
+
+body,
+.app-shell,
+.app,
+.shell,
+.page-shell,
+.main,
+.content,
+.app-content {
+  color: var(--text) !important;
+}
+
+.topbar,
+.nav,
+.tabs,
+.tabbar,
+.bottom-nav,
+.mobile-nav {
+  background: rgba(7,11,19,.92) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+.card,
+.panel,
+.admin-card,
+.admin-section,
+.day-block,
+.match-card,
+.game-card,
+.user-card,
+.settings-card,
+.leaderboard-card,
+.chat-shell,
+.chat-panel,
+.chat-list,
+.chat-room,
+.knockout-match,
+.bracket-photo-shell,
+.modal,
+.dialog,
+.popup,
+.drawer,
+.sheet,
+.bottom-sheet {
+  background:
+    linear-gradient(180deg, rgba(13,21,34,.98), rgba(7,11,19,.98)) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.card-soft,
+.panel-soft,
+.stat-card,
+.summary-card,
+.metric-card,
+.input-card,
+.form-card {
+  background: linear-gradient(180deg, rgba(17,28,44,.96), rgba(13,21,34,.96)) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+
+input,
+select,
+textarea,
+.search-input,
+.form-input {
+  background: #0b1320 !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted) !important;
+}
+
+button,
+.btn,
+.action-btn,
+.primary-btn,
+.secondary-btn,
+.icon-btn {
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+.btn-primary,
+.primary,
+button.primary,
+.action-primary,
+.login-btn,
+.save-btn,
+.add-btn,
+#syncFootballDataBtn {
+  background: linear-gradient(135deg, var(--gold), #fff0a8) !important;
+  color: #07111d !important;
+  font-weight: 950 !important;
+  box-shadow: 0 12px 28px rgba(255,216,87,.18) !important;
+}
+
+.btn-secondary,
+.secondary,
+button.secondary,
+.cancel-btn,
+.ghost-btn {
+  background: rgba(255,255,255,.055) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+
+.btn-danger,
+.danger,
+.delete-btn,
+.remove-btn {
+  background: rgba(255,98,98,.08) !important;
+  color: #ffc0c0 !important;
+  border: 1px solid rgba(255,98,98,.35) !important;
+}
+
+.badge,
+.pill,
+.tag,
+.status,
+.match-status {
+  background: rgba(255,255,255,.06) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+.status.open,
+.badge.open,
+.pill.open {
+  background: rgba(255,216,87,.08) !important;
+  color: var(--gold) !important;
+  border-color: rgba(255,216,87,.35) !important;
+}
+
+.status.live,
+.badge.live,
+.pill.live,
+.match-status.live {
+  background: rgba(69,255,156,.08) !important;
+  color: #83ffbf !important;
+  border-color: rgba(69,255,156,.35) !important;
+}
+
+.status.played,
+.badge.played,
+.pill.played {
+  background: rgba(34,184,207,.08) !important;
+  color: #9befff !important;
+  border-color: rgba(34,184,207,.32) !important;
+}
+
+.status.locked,
+.badge.locked,
+.pill.locked {
+  background: rgba(255,98,98,.08) !important;
+  color: #ffb4b4 !important;
+  border-color: rgba(255,98,98,.35) !important;
+}
+
+.eyebrow,
+.section-title small,
+.card-title small,
+.muted,
+small {
+  color: var(--muted) !important;
+}
+
+h1,
+h2,
+h3,
+.card-title,
+.section-title,
+.page-title {
+  color: var(--text) !important;
+}
+
+a,
+.link {
+  color: var(--gold) !important;
+}
+
+.active,
+.tab.active,
+.nav-item.active,
+.bottom-nav button.active,
+.mobile-nav button.active {
+  color: #07111d !important;
+  background: linear-gradient(135deg, var(--gold), #fff0a8) !important;
+  border-color: rgba(255,216,87,.75) !important;
+}
+
+.table,
+table {
+  color: var(--text) !important;
+}
+
+thead,
+.table-head {
+  background: rgba(255,255,255,.035) !important;
+  color: var(--muted) !important;
+}
+
+tr,
+.table-row {
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+.football-free-status-box-v149,
+#footballDataAdminFixedBoxV143 {
+  background:
+    radial-gradient(circle at top left, rgba(255,216,87,.08), transparent 30%),
+    linear-gradient(180deg, rgba(13,21,34,.98), rgba(7,11,19,.98)) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.football-free-status-grid-v149 div {
+  background: rgba(255,255,255,.035) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+
+.football-free-status-grid-v149 b {
+  color: var(--gold) !important;
+}
+
+.football-247-badge-v151 {
+  background: rgba(69,255,156,.08) !important;
+  border-color: rgba(69,255,156,.35) !important;
+  color: #83ffbf !important;
+}
+
+.chat-message,
+.message,
+.msg-bubble {
+  background: #0b1320 !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+.chat-message.mine,
+.message.mine,
+.msg-bubble.mine {
+  background: linear-gradient(135deg, rgba(255,216,87,.20), rgba(255,216,87,.10)) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,216,87,.28) !important;
+}
+
+.toast,
+.notification,
+.alert {
+  background: rgba(13,21,34,.98) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,216,87,.35) !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.035) !important;
 }
