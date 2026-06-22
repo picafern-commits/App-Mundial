@@ -7170,3 +7170,29 @@ input[data-no-persist-v116]{
 .search-game-result-btn.admin-only{
   display:inline-flex!important;
 }
+
+
+/* v118 — Pontuação: detalhes por user mostram jogos já jogados recentes primeiro */
+#scoreTab .score-game-row,
+#scoreTab .player-game-row,
+#scoreTab .bet-row{
+  transition:background .18s ease, transform .18s ease!important;
+}
+
+#scoreTab .score-game-row:first-child,
+#scoreTab .player-game-row:first-child,
+#scoreTab .bet-row:first-child{
+  border-top-color:rgba(52,211,153,.35)!important;
+}
+
+
+/* v119 — Pontuação corrigida: só jogos com resultado real */
+#scoreTab .player-games-table .player-game-row:not(.head){
+  display:grid!important;
+}
+
+
+/* v120 — Pontuação: apostas recuperadas nos jogos com resultado */
+#scoreTab .player-game-row:not(.head) span:nth-child(2){
+  font-weight:900!important;
+}
