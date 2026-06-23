@@ -10,9 +10,10 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "25959";
-const APP_VERSION_LABEL = "v166";
+const APP_VERSION_LABEL = "v189";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
+const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
 
 let db = null;
 let firebaseApi = null;
@@ -20,6 +21,8 @@ let firebaseAuth = null;
 let firebaseAuthApi = null;
 let firebaseMessaging = null;
 let firebaseMessagingApi = null;
+let firebaseAppInstance = null;
+let lastFirebaseInitError = "";
 let currentUser = null;
 let currentProfile = null;
 let permissionsCache = [];
@@ -33,6 +36,8 @@ let selectedEditUser = "";
 let isAdmin = localStorage.getItem("mundial_admin_unlocked") === "1";
 let pendingExcelImport = null;
 let fullSyncTimer = null;
+let firebaseReconnectTimer = null;
+let firebaseLoadInFlight = null;
 let realtimeUnsubscribers = [];
 let realtimeRenderTimer = null;
 let onlineUsersCache = [];
@@ -53,6 +58,9 @@ let chatLastSeenAt = Number(localStorage.getItem('mundial_chat_last_seen_at') ||
 let presenceIntervalId = null;
 let logsUnlocked = sessionStorage.getItem("mundial_logs_unlocked_v146") === "1";
 let onlineUsersIntervalId = null;
+let pushStatsCacheV187 = { loadedAt: 0, tokens: [], tests: [], loading: false };
+let firebaseReadyPromise = null;
+let authGateStarted = false;
 
 const MATCH_ROWS = [
   ["Grupo A", "México", "África do Sul", "2026-06-11T20:00"],
@@ -284,16 +292,19 @@ function statusOf(game) {
   const apiStatus = String(game?.footballDataStatus || game?.statusApi || "").toUpperCase();
   const hasApiStatus = Boolean(apiStatus);
 
-  if (["IN_PLAY", "PAUSED", "LIVE"].includes(apiStatus)) return { text: "A Decorrer", className: "live" };
+  if (["IN_PLAY", "PAUSED", "LIVE", "1H", "2H", "HT", "ET", "PEN_LIVE"].includes(apiStatus)) {
+    return { text: "A Decorrer", className: "live" };
+  }
+
   if (["SUSPENDED"].includes(apiStatus)) return { text: "Suspenso", className: "suspended" };
   if (["POSTPONED", "CANCELLED"].includes(apiStatus)) return { text: "Adiado", className: "locked" };
   if (["FINISHED", "AWARDED"].includes(apiStatus)) return { text: "Jogado", className: "played" };
 
-  if (hasApiStatus && game?.footballDataLocked === true) return { text: "A Decorrer", className: "live" };
   if (!hasApiStatus && hasResult(game)) return { text: "Jogado", className: "played" };
 
-  if (parsePortugalDate(game.matchDate).getTime() <= Date.now()) return { text: "A Decorrer", className: "live" };
-  return { text: "Por jogar", className: "open" };
+  // v191 sobre v190: hora passada não significa "A Decorrer".
+  // Sem status live/API e sem resultado final, fica pendente para o Admin.
+  return { text: "Falta resultado", className: "open" };
 }
 function isLocked(game) { return statusOf(game).className !== "open"; }
 
@@ -647,6 +658,29 @@ function setFirebaseStatus(type, message) {
   box.textContent = message;
 }
 
+function applyLocalDataFast(reason = "cache local") {
+  const local = getLocalData();
+  games = normalizeGames(local.games);
+  bets = normalizeBets(local.bets);
+  appSettings = mergeSettings(local.settings || local.appSettings);
+  ensureKnockoutSettings();
+  renderAll();
+  setFirebaseStatus(navigator.onLine ? "loading" : "error", navigator.onLine ? `Firebase: a ligar... dados locais já visíveis` : "Offline: a mostrar dados guardados neste dispositivo");
+}
+
+function scheduleFirebaseReconnect(reason = "reconectar Firebase", delay = 3500) {
+  if (firebaseReconnectTimer) clearTimeout(firebaseReconnectTimer);
+  if (!navigator.onLine) {
+    setFirebaseStatus("error", "Firebase: offline; vou tentar quando houver internet");
+    return;
+  }
+  firebaseReconnectTimer = setTimeout(() => {
+    firebaseReconnectTimer = null;
+    if (!currentUser || !db || !firebaseApi) return;
+    loadData({ background: true, reason }).catch(error => console.warn("Retry Firebase falhou:", error));
+  }, delay);
+}
+
 
 
 // v114  Modo económico Firebase oficial.
@@ -688,65 +722,13 @@ function isDocRefV114(target) {
 }
 
 function installFirestoreEconomyModeV114() {
-  if (FIRESTORE_ECONOMY_V114.installed) return;
-  if (!firebaseApi || typeof firebaseApi.onSnapshot !== "function") return;
-  if (typeof firebaseApi.getDoc !== "function" || typeof firebaseApi.getDocs !== "function") return;
-
-  const originalOnSnapshot = firebaseApi.onSnapshot;
-  firebaseApi.__originalOnSnapshotV114 = firebaseApi.__originalOnSnapshotV114 || originalOnSnapshot;
-
-  firebaseApi.onSnapshot = function economyOnSnapshotV114(target, ...args) {
-    let next = null;
-    let errorCb = null;
-
-    for (const arg of args) {
-      if (typeof arg === "function" && !next) next = arg;
-      else if (typeof arg === "function" && !errorCb) errorCb = arg;
-      else if (arg && typeof arg.next === "function") {
-        next = arg.next.bind(arg);
-        if (typeof arg.error === "function") errorCb = arg.error.bind(arg);
-      }
-    }
-
-    if (!next) return firebaseApi.__originalOnSnapshotV114.call(this, target, ...args);
-
-    let stopped = false;
-    let running = false;
-    let timer = null;
-    const delay = economySnapshotDelayV114(target);
-
-    const run = async () => {
-      if (stopped || running) return;
-      running = true;
-
-      try {
-        const isDoc = isDocRefV114(target);
-        const snap = isDoc ? await firebaseApi.getDoc(target) : await firebaseApi.getDocs(target);
-        if (!stopped) next(snap);
-      } catch (error) {
-        if (typeof errorCb === "function") errorCb(error);
-        else console.warn("Firestore económico v114:", error);
-      } finally {
-        running = false;
-        if (!stopped) timer = setTimeout(run, delay);
-      }
-    };
-
-    timer = setTimeout(run, 300);
-
-    const unsubscribe = () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-      FIRESTORE_ECONOMY_V114.pollers.delete(unsubscribe);
-    };
-
-    FIRESTORE_ECONOMY_V114.pollers.add(unsubscribe);
-    return unsubscribe;
-  };
-
-  FIRESTORE_ECONOMY_V114.installed = true;
-  console.info("Firestore modo económico v114 ativo.");
+  // v191 sobre v190: desativado.
+  // firebaseApi é um ES module namespace object e não pode ser alterado.
+  // A tentativa anterior rebentava o arranque:
+  // Cannot assign to property '__originalOnSnapshotV114' of [object Module]
+  return;
 }
+
 
 function stopFirestoreEconomyPollersV114() {
   FIRESTORE_ECONOMY_V114.pollers.forEach(unsub => {
@@ -765,66 +747,141 @@ window.firestoreEconomyInfoV114 = function firestoreEconomyInfoV114() {
   };
 };
 
+async function showForegroundPushNotificationV183(payload = {}) {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (!("serviceWorker" in navigator)) return;
+    const title = payload?.notification?.title || payload?.data?.title || "Mundial Pontos 2026";
+    const body = payload?.notification?.body || payload?.data?.body || "";
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification(title, {
+      body,
+      tag: payload?.data?.tag || payload?.messageId || `mundial-foreground-${Date.now()}`,
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
+      data: {
+        url: payload?.data?.url || "./index.html?open=notifications",
+        type: payload?.data?.type || "foreground"
+      }
+    });
+  } catch (error) {
+    console.warn("Nao consegui mostrar notificacao foreground:", error);
+  }
+}
+async function importFirebaseModuleV189(file) {
+  return import(`https://www.gstatic.com/firebasejs/10.12.5/firebase-${file}.js`);
+}
+
 async function initFirebase() {
   setTimeout(installFirestoreEconomyModeV114, 0);
   const config = APP_CONFIG.firebase || {};
+  lastFirebaseInitError = "";
 
   if (!config.apiKey || !config.projectId) {
     db = null;
     firebaseApi = null;
     firebaseAuth = null;
     firebaseAuthApi = null;
+    firebaseAppInstance = null;
     storageMode = "local";
+    lastFirebaseInitError = "config.js sem apiKey/projectId";
     setFirebaseStatus("error", "Firebase: configuração em falta no config.js");
     setLoginStatus("Firebase: configuração em falta no config.js", "error");
     return false;
   }
 
   try {
-    setFirebaseStatus("loading", "Firebase: a ligar...");
-    const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
-    const authModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
-    const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+    setFirebaseStatus("loading", "Firebase: a ligar Auth...");
+    setLoginStatus("A ligar ao Firebase Auth...", "loading");
 
-    const app = appModule.initializeApp(config);
-    firebaseAuth = authModule.getAuth(app);
+    const [appModule, authModule] = await Promise.all([
+      importFirebaseModuleV189("app"),
+      importFirebaseModuleV189("auth")
+    ]);
+
+    firebaseAppInstance = appModule.getApps?.().length ? appModule.getApp() : appModule.initializeApp(config);
+    firebaseAuth = authModule.getAuth(firebaseAppInstance);
     firebaseAuthApi = authModule;
-    db = firestoreModule.getFirestore(app);
-    firebaseApi = firestoreModule;
-    storageMode = "firebase";
-    try {
-      const messagingModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging.js");
-      const supported = await messagingModule.isSupported().catch(() => false);
-      if (supported) {
-        firebaseMessaging = messagingModule.getMessaging(app);
-        firebaseMessagingApi = messagingModule;
-        messagingModule.onMessage(firebaseMessaging, payload => {
-          const title = payload?.notification?.title || payload?.data?.title || "Notificação Mundial";
-          const body = payload?.notification?.body || payload?.data?.body || "";
-          toast(body ? `${title}: ${body}` : title);
-          renderNotificationsCenterV164();
-        });
-      }
-    } catch (messagingError) {
-      console.warn("Firebase Messaging indisponível:", messagingError);
-      firebaseMessaging = null;
-      firebaseMessagingApi = null;
-    }
-
-    setFirebaseStatus("success", `Firebase: ligado ao projeto ${config.projectId}`);
-    setLoginStatus("Firebase ligado. Faz login.", "success");
-    return true;
+    setLoginStatus("Firebase Auth ligado. Faz login.", "success");
   } catch (error) {
-    console.error("Firebase não ligou:", error);
+    console.error("Firebase Auth não ligou:", error);
     db = null;
     firebaseApi = null;
     firebaseAuth = null;
     firebaseAuthApi = null;
+    firebaseAppInstance = null;
     storageMode = "local";
-    setFirebaseStatus("error", `Firebase: não ligou  ${error.message || "erro"}`);
-    setLoginStatus(`Firebase não ligou  ${error.message || "erro"}`, "error");
+    lastFirebaseInitError = error?.message || String(error || "erro");
+    setFirebaseStatus("error", `Firebase Auth: não ligou (${lastFirebaseInitError})`);
+    setLoginStatus(`Firebase Auth não ligou: ${lastFirebaseInitError}`, "error");
     return false;
   }
+
+  try {
+    const firestoreModule = await importFirebaseModuleV189("firestore");
+    db = firestoreModule.getFirestore(firebaseAppInstance);
+    firebaseApi = firestoreModule;
+    storageMode = "firebase";
+    installFirestoreEconomyModeV114();
+    try {
+      await firestoreModule.enableIndexedDbPersistence?.(db);
+    } catch (persistenceError) {
+      console.warn("Cache persistente Firestore indisponível:", persistenceError?.code || persistenceError?.message || persistenceError);
+    }
+    setFirebaseStatus("success", `Firebase: ligado ao projeto ${config.projectId}`);
+  } catch (firestoreError) {
+    console.error("Firestore não ligou:", firestoreError);
+    db = null;
+    firebaseApi = null;
+    storageMode = "local";
+    lastFirebaseInitError = firestoreError?.message || String(firestoreError || "erro");
+    setFirebaseStatus("error", `Firebase Auth ligado; Firestore indisponível (${lastFirebaseInitError})`);
+  }
+
+  try {
+    const messagingModule = await importFirebaseModuleV189("messaging");
+    const supported = await messagingModule.isSupported().catch(() => false);
+    if (supported) {
+      firebaseMessaging = messagingModule.getMessaging(firebaseAppInstance);
+      firebaseMessagingApi = messagingModule;
+      messagingModule.onMessage(firebaseMessaging, payload => {
+        const title = payload?.notification?.title || payload?.data?.title || "Notificação Mundial";
+        const body = payload?.notification?.body || payload?.data?.body || "";
+        showForegroundPushNotificationV183(payload);
+        toast(body ? `${title}: ${body}` : title);
+        renderNotificationsCenterV164();
+      });
+    }
+  } catch (messagingError) {
+    console.warn("Firebase Messaging indisponível:", messagingError);
+    firebaseMessaging = null;
+    firebaseMessagingApi = null;
+  }
+
+  return true;
+}
+async function ensureFirebaseAuthReadyV188() {
+  if (firebaseAuthApi && firebaseAuth) return true;
+
+  setLoginStatus("A ligar ao Firebase...", "loading");
+  if (!firebaseReadyPromise) {
+    firebaseReadyPromise = initFirebase();
+  }
+
+  const ok = await firebaseReadyPromise.catch(error => {
+    console.error("Firebase readiness falhou:", error);
+    return false;
+  });
+
+  if (!ok || !firebaseAuthApi || !firebaseAuth) {
+    firebaseReadyPromise = null;
+    const detail = lastFirebaseInitError ? ` (${lastFirebaseInitError})` : "";
+    setLoginStatus(`Firebase/Auth ainda não está pronto${detail}. Verifica a internet e tenta novamente.`, "error");
+    return false;
+  }
+
+  setupAuthGate();
+  return true;
 }
 
 
@@ -874,76 +931,89 @@ function shortFirebaseError(error) {
   return text.slice(0, 90) || "erro desconhecido";
 }
 
-async function loadData() {
-  const local = getLocalData();
+async function loadData(options = {}) {
+  if (firebaseLoadInFlight && !options.force) return firebaseLoadInFlight;
 
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    games = normalizeGames(local.games);
-    bets = normalizeBets(local.bets);
-    appSettings = mergeSettings(local.settings || local.appSettings);
-    ensureKnockoutSettings();
-    renderAll();
-    return;
-  }
-
-  try {
-    setFirebaseStatus("loading", "Firebase: a carregar dados...");
-    const { collection, doc, getDocs, setDoc } = firebaseApi;
-
+  const run = (async () => {
+    const local = getLocalData();
     const localGames = normalizeGames(local.games || []);
     const localBets = normalizeBets(local.bets || []);
     const localSettings = mergeSettings(local.settings || local.appSettings || defaultSettings());
 
-    const gamesSnap = await withTimeout(getDocs(collection(db, "games")), 12000, "ler jogos");
-    const betsSnap = localBets.length
-      ? { docs: [], skipped: true }
-      : await withTimeout(getDocs(collection(db, "bets")), 12000, "ler apostas");
-    const settingsSnap = await withTimeout(getDocs(collection(db, "settings")), 12000, "ler configurações");
-
-    const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
-    const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
-    const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
-
-    if (remoteGames.length) {
-      localGames.forEach(localGame => {
-        const remoteGame = remoteGames.find(item => item.id === localGame.id);
-        if (hasResult(localGame) && (!remoteGame || !hasResult(remoteGame) || gameUpdatedMillis(localGame) > gameUpdatedMillis(remoteGame))) {
-          markGamePending(localGame.id);
-        }
-      });
-      games = mergeGamesByNewest(remoteGames, localGames);
-    } else {
+    if (!options.background) {
       games = localGames.length ? localGames : clone(SEED_GAMES);
-      setTimeout(() => {
-        Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })))
-          .catch(error => console.warn("Não conseguiu criar jogos no Firebase", error));
-      }, 200);
+      bets = localBets;
+      appSettings = localSettings;
+      ensureKnockoutSettings();
+      renderAll();
     }
 
-    bets = normalizeBets(remoteBets.length ? remoteBets : localBets);
-    appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : localSettings);
-    ensureKnockoutSettings();
-
-    saveLocalData("firebase carregado estável");
-    setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas carregadas`);
-    renderAll();
-
-    if (!betsSnap.skipped && !remoteBets.length && localBets.length && pendingBetIds().length) {
-      setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
+    if (!db || !firebaseApi || storageMode !== "firebase") {
+      setFirebaseStatus("error", "Firebase: indisponível; a usar dados locais");
+      return;
     }
-    setTimeout(() => retryPendingGameSaves("arranque").catch(console.warn), 700);
-    setTimeout(() => retryPendingFullSync("arranque").catch(console.warn), 1000);
-    setupRealtimeSync();
-  } catch (error) {
-    console.error("Erro ao carregar Firebase:", error);
-    games = normalizeGames(local.games);
-    bets = normalizeBets(local.bets);
-    appSettings = mergeSettings(local.settings || local.appSettings);
-    ensureKnockoutSettings();
-    storageMode = "local";
-    setFirebaseStatus("error", `Firebase: erro ao carregar  ${error.message || "ver consola"}`);
-    renderAll();
-  }
+
+    try {
+      setFirebaseStatus("loading", options.background ? "Firebase: a atualizar em segundo plano..." : "Firebase: a carregar dados...");
+      const { collection, doc, getDocs, setDoc } = firebaseApi;
+
+      const gamesPromise = withTimeout(getDocs(collection(db, "games")), 9000, "ler jogos");
+      const settingsPromise = withTimeout(getDocs(collection(db, "settings")), 9000, "ler configurações");
+      const betsPromise = localBets.length
+        ? Promise.resolve({ docs: [], skipped: true })
+        : withTimeout(getDocs(collection(db, "bets")), 9000, "ler apostas");
+
+      const [gamesSnap, betsSnap, settingsSnap] = await Promise.all([gamesPromise, betsPromise, settingsPromise]);
+
+      const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+      const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+      const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
+
+      if (remoteGames.length) {
+        localGames.forEach(localGame => {
+          const remoteGame = remoteGames.find(item => item.id === localGame.id);
+          if (hasResult(localGame) && (!remoteGame || !hasResult(remoteGame) || gameUpdatedMillis(localGame) > gameUpdatedMillis(remoteGame))) {
+            markGamePending(localGame.id);
+          }
+        });
+        games = mergeGamesByNewest(remoteGames, localGames);
+      } else {
+        games = localGames.length ? localGames : clone(SEED_GAMES);
+        setTimeout(() => {
+          Promise.all(games.map(game => setDoc(doc(db, "games", game.id), game, { merge: true })))
+            .catch(error => console.warn("Não conseguiu criar jogos no Firebase", error));
+        }, 200);
+      }
+
+      bets = normalizeBets(remoteBets.length ? remoteBets : localBets);
+      appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : localSettings);
+      ensureKnockoutSettings();
+
+      storageMode = "firebase";
+      saveLocalData("firebase carregado rápido");
+      setFirebaseStatus("success", `Firebase: ligado · ${bets.length} apostas carregadas`);
+      renderAll();
+
+      if (!betsSnap.skipped && !remoteBets.length && localBets.length && pendingBetIds().length) {
+        setTimeout(() => saveBetsFastToFirebase("reenviar apostas locais").catch(console.warn), 400);
+      }
+      setTimeout(() => retryPendingGameSaves("arranque").catch(console.warn), 700);
+      setTimeout(() => retryPendingFullSync("arranque").catch(console.warn), 1000);
+      setupRealtimeSync();
+    } catch (error) {
+      console.error("Erro ao carregar Firebase:", error);
+      games = localGames.length ? localGames : games;
+      bets = localBets.length ? localBets : bets;
+      appSettings = localSettings || appSettings;
+      ensureKnockoutSettings();
+      setFirebaseStatus("error", `Firebase: ligação instável (${shortFirebaseError(error)}). A usar cache e vou tentar novamente.`);
+      renderAll();
+      scheduleFirebaseReconnect(options.reason || "loadData erro", 4500);
+    }
+  })();
+
+  firebaseLoadInFlight = run.finally(() => { firebaseLoadInFlight = null; });
+  return firebaseLoadInFlight;
 }
 
 function cleanupRealtimeSync() {
@@ -1015,15 +1085,17 @@ function setupRealtimeSync() {
     const wasPermissionsManager = hasPermission("managePermissions");
     const data = snap.data() || {};
     const configAdmin = isConfiguredAdmin(currentUser.email);
+    const storedRole = normalizeRole(data.role || (configAdmin ? "admin" : "user"));
+    const effectiveRole = configAdmin && storedRole !== "owner" ? "admin" : storedRole;
     currentProfile = {
       ...defaultProfileForUser(currentUser),
       ...data,
       uid: currentUser.uid,
       email: normalizeEmail(currentUser.email),
-      role: configAdmin ? "admin" : (data.role || "user"),
+      role: effectiveRole,
       active: data.active !== false,
       permissions: {
-        ...(data.role === "admin" || configAdmin ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS),
+        ...permissionsForRole(effectiveRole),
         ...(data.permissions || {})
       }
     };
@@ -1531,6 +1603,10 @@ const DEFAULT_PERMISSIONS = {
   calendar: true,
   score: true,
   knockout: true,
+  notifications: false,
+  logs: false,
+  settings: false,
+  adminTab: false,
   admin: false,
   editResults: false,
   importExcel: false,
@@ -1544,6 +1620,10 @@ const ADMIN_PERMISSIONS = {
   calendar: true,
   score: true,
   knockout: true,
+  notifications: true,
+  logs: true,
+  settings: true,
+  adminTab: true,
   admin: true,
   editResults: true,
   importExcel: true,
@@ -1552,6 +1632,31 @@ const ADMIN_PERMISSIONS = {
   editKnockout: true,
   managePermissions: true
 };
+
+const OWNER_PERMISSIONS = {
+  ...ADMIN_PERMISSIONS
+};
+
+function normalizeRole(role) {
+  const value = String(role || "user").toLowerCase().trim();
+  if (value === "owner" || value === "dono") return "owner";
+  if (value === "admin") return "admin";
+  return "user";
+}
+
+function permissionsForRole(role) {
+  const normalized = normalizeRole(role);
+  if (normalized === "owner") return { ...OWNER_PERMISSIONS };
+  if (normalized === "admin") return { ...ADMIN_PERMISSIONS };
+  return { ...DEFAULT_PERMISSIONS };
+}
+
+function roleLabel(role) {
+  const normalized = normalizeRole(role);
+  if (normalized === "owner") return "Dono";
+  if (normalized === "admin") return "Admin";
+  return "User";
+}
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -1584,12 +1689,12 @@ function defaultProfileForUser(user) {
 
 function hasPermission(permission) {
   if (!currentProfile?.active) return false;
-  if (currentProfile?.role === "admin") return true;
+  if (normalizeRole(currentProfile?.role) === "owner") return true;
   return Boolean(currentProfile?.permissions?.[permission]);
 }
 
 function isAdminProfile() {
-  return hasPermission("admin") || currentProfile?.role === "admin";
+  return hasPermission("admin") || normalizeRole(currentProfile?.role) === "owner";
 }
 
 function setLoginStatus(message, type = "info") {
@@ -1633,7 +1738,7 @@ function updateSessionBox() {
 
   box.classList.remove("hidden");
 
-  const role = currentProfile?.role === "admin" ? "Admin" : "User";
+  const role = roleLabel(currentProfile?.role);
   const visibleName = String(currentProfile?.name || "").trim() || displayNameFromEmail(currentUser.email) || currentUser.email || "Conta";
 
   label.textContent = `${visibleName} · ${role}`;
@@ -1656,21 +1761,23 @@ async function readUserProfile(user) {
 
     const data = snap.data() || {};
     const configAdmin = isConfiguredAdmin(user.email);
+    const storedRole = normalizeRole(data.role || (configAdmin ? "admin" : "user"));
+    const effectiveRole = configAdmin && storedRole !== "owner" ? "admin" : storedRole;
     const profile = {
       ...fallback,
       ...data,
       uid: user.uid,
       email: normalizeEmail(user.email),
       name: String(data.name || fallback.name || "").trim(),
-      role: configAdmin ? "admin" : (data.role || "user"),
+      role: effectiveRole,
       active: data.active !== false,
       permissions: {
-        ...(data.role === "admin" || configAdmin ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS),
+        ...permissionsForRole(effectiveRole),
         ...(data.permissions || {})
       }
     };
 
-    if (configAdmin && data.role !== "admin") {
+    if (configAdmin && normalizeRole(data.role) === "user") {
       await setDoc(ref, { role: "admin", active: true, permissions: ADMIN_PERMISSIONS, updatedAt: new Date().toISOString() }, { merge: true });
     }
 
@@ -1718,10 +1825,14 @@ function renderPermissionsUsers() {
   }
 
   const labels = {
-    calendar: "Calendário",
-    score: "Pontuação",
-    knockout: "Fase Final",
-    admin: "Admin",
+    calendar: "Ver Calendário",
+    score: "Ver Pontuação",
+    knockout: "Ver Fase Final",
+    notifications: "Ver Notificações",
+    logs: "Ver Logs",
+    settings: "Ver Configurações",
+    adminTab: "Ver Admin",
+    admin: "Poder Admin",
     editResults: "Editar resultados",
     importExcel: "Importar Excel",
     editUsers: "Users do jogo",
@@ -1733,9 +1844,9 @@ function renderPermissionsUsers() {
   list.innerHTML = permissionsCache.map(user => {
     const email = normalizeEmail(user.email || user.id);
     const visibleName = String(user.name || "").trim() || displayNameFromEmail(email);
-    const role = user.role === "admin" ? "admin" : "user";
-    const isAdminUser = role === "admin";
-    const perms = { ...(isAdminUser ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS), ...(user.permissions || {}) };
+    const role = normalizeRole(user.role);
+    const isOwnerUser = role === "owner";
+    const perms = { ...permissionsForRole(role), ...(user.permissions || {}) };
     const active = user.active !== false;
 
     return `
@@ -1743,7 +1854,7 @@ function renderPermissionsUsers() {
         <div class="permission-user-head">
           <div>
             <strong>${escapeHtml(visibleName)}</strong>
-            <span>${escapeHtml(email)} · ${isAdminUser ? "Admin" : "User normal"} · ${active ? "Ativo" : "Bloqueado"}</span>
+            <span>${escapeHtml(email)} · ${roleLabel(role)} · ${active ? "Ativo" : "Bloqueado"}</span>
           </div>
           <div class="permission-user-actions">
             <label class="permission-name-label">
@@ -1753,6 +1864,7 @@ function renderPermissionsUsers() {
             <select data-role-email="${escapeHtml(email)}">
               <option value="user" ${role === "user" ? "selected" : ""}>User normal</option>
               <option value="admin" ${role === "admin" ? "selected" : ""}>Admin</option>
+              <option value="owner" ${role === "owner" ? "selected" : ""}>Dono</option>
             </select>
             <label class="perm-active">
               <input type="checkbox" data-active-email="${escapeHtml(email)}" ${active ? "checked" : ""} />
@@ -1762,7 +1874,7 @@ function renderPermissionsUsers() {
           </div>
         </div>
         <div class="permission-grid">
-          ${Object.entries(labels).map(([key, label]) => renderPermissionCheckbox(email, key, label, perms[key], isAdminUser)).join("")}
+          ${Object.entries(labels).map(([key, label]) => renderPermissionCheckbox(email, key, label, perms[key], isOwnerUser)).join("")}
         </div>
       </article>
     `;
@@ -1779,20 +1891,28 @@ async function savePermissionUser(email) {
   const card = document.querySelector(`[data-permission-card="${CSS.escape(normalized)}"]`);
   const existingProfile = permissionsCache.find(user => normalizeEmail(user.email || user.id) === normalized) || {};
 
-  const role = document.querySelector(`[data-role-email="${CSS.escape(normalized)}"]`)?.value || $("permissionRoleInput")?.value || "user";
+  const role = normalizeRole(document.querySelector(`[data-role-email="${CSS.escape(normalized)}"]`)?.value || $("permissionRoleInput")?.value || "user");
   const activeInput = document.querySelector(`[data-active-email="${CSS.escape(normalized)}"]`);
   const active = activeInput ? activeInput.checked : true;
-  const isAdminUser = role === "admin";
+  const isOwnerUser = role === "owner";
 
   const nameInput = document.querySelector(`[data-name-email="${CSS.escape(normalized)}"]`) || $("permissionNameInput");
   const visibleName = String(nameInput?.value || existingProfile.name || displayNameFromEmail(normalized)).trim() || displayNameFromEmail(normalized);
 
-  const permissions = isAdminUser ? { ...ADMIN_PERMISSIONS } : { ...DEFAULT_PERMISSIONS };
-  if (card && !isAdminUser) {
+  const permissions = permissionsForRole(role);
+  if (card && !isOwnerUser) {
     card.querySelectorAll("[data-perm-key]").forEach(input => {
       permissions[input.dataset.permKey] = input.checked;
     });
   }
+
+  const auditBefore = {
+    name: existingProfile.name || "",
+    role: normalizeRole(existingProfile.role || "user"),
+    active: existingProfile.active !== false,
+    permissions: existingProfile.permissions || {}
+  };
+  const auditAfter = { name: visibleName, role, active, permissions };
 
   const profile = {
     ...existingProfile,
@@ -1824,7 +1944,7 @@ async function savePermissionUser(email) {
     }
   }
 
-  addSystemLog("Utilizador guardado", `${visibleName} (${normalized}) ficou como ${role}${active ? "" : " bloqueado"}.`, { email: normalized, role, active }, { sync: true });
+  addSystemLog("Utilizador guardado", `${visibleName} (${normalized}) ficou como ${roleLabel(role)}${active ? "" : " bloqueado"}.`, { email: normalized, before: auditBefore, after: auditAfter }, { sync: true });
   toast("Utilizador guardado.");
   await loadPermissionsUsers();
   renderPermissionsUsers();
@@ -1853,10 +1973,10 @@ function permissionTabAllowed(tabId) {
   if (tabId === "calendarTab") return hasPermission("calendar");
   if (tabId === "scoreTab") return hasPermission("score");
   if (tabId === "knockoutTab") return hasPermission("knockout");
-  if (tabId === "notificationsTab") return hasPermission("admin");
-  if (tabId === "adminTab") return hasPermission("admin");
-  if (tabId === "logsTab") return hasPermission("admin");
-  if (tabId === "settingsTab") return hasPermission("admin");
+  if (tabId === "notificationsTab") return hasPermission("notifications");
+  if (tabId === "adminTab") return hasPermission("adminTab");
+  if (tabId === "logsTab") return hasPermission("logs");
+  if (tabId === "settingsTab") return hasPermission("settings");
   return true;
 }
 
@@ -1875,10 +1995,10 @@ function applyPermissionsToUi() {
   document.querySelector('[data-tab="calendarTab"]')?.classList.toggle("hidden", !hasPermission("calendar"));
   document.querySelector('[data-tab="scoreTab"]')?.classList.toggle("hidden", !hasPermission("score"));
   document.querySelector('[data-tab="knockoutTab"]')?.classList.toggle("hidden", !hasPermission("knockout"));
-  document.querySelector('[data-tab="notificationsTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
-  document.querySelector('[data-tab="logsTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
-  document.querySelector('[data-tab="adminTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
-  document.querySelector('[data-tab="settingsTab"]')?.classList.toggle("hidden", !hasPermission("admin"));
+  document.querySelector('[data-tab="notificationsTab"]')?.classList.toggle("hidden", !hasPermission("notifications"));
+  document.querySelector('[data-tab="logsTab"]')?.classList.toggle("hidden", !hasPermission("logs"));
+  document.querySelector('[data-tab="adminTab"]')?.classList.toggle("hidden", !hasPermission("adminTab"));
+  document.querySelector('[data-tab="settingsTab"]')?.classList.toggle("hidden", !hasPermission("settings"));
 
   const activeTab = document.querySelector(".tab.active");
   if (activeTab && !permissionTabAllowed(activeTab.dataset.tab)) switchToFirstAllowedTab();
@@ -1955,8 +2075,7 @@ function saveRememberedAccount(email) {
 
 async function handleLogin() {
   if (!firebaseAuthApi || !firebaseAuth) {
-    setLoginStatus("Firebase/Auth não está pronto.", "error");
-    return;
+    if (!await ensureFirebaseAuthReadyV188()) return;
   }
 
   const email = $("loginEmailInput")?.value.trim();
@@ -1978,8 +2097,7 @@ async function handleLogin() {
 
 async function handleCreateAccount() {
   if (!firebaseAuthApi || !firebaseAuth) {
-    setLoginStatus("Firebase/Auth não está pronto.", "error");
-    return;
+    if (!await ensureFirebaseAuthReadyV188()) return;
   }
 
   const email = $("loginEmailInput")?.value.trim();
@@ -2420,7 +2538,7 @@ function updateChatUnreadBadge() {
 const CHAT_SETTINGS_COLLECTION = "chatSettings";
 
 function isChatAdmin() {
-  return hasPermission("editResults") || currentProfile?.role === "admin";
+  return hasPermission("editResults") || hasPermission("admin");
 }
 
 function canDeleteChatMessage(message) {
@@ -2639,9 +2757,7 @@ function fireChatLongPress(messageId, event) {
     event.preventDefault();
     event.stopPropagation();
   }
-  if (navigator.vibrate) {
-    try { navigator.vibrate(15); } catch {}
-  }
+  safeVibrateV192(15);
   openChatActionMenu(messageId, event);
 }
 
@@ -2968,9 +3084,7 @@ function playChatNotification(message) {
   chatLastNotifiedId = message.id;
   localStorage.setItem("mundial_chat_last_notified_id", message.id || "");
 
-  if (navigator.vibrate) {
-    try { navigator.vibrate(25); } catch {}
-  }
+  safeVibrateV192(25);
 
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -3441,12 +3555,14 @@ function stopChatSafe() {
 }
 
 function setupAuthGate() {
+  if (authGateStarted) return;
   if (!firebaseAuthApi || !firebaseAuth) {
     showLoginScreen();
     setLoginStatus("Firebase Auth não está configurado.", "error");
     return;
   }
 
+  authGateStarted = true;
   firebaseAuthApi.onAuthStateChanged(firebaseAuth, async user => {
     currentUser = user || null;
 
@@ -3458,6 +3574,7 @@ function setupAuthGate() {
       stopChatSafe();
       showLoginScreen();
       updateSessionBox();
+      renderPushOptInPromptV182();
       return;
     }
 
@@ -3473,12 +3590,15 @@ function setupAuthGate() {
 
       showAppScreen();
       updateSessionBox();
-      await loadPermissionsUsers();
+      loadPermissionsUsers()
+        .then(renderPermissionsUsers)
+        .catch(error => console.warn("Permissões em segundo plano falharam:", error));
       await loadData();
       applyPermissionsToUi();
       setLoginStatus("Login efetuado.", "success");
       startChatSafe();
       startOnlineFeaturesSafe();
+      setTimeout(setupPushForCurrentUserV182, 900);
       addSystemLog("Sessão iniciada", `${currentProfile.name || currentUser.email} entrou na app.`, { email: currentUser.email }, { sync: true });
     } catch (error) {
       console.error("Erro no arranque com login:", error);
@@ -4538,6 +4658,14 @@ async function saveKnockoutMatchFromAdmin(matchId, sourceElement = null) {
   if (!row || !match) return;
 
   const firstRound = isFirstKnockoutRound(match);
+  const beforeMatch = {
+    homeTeam: match.homeTeam || "",
+    awayTeam: match.awayTeam || "",
+    homeScore: match.homeScore ?? null,
+    awayScore: match.awayScore ?? null,
+    homePenalties: match.homePenalties ?? null,
+    awayPenalties: match.awayPenalties ?? null
+  };
 
   if (firstRound) {
     match.homeTeam = row.querySelector(".ko-home-team")?.value || "";
@@ -4604,7 +4732,20 @@ async function saveKnockoutMatchFromAdmin(matchId, sourceElement = null) {
   match.updatedAt = new Date().toISOString();
 
   propagateKnockoutWinners(false);
-  addSystemLog("Jogo Fase Final guardado", `${match.roundLabel} ${match.index}: ${match.homeTeam} ${match.homeScore}-${match.awayScore} ${match.awayTeam}${match.homePenalties !== null && match.awayPenalties !== null ? ` · pen. ${match.homePenalties}-${match.awayPenalties}` : ""}`, { matchId: match.id, round: match.round, index: match.index });
+  addSystemLog("Jogo Fase Final guardado", `${match.roundLabel} ${match.index}: ${match.homeTeam} ${match.homeScore}-${match.awayScore} ${match.awayTeam}${match.homePenalties !== null && match.awayPenalties !== null ? ` · pen. ${match.homePenalties}-${match.awayPenalties}` : ""}`, {
+    matchId: match.id,
+    round: match.round,
+    index: match.index,
+    before: beforeMatch,
+    after: {
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      homeScore: match.homeScore ?? null,
+      awayScore: match.awayScore ?? null,
+      homePenalties: match.homePenalties ?? null,
+      awayPenalties: match.awayPenalties ?? null
+    }
+  }, { sync: true });
   markSettingsPending();
   saveLocalData("fase final jogo guardado");
 
@@ -4649,11 +4790,108 @@ function openKnockoutEditInAdmin(matchId) {
   }, 80);
 }
 
+function activeTabIdV187() {
+  return document.querySelector(".tab-panel.active")?.id || "calendarTab";
+}
+
+function ensureAdminSectionTabsV187() {
+  let tabs = $("adminSectionTabsV187");
+  const sections = [
+    ["all", "Tudo"],
+    ["users", "Users"],
+    ["results", "Resultados"],
+    ["points", "Pontos"],
+    ["knockout", "Fase Final"],
+    ["system", "Sistema"]
+  ];
+  if (!tabs) {
+    tabs = document.createElement("div");
+    tabs.id = "adminSectionTabsV187";
+    tabs.className = "admin-section-tabs-v187";
+  }
+  if (!tabs.querySelector("[data-admin-section-v187]")) {
+    tabs.innerHTML = sections.map(([key, label]) => `<button type="button" data-admin-section-v187="${key}">${label}</button>`).join("");
+  }
+  const overview = $("adminOverviewV162");
+  if (!tabs.parentNode && overview?.parentNode) overview.parentNode.insertBefore(tabs, overview.nextSibling);
+  return tabs;
+}
+
+function adminSectionForCardV187(card) {
+  const text = (card?.textContent || "").toLowerCase();
+  if (text.includes("permiss") || text.includes("utilizador") || text.includes("users do jogo")) return "users";
+  if (text.includes("fase final") || text.includes("bracket")) return "knockout";
+  if (text.includes("pontos") || text.includes("mvp") || text.includes("marcador") || text.includes("campe")) return "points";
+  if (text.includes("resultado") || text.includes("excel") || text.includes("importar")) return "results";
+  return "system";
+}
+
+function renderAdminSectionsV187() {
+  const tabs = ensureAdminSectionTabsV187();
+  if (!tabs) return;
+  const active = localStorage.getItem(`${STORAGE_KEY}_admin_section_v187`) || "all";
+  tabs.querySelectorAll("[data-admin-section-v187]").forEach(button => {
+    button.classList.toggle("active", button.dataset.adminSectionV187 === active);
+  });
+  document.querySelectorAll("#adminUnlocked > .admin-card").forEach(card => {
+    const section = adminSectionForCardV187(card);
+    card.dataset.adminSectionV187 = section;
+    card.classList.toggle("admin-section-hidden-v187", active !== "all" && section !== active);
+  });
+}
+
+function renderActivePageV187(tabId = activeTabIdV187()) {
+  if (tabId === "calendarTab") {
+    renderCalendar();
+    renderCalendarFilterState();
+    return;
+  }
+  if (tabId === "scoreTab") {
+    renderScore();
+    return;
+  }
+  if (tabId === "knockoutTab") {
+    renderKnockout();
+    return;
+  }
+  if (tabId === "notificationsTab") {
+    loadPushStatsV187().then(renderFirebaseHealthPanelV187);
+    renderPushNotificationsPanelV165();
+    renderPushHistoryPanelV187();
+    renderNotificationsCenterV164();
+    return;
+  }
+  if (tabId === "logsTab") {
+    renderSystemLogs();
+    return;
+  }
+  if (tabId === "adminTab") {
+    renderAdmin();
+    renderSettingsForm();
+    renderUsers();
+    renderUserBetsEditor();
+    renderKnockoutAdmin();
+    renderAdminOverviewV162();
+    renderFirebaseHealthPanelV187();
+    renderAdminSectionsV187();
+    return;
+  }
+  if (tabId === "settingsTab") {
+    renderAppSettingsPanelV162();
+    renderInstallGuideV164();
+  }
+}
+
 function renderAll() {
   setupSearchResultsAdminButton();
   setTimeout(addSearchButtonsToResultCards, 0);
   setupOnlineUsersCloseControls();
-  setupKnockoutAdjustTopButton(); renderAdminState(); renderCalendar(); renderScore(); renderKnockout(); renderAdmin(); renderSystemLogs(); renderNotificationsCenterV164(); renderSettingsForm(); renderUsers(); renderUserBetsEditor(); renderKnockoutAdmin(); renderCalendarFilterState(); renderAdminOverviewV162(); renderAppSettingsPanelV162(); renderInstallGuideV164(); applyPermissionsToUi(); updateActiveAppSection(); 
+  setupKnockoutAdjustTopButton();
+  renderAdminState();
+  renderCalendarFilterState();
+  renderActivePageV187();
+  applyPermissionsToUi();
+  updateActiveAppSection();
   setTimeout(addSearchButtonsToResultCards, 250);
 }
 
@@ -5131,8 +5369,9 @@ function addSearchButtonsToResultCards() {
 
 
 function renderAdminState() {
-  $("adminLocked").classList.toggle("hidden", isAdmin || isAdminProfile());
-  $("adminUnlocked").classList.toggle("hidden", !(isAdmin || isAdminProfile()));
+  const canUseAdminPanel = isAdminProfile() || (isAdmin && hasPermission("admin"));
+  $("adminLocked").classList.toggle("hidden", canUseAdminPanel);
+  $("adminUnlocked").classList.toggle("hidden", !canUseAdminPanel);
   const status = storageMode === "firebase" ? "Firebase online" : "Modo local";
   $("storageStatus").textContent = `${status}. Importa as apostas do Excel Resultados e mete os resultados reais manualmente.`;
 }
@@ -5443,6 +5682,194 @@ function renderAdminOverviewV162() {
   `;
 }
 
+function pendingFirebaseSummaryV187() {
+  return {
+    jogos: pendingGameIds().length,
+    apostas: pendingBetIds().length,
+    apagarApostas: pendingDeleteBetIds().length,
+    syncTotal: hasFullSyncPending() ? 1 : 0,
+    definicoes: hasSettingsPending() ? 1 : 0
+  };
+}
+
+function pendingFirebaseTotalV187() {
+  const pending = pendingFirebaseSummaryV187();
+  return Object.values(pending).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
+function ensureFirebaseHealthPanelV187() {
+  let panel = $("firebaseHealthPanelV187");
+  if (panel) return panel;
+  panel = document.createElement("div");
+  panel.id = "firebaseHealthPanelV187";
+  panel.className = "firebase-health-v187";
+  const overview = $("adminOverviewV162");
+  if (overview?.parentNode) overview.parentNode.insertBefore(panel, overview.nextSibling);
+  return panel;
+}
+
+function ensurePushHistoryPanelV187() {
+  let panel = $("pushHistoryPanelV187");
+  if (panel) return panel;
+  panel = document.createElement("div");
+  panel.id = "pushHistoryPanelV187";
+  panel.className = "push-history-v187";
+  const pushPanel = $("pushNotificationsPanelV165");
+  if (pushPanel?.parentNode) pushPanel.parentNode.insertBefore(panel, pushPanel.nextSibling);
+  return panel;
+}
+
+function shortDateTimeV187(value) {
+  const raw = value?.toDate ? value.toDate() : value;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" });
+}
+
+async function loadPushStatsV187(force = false) {
+  if (!db || !firebaseApi?.collection || !firebaseApi?.getDocs) return pushStatsCacheV187;
+  const fresh = Date.now() - (pushStatsCacheV187.loadedAt || 0) < 30000;
+  if (!force && fresh) return pushStatsCacheV187;
+  if (pushStatsCacheV187.loading) return pushStatsCacheV187;
+
+  pushStatsCacheV187.loading = true;
+  try {
+    const { collection, getDocs } = firebaseApi;
+    const [tokensSnap, testsSnap] = await Promise.all([
+      withTimeout(getDocs(collection(db, "notificationTokens")), 8000, "ler tokens push"),
+      withTimeout(getDocs(collection(db, "notificationTests")), 8000, "ler testes push")
+    ]);
+
+    const tokens = [];
+    tokensSnap.forEach(docSnap => tokens.push({ id: docSnap.id, ...(docSnap.data() || {}) }));
+    const tests = [];
+    testsSnap.forEach(docSnap => tests.push({ id: docSnap.id, ...(docSnap.data() || {}) }));
+    tests.sort((a, b) => new Date(b.createdAt || b.at || 0).getTime() - new Date(a.createdAt || a.at || 0).getTime());
+    pushStatsCacheV187 = { loadedAt: Date.now(), tokens, tests: tests.slice(0, 20), loading: false };
+  } catch (error) {
+    console.warn("Não foi possível carregar estatísticas push:", error);
+    pushStatsCacheV187 = { ...pushStatsCacheV187, loadedAt: Date.now(), loading: false, error: shortFirebaseError(error) };
+  }
+  return pushStatsCacheV187;
+}
+
+function renderFirebaseHealthPanelV187() {
+  const panel = ensureFirebaseHealthPanelV187();
+  if (!panel) return;
+
+  const status = $("firebaseStatusBox")?.textContent || (storageMode === "firebase" ? "Firebase ligado" : "Modo local");
+  const pending = pendingFirebaseSummaryV187();
+  const pendingTotal = pendingFirebaseTotalV187();
+  const saved = localStorage.getItem(STORAGE_KEY);
+  let localSaved = "";
+  try { localSaved = shortDateTimeV187(JSON.parse(saved || "{}")?.savedAt); } catch {}
+  const economy = typeof window.firestoreEconomyStatusV114 === "function" ? window.firestoreEconomyStatusV114() : null;
+  const enabledTokens = pushStatsCacheV187.tokens.filter(token => token.enabled !== false).length;
+  const platforms = pushStatsCacheV187.tokens.reduce((acc, token) => {
+    const key = token.platform || "web";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const lastTest = pushStatsCacheV187.tests[0];
+
+  panel.innerHTML = `
+    <div class="firebase-health-head-v187">
+      <div>
+        <span>Saúde da app</span>
+        <strong>Firebase e push</strong>
+      </div>
+      <button id="refreshHealthV187" class="secondary" type="button">Atualizar</button>
+    </div>
+    <div class="health-grid-v187">
+      <article class="${storageMode === "firebase" ? "ok" : "warn"}">
+        <span>Ligacao</span>
+        <strong>${escapeHtml(navigator.onLine ? "Online" : "Offline")}</strong>
+        <p>${escapeHtml(status)}</p>
+      </article>
+      <article class="${pendingTotal ? "warn" : "ok"}">
+        <span>Pendentes</span>
+        <strong>${pendingTotal}</strong>
+        <p>${pending.jogos} jogos, ${pending.apostas} apostas, ${pending.definicoes} configs</p>
+      </article>
+      <article>
+        <span>Cache local</span>
+        <strong>${localSaved ? "Ativa" : "Sem data"}</strong>
+        <p>${escapeHtml(localSaved || "Ainda sem data guardada")}</p>
+      </article>
+      <article>
+        <span>Tempo real</span>
+        <strong>${realtimeUnsubscribers.length || 0}</strong>
+        <p>${economy ? `${economy.pollers || 0} atualizadores em fundo` : "Listeners prontos quando Firebase liga"}</p>
+      </article>
+      <article class="${enabledTokens ? "ok" : "warn"}">
+        <span>Push ativos</span>
+        <strong>${enabledTokens}</strong>
+        <p>${escapeHtml(Object.entries(platforms).map(([key, value]) => `${key}: ${value}`).join(" · ") || "Sem tokens lidos")}</p>
+      </article>
+      <article>
+        <span>Último teste</span>
+        <strong>${escapeHtml(lastTest?.type || lastTest?.testType || "-")}</strong>
+        <p>${escapeHtml(lastTest ? `${lastTest.sent || 0} enviados · ${shortDateTimeV187(lastTest.createdAt || lastTest.at)}` : "Sem testes recentes")}</p>
+      </article>
+    </div>
+  `;
+
+  $("refreshHealthV187")?.addEventListener("click", async () => {
+    await loadPushStatsV187(true);
+    renderFirebaseHealthPanelV187();
+    renderPushHistoryPanelV187();
+  });
+
+  if (!pushStatsCacheV187.loadedAt && !pushStatsCacheV187.loading && db) {
+    loadPushStatsV187().then(() => {
+      renderFirebaseHealthPanelV187();
+      renderPushHistoryPanelV187();
+    });
+  }
+}
+
+function renderPushHistoryPanelV187() {
+  const panel = ensurePushHistoryPanelV187();
+  if (!panel) return;
+
+  if (!hasPermission("admin")) {
+    panel.innerHTML = "";
+    return;
+  }
+
+  const rows = pushStatsCacheV187.tests.slice(0, 8).map(test => `
+    <article class="push-history-row-v187">
+      <div>
+        <strong>${escapeHtml(test.title || test.type || test.testType || "Teste push")}</strong>
+        <p>${escapeHtml(test.body || test.game || "Sem detalhe")}</p>
+      </div>
+      <span>${escapeHtml(`${test.sent || 0} enviados`)}</span>
+      <small>${escapeHtml(shortDateTimeV187(test.createdAt || test.at))}</small>
+    </article>
+  `).join("");
+
+  panel.innerHTML = `
+    <div class="push-history-head-v187">
+      <div>
+        <span>Histórico push</span>
+        <strong>Testes e envios recentes</strong>
+      </div>
+      <button id="refreshPushHistoryV187" class="secondary" type="button">Atualizar</button>
+    </div>
+    <div class="push-history-list-v187">${rows || "<p>Sem testes push recentes.</p>"}</div>
+  `;
+
+  $("refreshPushHistoryV187")?.addEventListener("click", async () => {
+    await loadPushStatsV187(true);
+    renderPushHistoryPanelV187();
+    renderFirebaseHealthPanelV187();
+  });
+
+  if (!pushStatsCacheV187.loadedAt && !pushStatsCacheV187.loading && db) {
+    loadPushStatsV187().then(renderPushHistoryPanelV187);
+  }
+}
+
 function renderAppSettingsPanelV162() {
   const version = $("appVersionLabelV162");
   if (!version) return;
@@ -5525,11 +5952,19 @@ async function setResult(gameId, homeScore, awayScore) {
     return false;
   }
 
+  const beforeResult = {
+    homeScore: game.homeScore ?? null,
+    awayScore: game.awayScore ?? null
+  };
   game.homeScore = Number(homeScore);
   game.awayScore = Number(awayScore);
+  const afterResult = {
+    homeScore: game.homeScore,
+    awayScore: game.awayScore
+  };
   stampGame(game, "resultado guardado");
   markGamePending(game.id);
-  addSystemLog("Resultado guardado", `${game.homeTeam} ${game.homeScore}-${game.awayScore} ${game.awayTeam}`, { gameId: game.id, group: game.group }, { sync: true });
+  addSystemLog("Resultado guardado", `${game.homeTeam} ${game.homeScore}-${game.awayScore} ${game.awayTeam}`, { gameId: game.id, group: game.group, before: beforeResult, after: afterResult }, { sync: true });
 
   saveLocalData("resultado editado local antes firebase");
   renderAll();
@@ -5554,11 +5989,15 @@ async function clearResult(gameId) {
   const game = games.find(item => item.id === gameId);
   if (!game) return false;
 
+  const beforeResult = {
+    homeScore: game.homeScore ?? null,
+    awayScore: game.awayScore ?? null
+  };
   game.homeScore = null;
   game.awayScore = null;
   stampGame(game, "resultado limpo");
   markGamePending(game.id);
-  addSystemLog("Resultado limpo", `${game.homeTeam} vs ${game.awayTeam}`, { gameId: game.id, group: game.group }, { sync: true });
+  addSystemLog("Resultado limpo", `${game.homeTeam} vs ${game.awayTeam}`, { gameId: game.id, group: game.group, before: beforeResult, after: { homeScore: null, awayScore: null } }, { sync: true });
 
   saveLocalData("resultado limpo local antes firebase");
   renderAll();
@@ -6404,13 +6843,11 @@ document.querySelectorAll(".tab").forEach(button => {
     button.classList.add("active");
     $(button.dataset.tab).classList.add("active");
     updateActiveAppSection();
-    if (button.dataset.tab === "knockoutTab") renderKnockout();
-    if (button.dataset.tab === "notificationsTab") renderNotificationsCenterV164();
-    if (button.dataset.tab === "logsTab") renderSystemLogs();
-    if (button.dataset.tab === "settingsTab") { renderAppSettingsPanelV162(); renderInstallGuideV164(); }
+    renderActivePageV187(button.dataset.tab);
   });
 });
 $("unlockAdminBtn").addEventListener("click", () => {
+  if (!hasPermission("admin")) return toast("Sem permissão Admin.");
   if ($("adminPinInput").value !== ADMIN_PIN) return toast("PIN errado.");
   isAdmin = true; localStorage.setItem("mundial_admin_unlocked", "1"); renderAll();
 });
@@ -6671,10 +7108,12 @@ document.addEventListener("change", event => {
   if (roleSelect) {
     const email = roleSelect.dataset.roleEmail;
     const card = document.querySelector(`[data-permission-card="${CSS.escape(email)}"]`);
-    const isAdminRole = roleSelect.value === "admin";
+    const role = normalizeRole(roleSelect.value);
+    const isOwnerRole = role === "owner";
+    const defaults = permissionsForRole(role);
     card?.querySelectorAll("[data-perm-key]").forEach(input => {
-      input.disabled = isAdminRole;
-      if (isAdminRole) input.checked = true;
+      input.disabled = isOwnerRole;
+      input.checked = Boolean(defaults[input.dataset.permKey]);
     });
   }
 });
@@ -6700,7 +7139,8 @@ setupIosAppMode();
 setupPwaInstall();
 setupPageWheelScroll();
 registerServiceWorker();
-await initFirebase();
+firebaseReadyPromise = initFirebase();
+await firebaseReadyPromise;
 setupAuthGate();
 
 
@@ -7355,9 +7795,7 @@ setupSearchResultsAdminButton();
       pressStart = { ...point, row };
       pressTimer = setTimeout(() => {
         if (!pressStart || pressStart.row !== row) return;
-        if (navigator.vibrate) {
-          try { navigator.vibrate(15); } catch {}
-        }
+        safeVibrateV192(15);
         openMenuForRow(row, point);
       }, 620);
     }, { capture: true, passive: false });
@@ -9615,131 +10053,317 @@ function renderInstallGuideV164() {
   `;
 }
 
-function pushDeviceIdV165() {
-  let id = localStorage.getItem(PUSH_DEVICE_KEY_V165);
+function pushVapidStorageKeyV181() {
+  return `${STORAGE_KEY}_push_vapid_key_clean_v181`;
+}
+
+function pushPreferencesStorageKeyV181() {
+  return `${STORAGE_KEY}_push_preferences_clean_v181`;
+}
+
+function pushLastTokenStorageKeyV181() {
+  return `${STORAGE_KEY}_push_last_token_clean_v181`;
+}
+
+function pushDeviceIdV181() {
+  const key = `${STORAGE_KEY}_push_device_id_clean_v181`;
+  let id = localStorage.getItem(key);
   if (!id) {
     id = `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(PUSH_DEVICE_KEY_V165, id);
+    localStorage.setItem(key, id);
   }
   return id;
 }
 
-function pushTokenDocIdV165() {
-  if (!currentUser?.uid) return "";
-  return `${currentUser.uid}_${pushDeviceIdV165()}`;
+function pushVapidKeyV181() {
+  return String(
+    localStorage.getItem(pushVapidStorageKeyV181()) ||
+    window.MUNDIAL_CONFIG?.messaging?.vapidKey ||
+    APP_CONFIG?.messaging?.vapidKey ||
+    ""
+  ).trim();
 }
 
-function pushSupportV165() {
+function pushFunctionsBaseV181() {
+  const projectId = APP_CONFIG?.firebase?.projectId || window.MUNDIAL_CONFIG?.firebase?.projectId || "app-mundial2026";
+  return `https://us-central1-${projectId}.cloudfunctions.net`;
+}
+
+async function callPushFunctionV181(functionName, payload = {}) {
+  const user = firebaseAuth?.currentUser || currentUser;
+  let idToken = "";
+  try { idToken = user?.getIdToken ? await user.getIdToken() : ""; } catch {}
+
+  const response = await fetch(`${pushFunctionsBaseV181()}/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {})
+    },
+    body: JSON.stringify({
+      ...payload,
+      uid: user?.uid || currentUser?.uid || "",
+      email: normalizeEmail(user?.email || currentUser?.email || ""),
+      appVersion: APP_CONFIG?.appVersion || APP_VERSION_LABEL,
+      deviceId: pushDeviceIdV181(),
+      userAgent: navigator.userAgent
+    })
+  });
+
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `${functionName} respondeu ${response.status}`);
+  }
+  return data;
+}
+
+function defaultPushPreferencesV181() {
+  return {
+    gameStart: true,
+    gameEnd: true,
+    goals: true,
+    quietHours: { enabled: true, startHour: 23, endHour: 9, timezone: "Europe/Lisbon" }
+  };
+}
+
+function savedPushPreferencesV181() {
+  try {
+    return { ...defaultPushPreferencesV181(), ...(JSON.parse(localStorage.getItem(pushPreferencesStorageKeyV181()) || "{}") || {}) };
+  } catch {
+    return defaultPushPreferencesV181();
+  }
+}
+
+function currentPushPreferencesV181() {
+  const saved = savedPushPreferencesV181();
+  return {
+    gameStart: $("pushGameStartInputV181")?.checked ?? saved.gameStart,
+    gameEnd: $("pushGameEndInputV181")?.checked ?? saved.gameEnd,
+    goals: $("pushGoalsInputV181")?.checked ?? saved.goals,
+    quietHours: {
+      enabled: $("pushQuietHoursInputV181")?.checked ?? saved.quietHours?.enabled ?? true,
+      startHour: 23,
+      endHour: 9,
+      timezone: "Europe/Lisbon"
+    }
+  };
+}
+
+function savePushPreferencesLocalV181(preferences = currentPushPreferencesV181()) {
+  localStorage.setItem(pushPreferencesStorageKeyV181(), JSON.stringify(preferences));
+  return preferences;
+}
+
+function pushSupportV181() {
   const permission = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-  const standalone = isStandaloneMode();
+  const vapidKey = pushVapidKeyV181();
   const ios = isIosDevice();
-  const vapidKey = String(APP_CONFIG?.messaging?.vapidKey || "").trim();
+  const standalone = isStandaloneMode();
   return {
     supported: Boolean(firebaseMessaging && firebaseMessagingApi && "serviceWorker" in navigator && typeof Notification !== "undefined"),
     permission,
-    standalone,
-    ios,
     vapidKey,
     hasVapid: Boolean(vapidKey),
-    needsIosInstall: ios && !standalone
+    ios,
+    standalone,
+    needsIosInstall: ios && !standalone,
+    sw: "serviceWorker" in navigator
   };
 }
 
-function pushPrefsV165() {
-  return {
-    gameStart: $("pushGameStartInputV165")?.checked !== false,
-    gameEnd: $("pushGameEndInputV165")?.checked !== false,
-    goals: $("pushGoalsInputV165")?.checked !== false,
-    results: true,
-    knockout: true,
-    chatGeneral: false,
-    chatAdmin: true
-  };
+function pushDiagnosticV181() {
+  const support = pushSupportV181();
+  return [
+    `Permissão: ${support.permission}`,
+    `Firebase Messaging: ${firebaseMessaging && firebaseMessagingApi ? "OK" : "não ligado"}`,
+    `Service Worker: ${support.sw ? "OK" : "não suportado"}`,
+    `VAPID: ${support.hasVapid ? "configurada" : "default Firebase"}`,
+    support.needsIosInstall ? "iPhone: instalar no Ecrã Principal" : ""
+  ].filter(Boolean).join(" · ");
 }
 
-function pushQuietHoursV166() {
-  return {
-    enabled: $("pushQuietHoursInputV166")?.checked !== false,
-    startHour: 23,
-    endHour: 9,
-    timezone: "Europe/Lisbon"
-  };
-}
-
-async function savePushTokenPreferencesV165(token) {
-  if (!db || !firebaseApi || !currentUser) return false;
-  const docId = pushTokenDocIdV165();
-  if (!docId) return false;
-  const payload = {
-    uid: currentUser.uid,
-    email: normalizeEmail(currentUser.email),
-    name: currentProfile?.name || displayNameFromEmail(currentUser.email),
-    platform: pushSupportV165().ios ? "ios" : /android/i.test(navigator.userAgent) ? "android" : "desktop",
-    userAgent: navigator.userAgent,
-    preferences: pushPrefsV165(),
-    quietHours: pushQuietHoursV166(),
-    rooms: { general: false, admin: true },
-    updatedAt: new Date().toISOString()
-  };
-  if (token !== undefined) {
-    payload.token = token;
-    payload.enabled = Boolean(token);
-  }
-  await firebaseApi.setDoc(firebaseApi.doc(db, "notificationTokens", docId), payload, { merge: true });
-  return true;
-}
-
-async function enablePushNotificationsV165() {
-  if (!hasPermission("admin")) return toast("Só o Admin pode ativar notificações push.");
-  const support = pushSupportV165();
-  if (!support.supported) return toast("Este navegador ainda não suporta push nesta app.");
-  if (support.needsIosInstall) return toast("No iPhone, instala primeiro a app no Ecrã Principal.");
-  if (!support.hasVapid) return toast("Falta configurar a VAPID key do Firebase Messaging no config.js.");
-
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    renderPushNotificationsPanelV165();
-    return toast("Permissão de notificações não autorizada.");
-  }
-
-  const registration = await navigator.serviceWorker.ready;
-  const token = await firebaseMessagingApi.getToken(firebaseMessaging, {
-    vapidKey: support.vapidKey,
-    serviceWorkerRegistration: registration
-  });
-
-  if (!token) return toast("Não foi possível criar o token de notificações.");
-  await savePushTokenPreferencesV165(token);
-  renderPushNotificationsPanelV165();
-  toast("Notificações push ativas neste dispositivo.");
-}
-
-async function savePushPreferencesOnlyV165() {
-  if (!hasPermission("admin")) return;
+async function savePushPreferencesV181() {
+  const preferences = savePushPreferencesLocalV181();
   try {
-    await savePushTokenPreferencesV165();
-    toast("Preferências de notificações guardadas.");
+    await callPushFunctionV181("savePushPreferences", { preferences });
+    toast("Preferências push guardadas.");
   } catch (error) {
-    console.warn("Preferências push não guardadas:", error);
-    toast("Não consegui guardar as preferências push.");
+    console.warn("Preferências push guardadas só localmente:", error);
+    toast("Preferências guardadas neste dispositivo.");
   }
 }
 
-async function sendTestPushV165() {
-  if (!hasPermission("admin")) return toast("Só o Admin pode testar push.");
-  if (!db || !firebaseApi || !currentUser) return toast("Firebase não está ligado.");
+async function enablePushNotificationsV181(options = {}) {
+  const silent = options?.silent === true;
   try {
-    await firebaseApi.addDoc(firebaseApi.collection(db, "notificationTests"), {
-      uid: currentUser.uid,
-      email: normalizeEmail(currentUser.email),
-      createdAt: new Date().toISOString(),
-      source: "push-panel-v165"
+    if (!currentUser && !firebaseAuth?.currentUser) {
+      if (!silent) toast("Faz login antes de ativar push.");
+      return false;
+    }
+
+    const support = pushSupportV181();
+    if (!support.supported) {
+      if (!silent) toast("Este navegador ainda não suporta push nesta app.");
+      return false;
+    }
+    if (support.needsIosInstall) {
+      if (!silent) toast("No iPhone, instala primeiro a app no Ecrã Principal.");
+      return false;
+    }
+    let permission = support.permission;
+    if (permission !== "granted") {
+      if (silent) return false;
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== "granted") {
+      renderPushNotificationsPanelV165();
+      renderPushOptInPromptV182();
+      if (!silent) toast("Permissão de notificações não autorizada.");
+      return false;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const token = await firebaseMessagingApi.getToken(firebaseMessaging, {
+      ...(support.vapidKey ? { vapidKey: support.vapidKey } : {}),
+      serviceWorkerRegistration: registration
     });
-    toast("Teste enviado. Se o dispositivo estiver ativo, vais receber uma notificação.");
+
+    if (!token) {
+      if (!silent) toast("Não foi possível criar token push.");
+      return false;
+    }
+
+    const preferences = savePushPreferencesLocalV181();
+    await callPushFunctionV181("registerPushToken", {
+      token,
+      preferences,
+      platform: support.ios ? "ios" : /android/i.test(navigator.userAgent) ? "android" : "web"
+    });
+
+    localStorage.setItem(pushLastTokenStorageKeyV181(), token);
+    localStorage.removeItem(PUSH_OPT_IN_DISMISSED_KEY_V182);
+    if (!silent) toast("Notificações push ativas neste dispositivo.");
+    loadPushStatsV187(true).then(renderFirebaseHealthPanelV187);
+    renderPushNotificationsPanelV165();
+    renderPushOptInPromptV182();
+    return true;
   } catch (error) {
-    console.warn("Teste push falhou:", error);
-    toast("Não consegui enviar o teste push.");
+    console.error("enablePushNotificationsV181 falhou:", error);
+    const msg = String(error?.message || error || "erro");
+    if (!silent) {
+      if (msg.includes("invalid-vapid-key")) return toast("VAPID key inválida. Confirma a chave no Firebase.");
+      toast(`Não consegui ativar push: ${msg.slice(0, 140)}`);
+    }
+    return false;
   }
+}
+
+function currentPushTestPayloadV184() {
+  const type = $("pushTestTypeInputV184")?.value || "custom";
+  const team = String($("pushTestTeamInputV184")?.value || "Portugal").trim();
+  const game = String($("pushTestGameInputV184")?.value || "Portugal vs Uzbequistão").trim();
+  const custom = String($("pushTestMessageInputV184")?.value || "").trim();
+  const defaults = {
+    gameStart: { title: "Jogo começou", body: `${game} já começou.` },
+    gameEnd: { title: "Jogo acabou", body: `${game} terminou.` },
+    goals: { title: `Golo ${team}`, body: `Golo de ${team} no jogo ${game}.` },
+    custom: { title: "Teste push Mundial", body: custom || "As notificações push estão a funcionar." }
+  };
+  const selected = defaults[type] || defaults.custom;
+  return {
+    testType: type,
+    team,
+    game,
+    title: selected.title,
+    body: custom || selected.body,
+    ignoreQuietHours: true
+  };
+}
+
+async function sendTestPushV181() {
+  try {
+    if (!hasPermission("admin")) return toast("Só o Admin pode testar push.");
+    const payload = currentPushTestPayloadV184();
+    const data = await callPushFunctionV181("requestPushTest", { ...payload, allDevices: true, preferences: currentPushPreferencesV181() });
+    loadPushStatsV187(true).then(() => {
+      renderPushHistoryPanelV187();
+      renderFirebaseHealthPanelV187();
+    });
+    toast(`Teste ${payload.title} pedido para ${data.sent || 0} dispositivo(s).`);
+  } catch (error) {
+    console.error("sendTestPushV181 falhou:", error);
+    toast(`Não consegui pedir teste push: ${String(error?.message || error || "erro").slice(0, 140)}`);
+  }
+}
+
+function ensurePushOptInPromptElementV182() {
+  let prompt = $("pushOptInPromptV182");
+  if (prompt) return prompt;
+  prompt = document.createElement("div");
+  prompt.id = "pushOptInPromptV182";
+  prompt.className = "push-optin-v182 hidden";
+  const main = document.querySelector("#appShell main");
+  if (main?.parentNode) main.parentNode.insertBefore(prompt, main);
+  else $("appShell")?.appendChild(prompt);
+  return prompt;
+}
+
+function shouldShowPushOptInV182() {
+  if (!currentUser && !firebaseAuth?.currentUser) return false;
+  if (localStorage.getItem(PUSH_OPT_IN_DISMISSED_KEY_V182) === "1") return false;
+  if (localStorage.getItem(pushLastTokenStorageKeyV181())) return false;
+  const support = pushSupportV181();
+  if (!support.supported || support.needsIosInstall) return false;
+  return support.permission !== "denied";
+}
+
+function renderPushOptInPromptV182() {
+  const prompt = ensurePushOptInPromptElementV182();
+  if (!prompt) return;
+  if (!shouldShowPushOptInV182()) {
+    prompt.classList.add("hidden");
+    prompt.innerHTML = "";
+    return;
+  }
+
+  const support = pushSupportV181();
+  const title = support.permission === "granted" ? "Concluir notificações neste dispositivo" : "Ativar notificações neste dispositivo";
+  const detail = support.permission === "granted"
+    ? "A permissão já está dada. Falta só registar este dispositivo para receber alertas."
+    : "Recebe alertas de jogo começou, jogo acabou e golo da equipa mesmo com a app fechada.";
+
+  prompt.classList.remove("hidden");
+  prompt.innerHTML = `
+    <div>
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(detail)}</span>
+    </div>
+    <div class="push-optin-actions-v182">
+      <button id="pushOptInEnableBtnV182" class="primary" type="button">Ativar notificações</button>
+      <button id="pushOptInLaterBtnV182" class="secondary" type="button">Depois</button>
+    </div>
+  `;
+
+  $("pushOptInEnableBtnV182")?.addEventListener("click", () => enablePushNotificationsV181());
+  $("pushOptInLaterBtnV182")?.addEventListener("click", () => {
+    localStorage.setItem(PUSH_OPT_IN_DISMISSED_KEY_V182, "1");
+    renderPushOptInPromptV182();
+  });
+}
+
+async function setupPushForCurrentUserV182() {
+  if (!currentUser && !firebaseAuth?.currentUser) {
+    renderPushOptInPromptV182();
+    return;
+  }
+  const support = pushSupportV181();
+  const hasToken = Boolean(localStorage.getItem(pushLastTokenStorageKeyV181()));
+  if (support.supported && support.permission === "granted" && !hasToken && !support.needsIosInstall) {
+    await enablePushNotificationsV181({ silent: true });
+  }
+  renderPushOptInPromptV182();
+  renderPushNotificationsPanelV165();
 }
 
 function renderPushNotificationsPanelV165() {
@@ -9750,45 +10374,63 @@ function renderPushNotificationsPanelV165() {
     return;
   }
 
-  const support = pushSupportV165();
-  const permissionText = support.permission === "granted" ? "Permitidas" :
-    support.permission === "denied" ? "Bloqueadas" :
-    support.permission === "unsupported" ? "Não suportadas" :
-    "Por ativar";
-  const deviceText = support.ios ? (support.standalone ? "iPhone PWA instalada" : "iPhone: instalar no Ecrã Principal") :
-    /android/i.test(navigator.userAgent) ? "Android" : "PC / Browser";
-  const vapidText = support.hasVapid ? "VAPID configurada" : "VAPID em falta";
+  const support = pushSupportV181();
+  const preferences = savedPushPreferencesV181();
+  const hasToken = Boolean(localStorage.getItem(pushLastTokenStorageKeyV181()));
+  const permissionText = support.permission === "granted" ? "Permitidas" : support.permission === "denied" ? "Bloqueadas" : support.permission === "unsupported" ? "Não suportadas" : "Por ativar";
+  const deviceText = support.ios ? (support.standalone ? "iPhone PWA instalada" : "iPhone: instalar no Ecrã Principal") : /android/i.test(navigator.userAgent) ? "Android" : "PC / Browser";
+  const vapidText = support.hasVapid ? "VAPID configurada" : "VAPID default Firebase";
 
   panel.innerHTML = `
     <div class="push-panel-head-v165">
       <div>
         <strong>Push Android / iPhone</strong>
-        <span>Eventos preparados: Jogo começou, Jogo acabou e Golo da equipa.</span>
-        <small>Funciona com a app fechada quando o dispositivo está subscrito e a VAPID key está configurada.</small>
+        <span>Fluxo único via Firebase Functions: preferências, ativação e teste.</span>
+        <small>Funciona com a app fechada quando o dispositivo está subscrito. Silêncio por defeito: 23h-09h.</small>
       </div>
       <div class="push-panel-actions-v165">
         <button id="enablePushBtnV165" class="primary" type="button">Ativar neste dispositivo</button>
-        <button id="testPushBtnV165" class="secondary" type="button">Enviar teste</button>
+        <button id="testPushBtnV165" class="secondary" type="button">Enviar teste dos campos</button>
       </div>
     </div>
     <div class="push-status-v165">
       <span>${escapeHtml(permissionText)}</span>
       <span>${escapeHtml(deviceText)}</span>
       <span>${escapeHtml(vapidText)}</span>
+      <span>${hasToken ? "Token guardado" : "Token por ativar"}</span>
     </div>
     <div class="push-options-v165">
-      <label><input id="pushGameStartInputV165" type="checkbox" checked /> Jogo começou</label>
-      <label><input id="pushGameEndInputV165" type="checkbox" checked /> Jogo acabou</label>
-      <label><input id="pushGoalsInputV165" type="checkbox" checked /> Golo da equipa</label>
-      <label><input id="pushQuietHoursInputV166" type="checkbox" checked /> Silenciar 23h-09h</label>
-      <button id="savePushPrefsBtnV165" class="secondary" type="button">Guardar preferências</button>
+      <label><input id="pushGameStartInputV181" type="checkbox" ${preferences.gameStart ? "checked" : ""} /> Jogo começou</label>
+      <label><input id="pushGameEndInputV181" type="checkbox" ${preferences.gameEnd ? "checked" : ""} /> Jogo acabou</label>
+      <label><input id="pushGoalsInputV181" type="checkbox" ${preferences.goals ? "checked" : ""} /> Golo da equipa</label>
+      <label><input id="pushQuietHoursInputV181" type="checkbox" ${preferences.quietHours?.enabled !== false ? "checked" : ""} /> Silenciar 23h-09h</label>
+      <button id="savePushPrefsBtnV181" class="secondary" type="button">Guardar preferências</button>
     </div>
-    <p class="push-note-v165">No iPhone, as notificações Web Push exigem a app instalada no Ecrã Principal e uma versão recente do iOS. O servidor não envia push entre as 23h e as 09h de Lisboa quando o silêncio está ativo.</p>
+    <div class="push-test-fields-v184">
+      <label>Tipo
+        <select id="pushTestTypeInputV184">
+          <option value="gameStart">Jogo começou</option>
+          <option value="gameEnd">Jogo acabou</option>
+          <option value="goals">Golo da equipa</option>
+          <option value="custom">Mensagem livre</option>
+        </select>
+      </label>
+      <label>Equipa
+        <input id="pushTestTeamInputV184" type="text" value="Portugal" />
+      </label>
+      <label>Jogo
+        <input id="pushTestGameInputV184" type="text" value="Portugal vs Uzbequistão" />
+      </label>
+      <label>Mensagem opcional
+        <input id="pushTestMessageInputV184" type="text" placeholder="Vazio usa o texto automático" />
+      </label>
+    </div>
+    <p class="push-note-v165">Diagnóstico: ${escapeHtml(pushDiagnosticV181())}</p>
   `;
 
-  $("enablePushBtnV165")?.addEventListener("click", enablePushNotificationsV165);
-  $("testPushBtnV165")?.addEventListener("click", sendTestPushV165);
-  $("savePushPrefsBtnV165")?.addEventListener("click", savePushPreferencesOnlyV165);
+  $("savePushPrefsBtnV181")?.addEventListener("click", savePushPreferencesV181);
+  $("enablePushBtnV165")?.addEventListener("click", () => enablePushNotificationsV181());
+  $("testPushBtnV165")?.addEventListener("click", sendTestPushV181);
 }
 
 function setupV162Controls() {
@@ -9819,6 +10461,13 @@ function setupV162Controls() {
       return;
     }
 
+    const adminSection = event.target.closest("[data-admin-section-v187]");
+    if (adminSection) {
+      localStorage.setItem(`${STORAGE_KEY}_admin_section_v187`, adminSection.dataset.adminSectionV187 || "all");
+      renderAdminSectionsV187();
+      return;
+    }
+
     const modal = event.target.closest(".modal");
     if (modal && event.target === modal) {
       closeTopModalV162();
@@ -9840,20 +10489,281 @@ function setupV162Controls() {
   $("openLogsFromSettingsBtnV162")?.addEventListener("click", () => openTabV162("logsTab"));
   $("markNotificationsReadBtnV164")?.addEventListener("click", markNotificationsReadV164);
   $("openNotificationSettingsBtnV164")?.addEventListener("click", () => {
-    if (hasPermission("admin")) openTabV162("settingsTab");
+    if (hasPermission("settings")) openTabV162("settingsTab");
     else $("installAppBtn")?.click() || toast("No iPhone usa Safari > Partilhar > Adicionar ao Ecrã Principal.");
   });
   $("openAdminFromSettingsBtnV162")?.addEventListener("click", () => openTabV162("adminTab") || toast("Sem permissão para abrir Admin."));
 
-  window.addEventListener("online", () => { renderAppSettingsPanelV162(); renderNotificationsCenterV164(); });
-  window.addEventListener("offline", () => { renderAppSettingsPanelV162(); renderNotificationsCenterV164(); });
+  window.addEventListener("online", () => {
+    setFirebaseStatus("loading", "Firebase: internet voltou, a reconectar...");
+    scheduleFirebaseReconnect("online", 500);
+    renderAppSettingsPanelV162();
+    renderNotificationsCenterV164();
+  });
+  window.addEventListener("offline", () => {
+    setFirebaseStatus("error", "Firebase: offline; alterações ficam guardadas localmente");
+    renderAppSettingsPanelV162();
+    renderNotificationsCenterV164();
+  });
   setInterval(setupModalStateV162, 600);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   setupV162Controls();
   renderNotificationsCenterV164();
+  setupPushForCurrentUserV182();
   renderAdminOverviewV162();
+  renderFirebaseHealthPanelV187();
+  renderPushHistoryPanelV187();
+  renderAdminSectionsV187();
   renderAppSettingsPanelV162();
   renderInstallGuideV164();
 });
+
+
+// v190 — Corrige Users offline prematuro e limpa Admin por secções.
+async function ensureFirebaseOnlineForPresenceV190() {
+  try {
+    if (db && firebaseApi && storageMode === "firebase" && (currentUser || firebaseAuth?.currentUser)) {
+      if (!currentUser && firebaseAuth?.currentUser) currentUser = firebaseAuth.currentUser;
+      return true;
+    }
+
+    if (typeof ensureFirebaseAuthReadyV188 === "function") {
+      await ensureFirebaseAuthReadyV188().catch(error => {
+        console.warn("ensureFirebaseAuthReadyV188 falhou no presence:", error);
+        return false;
+      });
+    } else if (!firebaseReadyPromise && typeof initFirebase === "function") {
+      firebaseReadyPromise = initFirebase();
+      await firebaseReadyPromise.catch(error => {
+        console.warn("initFirebase falhou no presence:", error);
+        return false;
+      });
+    }
+
+    if (!currentUser && firebaseAuth?.currentUser) currentUser = firebaseAuth.currentUser;
+
+    return !!(db && firebaseApi && storageMode === "firebase" && (currentUser || firebaseAuth?.currentUser));
+  } catch (error) {
+    console.warn("ensureFirebaseOnlineForPresenceV190 falhou:", error);
+    return false;
+  }
+}
+
+async function loadOnlineUsersV190() {
+  const list = $("onlineUsersList");
+  const badge = $("onlineUsersBadge");
+
+  const ready = await ensureFirebaseOnlineForPresenceV190();
+
+  if (!ready) {
+    if (badge) badge.textContent = "a ligar";
+    if (list) {
+      const detail = lastFirebaseInitError ? `<br><small>${escapeHtml(lastFirebaseInitError)}</small>` : "";
+      list.innerHTML = `${onlineUsersPopupHeader()}<div class="empty small-empty">A ligar ao Firebase...${detail}</div>`;
+    }
+
+    setTimeout(() => {
+      if (typeof loadOnlineUsers === "function") {
+        loadOnlineUsers().catch(error => console.warn("Retry users online v190 falhou:", error));
+      }
+    }, 1400);
+
+    return;
+  }
+
+  try {
+    const { collection, getDocs } = firebaseApi;
+    const snap = await withTimeout(getDocs(collection(db, PRESENCE_COLLECTION)), 10000, "ler utilizadores online");
+
+    onlineUsersCache = snap.docs
+      .map(docSnap => {
+        const data = { id: docSnap.id, ...(docSnap.data() || {}) };
+        const email = normalizeEmail(data.email || data.id);
+        return {
+          ...data,
+          email,
+          name: data.name || displayNameFromEmail(email)
+        };
+      })
+      .sort((a, b) => {
+        const ao = isOnlinePresence(a) ? 0 : 1;
+        const bo = isOnlinePresence(b) ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+
+        const at = presenceTimestampMs(a.lastActiveAt);
+        const bt = presenceTimestampMs(b.lastActiveAt);
+        if (bt !== at) return bt - at;
+
+        return String(a.email || "").localeCompare(String(b.email || ""), "pt");
+      });
+
+    renderOnlineUsers();
+  } catch (error) {
+    console.warn("Erro ao carregar utilizadores online v190:", error);
+    if (badge) badge.textContent = "sem acesso";
+    if (list) {
+      const message = shortFirebaseError ? shortFirebaseError(error?.message || error) : (error?.message || "erro");
+      list.innerHTML = `${onlineUsersPopupHeader()}
+        <div class="empty small-empty">
+          Não foi possível carregar utilizadores online: ${escapeHtml(message)}.
+        </div>`;
+    }
+  }
+}
+
+loadOnlineUsers = loadOnlineUsersV190;
+
+function ensureAdminSectionTabsV190() {
+  let tabs = $("adminSectionTabsV187");
+  const sections = [
+    ["users", "Users"],
+    ["results", "Resultados"],
+    ["points", "Pontos"],
+    ["knockout", "Fase Final"],
+    ["system", "Sistema"]
+  ];
+
+  if (!tabs) {
+    tabs = document.createElement("div");
+    tabs.id = "adminSectionTabsV187";
+    tabs.className = "admin-section-tabs-v187";
+  }
+
+  tabs.innerHTML = sections.map(([key, label]) => `<button type="button" data-admin-section-v187="${key}">${label}</button>`).join("");
+
+  const overview = $("adminOverviewV162");
+  if (!tabs.parentNode && overview?.parentNode) overview.parentNode.insertBefore(tabs, overview.nextSibling);
+
+  return tabs;
+}
+
+function renderAdminSectionsV190() {
+  const tabs = ensureAdminSectionTabsV190();
+  if (!tabs) return;
+
+  let active = localStorage.getItem(`${STORAGE_KEY}_admin_section_v187`) || "users";
+  if (active === "all") active = "users";
+
+  tabs.querySelectorAll("[data-admin-section-v187]").forEach(button => {
+    button.classList.toggle("active", button.dataset.adminSectionV187 === active);
+  });
+
+  document.querySelectorAll("#adminUnlocked > .admin-card").forEach(card => {
+    const section = adminSectionForCardV187(card);
+    card.dataset.adminSectionV187 = section;
+    const isActive = section === active;
+    card.classList.toggle("admin-section-hidden-v187", !isActive);
+    card.hidden = !isActive;
+
+    if (isActive && card.tagName?.toLowerCase() === "details") {
+      card.open = true;
+    }
+  });
+}
+
+renderAdminSectionsV187 = renderAdminSectionsV190;
+ensureAdminSectionTabsV187 = ensureAdminSectionTabsV190;
+
+document.addEventListener("click", event => {
+  const btn = event.target.closest?.("[data-admin-section-v187]");
+  if (!btn) return;
+  event.preventDefault();
+  const section = btn.dataset.adminSectionV187 || "users";
+  localStorage.setItem(`${STORAGE_KEY}_admin_section_v187`, section);
+  renderAdminSectionsV190();
+}, true);
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    loadOnlineUsers().catch(error => console.warn("Users online v190 inicial falhou:", error));
+    renderAdminSectionsV190();
+  }, 1200);
+});
+
+
+// v192 — vibração segura: evita erro de "user hasn't tapped".
+function safeVibrateV192(pattern) {
+  try {
+    if (!navigator?.vibrate) return false;
+    if (!document.hasFocus?.()) return false;
+    return navigator.vibrate(pattern);
+  } catch (error) {
+    return false;
+  }
+}
+
+// v192 — permissões: torna checkboxes clicáveis e marca o card como alterado.
+function markPermissionCardDirtyV192(input) {
+  try {
+    const card = input?.closest?.("[data-permission-card]");
+    if (!card) return;
+    card.classList.add("permissions-dirty-v192");
+    const save = card.querySelector("[data-save-permissions]");
+    if (save) {
+      save.classList.add("needs-save-v192");
+      save.textContent = "Guardar alterações";
+    }
+  } catch {}
+}
+
+document.addEventListener("click", event => {
+  const permLabel = event.target.closest?.(".perm-check");
+  if (permLabel && !event.target.matches("input")) {
+    const input = permLabel.querySelector('input[type="checkbox"][data-perm-key]');
+    if (input && !input.disabled) {
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+}, true);
+
+document.addEventListener("change", event => {
+  const input = event.target.closest?.('[data-perm-key], [data-active-email]');
+  if (!input) return;
+  markPermissionCardDirtyV192(input);
+}, true);
+
+document.addEventListener("click", event => {
+  const saveBtn = event.target.closest?.("[data-save-permissions]");
+  if (!saveBtn) return;
+  event.preventDefault();
+  event.stopPropagation();
+  savePermissionUser(saveBtn.dataset.savePermissions);
+}, true);
+
+// v192 — reforça visual do filtro ativo.
+function applyCalendarFilterHighlightV192() {
+  try {
+    const map = {
+      missing: $("calendarMissingResultsBtn"),
+      played: $("calendarPlayedGamesBtn"),
+      all: $("calendarAllGamesBtn")
+    };
+    Object.entries(map).forEach(([key, btn]) => {
+      if (!btn) return;
+      const active = calendarViewMode === key;
+      btn.classList.toggle("active-filter", active);
+      btn.classList.toggle("calendar-filter-active-v192", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  } catch {}
+}
+
+const renderCalendarFilterStateOriginalV192 = typeof renderCalendarFilterState === "function" ? renderCalendarFilterState : null;
+if (renderCalendarFilterStateOriginalV192) {
+  renderCalendarFilterState = function renderCalendarFilterStateV192() {
+    renderCalendarFilterStateOriginalV192();
+    applyCalendarFilterHighlightV192();
+  };
+}
+
+document.addEventListener("click", event => {
+  if (event.target.closest?.("#calendarMissingResultsBtn,#calendarPlayedGamesBtn,#calendarAllGamesBtn")) {
+    setTimeout(applyCalendarFilterHighlightV192, 30);
+    setTimeout(applyCalendarFilterHighlightV192, 180);
+  }
+}, true);
