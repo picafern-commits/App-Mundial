@@ -1,4 +1,4 @@
-const CACHE_NAME = "mundial-pontos-2026-v193-workflow-cleanup";
+﻿const CACHE_NAME = "mundial-pontos-2026-v167";
 const APP_SHELL = [
   "./",
   "./index.html",
