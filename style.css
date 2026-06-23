@@ -9633,3 +9633,54 @@ button,
 #adminUnlocked > .admin-card.admin-section-hidden-v187{
   display: none !important;
 }
+
+
+/* v192 — highlight claro do filtro ativo */
+.copy-actions button.active-filter,
+.copy-actions button.calendar-filter-active-v192,
+#calendarMissingResultsBtn.calendar-filter-active-v192,
+#calendarPlayedGamesBtn.calendar-filter-active-v192,
+#calendarAllGamesBtn.calendar-filter-active-v192{
+  background:linear-gradient(135deg,#ffd84d,#fff3a6)!important;
+  color:#07111f!important;
+  border-color:#ffe78a!important;
+  box-shadow:0 0 0 2px rgba(255,216,77,.30),0 10px 26px rgba(255,216,77,.22)!important;
+  transform:translateY(-1px)!important;
+}
+.copy-actions button.calendar-filter-active-v192 .filter-count,
+.copy-actions button.active-filter .filter-count{
+  background:rgba(7,17,31,.18)!important;
+  color:#07111f!important;
+}
+.copy-actions button[aria-pressed="true"]::before{
+  content:"●";
+  display:inline-block;
+  margin-right:6px;
+  font-size:9px;
+  vertical-align:middle;
+}
+
+/* v192 — checkboxes permissões clicáveis */
+.perm-check{
+  cursor:pointer!important;
+  user-select:none!important;
+  position:relative!important;
+  z-index:1!important;
+}
+.perm-check input[type="checkbox"],
+.perm-active input[type="checkbox"]{
+  pointer-events:auto!important;
+  cursor:pointer!important;
+  width:18px!important;
+  height:18px!important;
+  flex:0 0 auto!important;
+  accent-color:#16d1b3!important;
+}
+.permission-user-card.permissions-dirty-v192{
+  border-color:rgba(255,216,77,.42)!important;
+  box-shadow:0 0 0 1px rgba(255,216,77,.14)!important;
+}
+[data-save-permissions].needs-save-v192{
+  background:linear-gradient(135deg,#ffd84d,#ffb300)!important;
+  color:#101522!important;
+}
