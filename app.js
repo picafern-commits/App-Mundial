@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "25959";
-const APP_VERSION_LABEL = "v189";
+const APP_VERSION_LABEL = "v233";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -1705,20 +1705,37 @@ function setLoginStatus(message, type = "info") {
 }
 
 function showLoginScreen() {
-  cleanupRealtimeSync();
-  $("loginScreen")?.classList.remove("hidden");
-  $("appShell")?.classList.add("auth-hidden");
-  document.body.classList.remove("knockout-layout-active");
-  $("appShell")?.classList.remove("knockout-screen-active");
+  try { cleanupRealtimeSync(); } catch (error) { console.warn("cleanupRealtimeSync falhou:", error); }
+
+  const login = $("loginScreen");
+  const shell = $("appShell");
+
+  login?.classList.remove("hidden");
+  if (login) login.style.display = "";
+
+  shell?.classList.add("auth-hidden");
+  if (shell) shell.style.display = "";
+
+  document.body.classList.remove("knockout-layout-active", "app-authenticated-v213", "app-authenticated-v212");
+  shell?.classList.remove("knockout-screen-active");
 }
 
 function showAppScreen() {
-  $("loginScreen")?.classList.add("hidden");
-  $("appShell")?.classList.remove("auth-hidden");
+  const login = $("loginScreen");
+  const shell = $("appShell");
+
+  login?.classList.add("hidden");
+  if (login) login.style.display = "none";
+
+  shell?.classList.remove("auth-hidden");
+  if (shell) shell.style.display = "";
+
+  document.body.classList.add("app-authenticated-v213");
   updateActiveAppSection();
 }
 
 function updateActiveAppSection() {
+  normalizeActiveTabStateV217();
   const activeTabId = document.querySelector(".tab-panel.active")?.id || "calendarTab";
   const isKnockout = activeTabId === "knockoutTab";
   const mobileKnockout = isKnockout && window.matchMedia("(max-width: 760px)").matches;
@@ -1798,7 +1815,7 @@ async function loadPermissionsUsers() {
     permissionsCache = snap.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() || {}) }))
       .sort((a, b) => normalizeEmail(a.email || a.id).localeCompare(normalizeEmail(b.email || b.id)));
   } catch (error) {
-    console.error("Erro ao carregar permissões:", error);
+    console.warn("Permissões em segundo plano falharam:", error);
   }
 }
 
@@ -1983,10 +2000,7 @@ function permissionTabAllowed(tabId) {
 function switchToFirstAllowedTab() {
   const allowed = [...document.querySelectorAll(".tab")].find(button => permissionTabAllowed(button.dataset.tab));
   if (!allowed) return;
-  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-  document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
-  allowed.classList.add("active");
-  $(allowed.dataset.tab)?.classList.add("active");
+  setActiveTabStateV217(allowed.dataset.tab);
 }
 
 function applyPermissionsToUi() {
@@ -3566,44 +3580,77 @@ function setupAuthGate() {
   firebaseAuthApi.onAuthStateChanged(firebaseAuth, async user => {
     currentUser = user || null;
 
-    if (user?.email) saveRememberedAccount(user.email);
-
     if (!user) {
       currentProfile = null;
-      stopOnlineFeaturesSafe();
-      stopChatSafe();
+      try { stopOnlineFeaturesSafe(); } catch (error) { console.warn("Online users não parou:", error); }
+      try { stopChatSafe(); } catch (error) { console.warn("Chat não parou:", error); }
       showLoginScreen();
-      updateSessionBox();
-      renderPushOptInPromptV182();
+      try { updateSessionBox(); } catch {}
+      try { renderPushOptInPromptV182(); } catch {}
+      setLoginStatus("Usa o teu email e password para entrar.", "info");
       return;
     }
 
+    if (user.email) saveRememberedAccount(user.email);
+    setLoginStatus("A carregar perfil...", "loading");
+
     try {
-      setLoginStatus("A carregar permissões...", "loading");
       currentProfile = await readUserProfile(user);
+    } catch (profileError) {
+      console.warn("Perfil/permissões falharam; a usar perfil local:", profileError);
+      currentProfile = defaultProfileForUser(user);
+    }
 
-      if (!currentProfile.active) {
-        await firebaseAuthApi.signOut(firebaseAuth);
-        setLoginStatus("Conta bloqueada pelo Admin.", "error");
-        return;
-      }
+    if (!currentProfile) currentProfile = defaultProfileForUser(user);
 
-      showAppScreen();
-      updateSessionBox();
-      loadPermissionsUsers()
-        .then(renderPermissionsUsers)
-        .catch(error => console.warn("Permissões em segundo plano falharam:", error));
-      await loadData();
-      applyPermissionsToUi();
-      setLoginStatus("Login efetuado.", "success");
-      startChatSafe();
-      startOnlineFeaturesSafe();
-      setTimeout(setupPushForCurrentUserV182, 900);
-      addSystemLog("Sessão iniciada", `${currentProfile.name || currentUser.email} entrou na app.`, { email: currentUser.email }, { sync: true });
-    } catch (error) {
-      console.error("Erro no arranque com login:", error);
-      setLoginStatus("Erro ao carregar permissões.", "error");
+    if (isConfiguredAdmin(user.email) && normalizeRole(currentProfile.role) !== "owner") {
+      currentProfile = {
+        ...currentProfile,
+        role: "admin",
+        active: currentProfile.active !== false,
+        permissions: { ...ADMIN_PERMISSIONS, ...(currentProfile.permissions || {}) }
+      };
+    }
+
+    if (currentProfile.active === false) {
+      try { await firebaseAuthApi.signOut(firebaseAuth); } catch (signOutError) { console.warn("Sign out após conta bloqueada falhou:", signOutError); }
+      setLoginStatus("Conta bloqueada pelo Admin.", "error");
       showLoginScreen();
+      return;
+    }
+
+    try { showAppScreen(); } catch (screenError) { console.warn("showAppScreen falhou; a forçar ecrã da app:", screenError); }
+    try { forceShowAppAfterLoginV213(); } catch (forceError) { console.warn("Forçar ecrã da app falhou:", forceError); }
+    try { updateSessionBox(); } catch (error) { console.warn("updateSessionBox falhou:", error); }
+
+    loadPermissionsUsers()
+      .then(() => { try { renderPermissionsUsers(); } catch (error) { console.warn("renderPermissionsUsers falhou:", error); } })
+      .catch(error => console.warn("Permissões em segundo plano falharam:", error));
+
+    try {
+      await loadData();
+    } catch (loadError) {
+      console.warn("Dados Firebase falharam no login; a abrir com cache local:", loadError);
+      try { applyLocalDataFast("fallback login v213"); } catch (localError) { console.warn("Fallback local no login falhou:", localError); }
+    }
+
+    try { applyPermissionsToUi(); } catch (error) { console.warn("applyPermissionsToUi falhou sem derrubar login:", error); }
+    try { renderAll(); } catch (error) { console.warn("renderAll pós-login falhou sem derrubar login:", error); }
+    try { forceShowAppAfterLoginV213(); } catch {}
+
+    setLoginStatus("Login efetuado.", "success");
+
+    try { startChatSafe(); } catch (error) { console.warn("Chat não iniciou:", error); }
+    try { startOnlineFeaturesSafe(); } catch (error) { console.warn("Online users não iniciou:", error); }
+
+    setTimeout(() => {
+      try { setupPushForCurrentUserV182(); } catch (error) { console.warn("Push pós-login falhou:", error); }
+    }, 900);
+
+    try {
+      addSystemLog("Sessão iniciada", `${currentProfile.name || currentUser.email} entrou na app.`, { email: currentUser.email }, { sync: true });
+    } catch (logError) {
+      console.warn("Log de sessão falhou sem bloquear login:", logError);
     }
   });
 }
@@ -3850,10 +3897,7 @@ function openKnockoutPage() {
     return;
   }
 
-  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-  document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
-  document.querySelector('[data-tab="knockoutTab"]')?.classList.add("active");
-  $("knockoutTab")?.classList.add("active");
+  setActiveTabStateV217("knockoutTab");
   updateActiveAppSection();
   renderKnockout();
 }
@@ -4118,13 +4162,7 @@ function canEditKnockoutInline() {
 
 function renderKnockoutInlineEditor(match, mode = "desktop") {
   if (!canEditKnockoutInline()) return "";
-
-  const compactClass = mode === "mobile" ? "mobile" : "desktop";
-  return `
-    <button class="secondary small ko-card-record-btn ${compactClass}" type="button" data-ko-record="${escapeHtml(match.id)}">
-      Adicionar registo
-    </button>
-  `;
+  return `<span class="ko-card-click-hint ${mode === "mobile" ? "mobile" : "desktop"}">Tocar para editar</span>`;
 }
 
 function renderKnockoutRecordForm(match) {
@@ -4196,12 +4234,12 @@ function openKnockoutRecordModal(matchId) {
   modal.className = "modal knockout-record-modal";
   modal.setAttribute("role", "dialog");
   modal.setAttribute("aria-modal", "true");
-  modal.setAttribute("aria-label", "Adicionar registo da Fase Final");
+  modal.setAttribute("aria-label", "Editar jogo da Fase Final");
   modal.innerHTML = `
     <div class="modal-card knockout-record-card">
       <div class="modal-head">
         <div>
-          <strong>Adicionar registo</strong>
+          <strong>Editar jogo</strong>
           <span>${escapeHtml(knockoutRoundLabel(match.round))} · Jogo ${escapeHtml(match.index)}</span>
         </div>
         <button class="secondary small" type="button" data-ko-record-close>Fechar</button>
@@ -4267,7 +4305,7 @@ function renderKnockoutMobileV121() {
         const matchId = knockoutMatchIdV121(match);
 
         return `
-          <article class="ko-mobile-card ko-mobile-card-premium-v130 ${winner ? "is-done-v130" : "is-waiting-v130"}" data-ko-mobile-match="${escapeHtml(String(matchId))}" data-ko-admin="${escapeHtml(String(matchId))}">
+          <article class="ko-mobile-card ko-mobile-card-premium-v130 ${winner ? "is-done-v130" : "is-waiting-v130"} ${canEditKnockoutInline() ? "ko-match-clickable" : ""}" data-ko-mobile-match="${escapeHtml(String(matchId))}" data-ko-admin="${escapeHtml(String(matchId))}" ${canEditKnockoutInline() ? `role="button" tabindex="0" aria-label="Editar ${escapeHtml(selected.name)} jogo ${index + 1}"` : ""}>
             <div class="ko-mobile-card-head">
               <span>${escapeHtml(selected.name)}</span>
               <strong>Jogo ${index + 1}</strong>
@@ -4443,8 +4481,10 @@ function renderKnockoutMatch(match, layoutKey = "") {
   const hasPens = match.homePenalties !== null && match.homePenalties !== undefined && match.homePenalties !== "" && match.awayPenalties !== null && match.awayPenalties !== undefined && match.awayPenalties !== "";
   const lockedText = waiting ? "" : winner ? "Vencedor" : isDraw ? "Faltam penáltis" : "Por decidir";
 
+  const editableAttrs = editable ? ` role="button" tabindex="0" aria-label="Editar ${escapeHtml(match.roundLabel)} ${escapeHtml(match.index)}"` : "";
+
   return `
-    <article class="knockout-match ${winner ? "has-winner" : ""} ${waiting ? "waiting" : ""}" data-ko-admin="${escapeHtml(match.id)}" ${layoutKey ? `data-ko-layout="${escapeHtml(layoutKey)}" style="--ko-match-offset:${knockoutLayoutValue(layoutKey)}px"` : ""}>
+    <article class="knockout-match ${winner ? "has-winner" : ""} ${waiting ? "waiting" : ""} ${editable ? "ko-match-clickable" : ""}" data-ko-admin="${escapeHtml(match.id)}"${editableAttrs} ${layoutKey ? `data-ko-layout="${escapeHtml(layoutKey)}" style="--ko-match-offset:${knockoutLayoutValue(layoutKey)}px"` : ""}>
       <div class="knockout-match-title">${escapeHtml(match.roundLabel)} ${match.index}</div>
 
       <div class="ko-team ${winner === match.homeTeam ? "winner" : ""}">
@@ -4503,7 +4543,10 @@ function renderKnockoutAdmin() {
   ensureKnockoutSettings();
 
   const toggle = $("adminKnockoutUnlockedInput");
-  if (toggle) toggle.checked = Boolean(appSettings.knockout?.adminUnlocked);
+  if (toggle) {
+    toggle.checked = Boolean(appSettings.knockout?.adminUnlocked);
+    updateKnockoutUnlockControlV230(toggle.checked);
+  }
 
   const panel = $("knockoutAdminPanel");
   if (!panel) return;
@@ -4554,6 +4597,35 @@ function renderKnockoutAdmin() {
         `;
       }).join("")}
     </div>`;
+}
+
+function updateKnockoutUnlockControlV230(unlocked = Boolean($("adminKnockoutUnlockedInput")?.checked)) {
+  const label = $("adminKnockoutUnlockedStateV230");
+  const button = $("saveKnockoutUnlockBtn");
+  const card = $("adminKnockoutUnlockedInput")?.closest(".knockout-unlock-toggle-v230");
+
+  card?.classList.toggle("is-unlocked-v230", Boolean(unlocked));
+  if (label) {
+    label.textContent = unlocked
+      ? "Ativa no Calendario antes do fim dos grupos"
+      : "Bloqueada ate acabarem os grupos";
+  }
+  if (button) button.textContent = unlocked ? "Guardar ativada" : "Guardar bloqueada";
+}
+
+function toggleKnockoutUnlockControlV231(event) {
+  const card = event.target.closest?.(".knockout-unlock-toggle-v230");
+  if (!card) return false;
+
+  const input = $("adminKnockoutUnlockedInput");
+  if (!input || input.disabled) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+  input.checked = !input.checked;
+  updateKnockoutUnlockControlV230(input.checked);
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
 }
 
 async function saveKnockoutUnlock() {
@@ -4776,10 +4848,7 @@ function openKnockoutEditInAdmin(matchId) {
     toast("Entra no Admin para editar a Fase Final.");
     return;
   }
-  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-  document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
-  document.querySelector('[data-tab="adminTab"]')?.classList.add("active");
-  $("adminTab")?.classList.add("active");
+  setActiveTabStateV217("adminTab");
   updateActiveAppSection();
   renderKnockoutAdmin();
   setTimeout(() => {
@@ -4855,7 +4924,6 @@ function renderActivePageV187(tabId = activeTabIdV187()) {
     return;
   }
   if (tabId === "notificationsTab") {
-    loadPushStatsV187().then(renderFirebaseHealthPanelV187);
     renderPushNotificationsPanelV165();
     renderPushHistoryPanelV187();
     renderNotificationsCenterV164();
@@ -4872,7 +4940,6 @@ function renderActivePageV187(tabId = activeTabIdV187()) {
     renderUserBetsEditor();
     renderKnockoutAdmin();
     renderAdminOverviewV162();
-    renderFirebaseHealthPanelV187();
     renderAdminSectionsV187();
     return;
   }
@@ -5699,12 +5766,13 @@ function pendingFirebaseTotalV187() {
 
 function ensureFirebaseHealthPanelV187() {
   let panel = $("firebaseHealthPanelV187");
-  if (panel) return panel;
-  panel = document.createElement("div");
-  panel.id = "firebaseHealthPanelV187";
-  panel.className = "firebase-health-v187";
-  const overview = $("adminOverviewV162");
-  if (overview?.parentNode) overview.parentNode.insertBefore(panel, overview.nextSibling);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "firebaseHealthPanelV187";
+    panel.className = "firebase-health-v187";
+  }
+  const target = typeof settingsSectionContentV213 === "function" ? settingsSectionContentV213("system") : $("settingsTab");
+  if (target && panel.parentElement !== target) target.appendChild(panel);
   return panel;
 }
 
@@ -6793,6 +6861,12 @@ document.addEventListener("click", event => {
     return;
   }
 
+  const koClickableCard = event.target.closest("#knockoutTab .ko-match-clickable[data-ko-admin], #knockoutMobileV121 .ko-match-clickable[data-ko-admin]");
+  if (koClickableCard && !event.target.closest("button, a, input, select, textarea, label, summary")) {
+    openKnockoutRecordModal(koClickableCard.dataset.koAdmin);
+    return;
+  }
+
   if (event.target.closest("[data-ko-record-close]") || event.target.id === "knockoutRecordModal") {
     closeKnockoutRecordModal();
     return;
@@ -6828,6 +6902,16 @@ document.addEventListener("click", event => {
   }
 });
 
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+
+  const koClickableCard = event.target.closest?.("#knockoutTab .ko-match-clickable[data-ko-admin], #knockoutMobileV121 .ko-match-clickable[data-ko-admin]");
+  if (!koClickableCard) return;
+
+  event.preventDefault();
+  openKnockoutRecordModal(koClickableCard.dataset.koAdmin);
+});
+
 document.querySelectorAll(".tab").forEach(button => {
   button.addEventListener("click", () => {
     if (!permissionTabAllowed(button.dataset.tab)) {
@@ -6838,10 +6922,7 @@ document.querySelectorAll(".tab").forEach(button => {
       toast("Fase Final bloqueada. O Admin pode ativar no painel Admin.");
       return;
     }
-    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
-    button.classList.add("active");
-    $(button.dataset.tab).classList.add("active");
+    setActiveTabStateV217(button.dataset.tab);
     updateActiveAppSection();
     renderActivePageV187(button.dataset.tab);
   });
@@ -6888,6 +6969,7 @@ $("clearLogsBtn")?.addEventListener("click", clearSystemLogs);
 $("unlockLogsBtn")?.addEventListener("click", unlockLogsTab);
 $("lockLogsBtn")?.addEventListener("click", lockLogsTab);
 $("logsPinInput")?.addEventListener("keydown", event => { if (event.key === "Enter") unlockLogsTab(); });
+$("adminKnockoutUnlockedInput")?.addEventListener("change", event => updateKnockoutUnlockControlV230(event.target.checked));
 $("saveKnockoutUnlockBtn")?.addEventListener("click", saveKnockoutUnlock);
 
 
@@ -8719,51 +8801,10 @@ function findAdminContainerV142() {
 
 function ensureFootballDataButtonV142() {
   try {
-    const activePanel = document.querySelector(".tab-panel.active");
-    const activeText = (activePanel?.id || "") + " " + (activePanel?.textContent || "");
-    const adminIsVisible = /admin|config|settings|defini/i.test(activeText) || document.querySelector(".tab.active[data-tab='admin'], .tab.active[data-tab='settings']");
-    if (!adminIsVisible) return;
-
-    let btn = document.getElementById("syncFootballDataBtn");
-    if (!btn) {
-      const container = findAdminContainerV142();
-      const bar = document.createElement("div");
-      bar.className = "football-data-admin-box-v142";
-      bar.innerHTML = `
-        <div>
-          <strong>Resultados automáticos</strong>
-          <span>Atualizar resultados através do football-data.org</span>
-        </div>
-        <button id="syncFootballDataBtn" class="primary" type="button">Atualizar resultados automáticos</button>
-      `;
-
-      const preferred = container.querySelector(".admin-actions, .actions, .toolbar, .button-row, .excel-actions, .card, .panel");
-      if (preferred) preferred.prepend(bar);
-      else container.prepend(bar);
-      btn = document.getElementById("syncFootballDataBtn");
-    }
-
-    btn.classList.remove("hidden");
-    btn.hidden = false;
-    btn.style.display = "";
-    btn.disabled = !canUseFootballDataSyncV142();
-
-    if (!canUseFootballDataSyncV142()) {
-      btn.title = "Sem permissão para editar resultados.";
-    }
-
-    if (btn.dataset.footballDataReady !== "1") {
-      btn.dataset.footballDataReady = "1";
-      btn.addEventListener("click", () => {
-        if (typeof syncFootballDataResultsV139 === "function") {
-          syncFootballDataResultsV139();
-        } else {
-          toast("A função football-data ainda não carregou. Atualiza a página e tenta novamente.");
-        }
-      });
-    }
+    if (document.querySelector(".tab-panel.active")?.id !== "settingsTab") return;
+    if (typeof ensureFootballDataSettingsBoxV213 === "function") ensureFootballDataSettingsBoxV213();
   } catch (error) {
-    console.warn("Botão football-data v142 falhou:", error);
+    console.warn("Botão football-data settings falhou:", error);
   }
 }
 
@@ -8808,60 +8849,10 @@ function findAdminRootV143() {
 
 function ensureFootballDataAdminFixedButtonV143() {
   try {
-    if (!isAdminPageActiveV143()) return;
-
-    let box = document.getElementById("footballDataAdminFixedBoxV143");
-    let btn = document.getElementById("syncFootballDataBtn");
-
-    if (!box) {
-      const root = findAdminRootV143();
-      box = document.createElement("div");
-      box.id = "footballDataAdminFixedBoxV143";
-      box.className = "football-data-admin-fixed-box-v143";
-      box.innerHTML = `
-        <div class="football-data-admin-fixed-info-v143">
-          <strong>Resultados automáticos</strong>
-          <span>Vai buscar resultados ao football-data.org e atualiza a pontuação.</span>
-        </div>
-        <button id="syncFootballDataBtn" class="primary" type="button">Atualizar resultados automáticos</button>
-      `;
-
-      root.prepend(box);
-      btn = document.getElementById("syncFootballDataBtn");
-    }
-
-    if (box) {
-      box.hidden = false;
-      box.style.display = "flex";
-      box.classList.remove("hidden");
-    }
-
-    if (btn) {
-      btn.hidden = false;
-      btn.style.display = "";
-      btn.classList.remove("hidden");
-
-      const allowed =
-        (typeof hasPermission === "function" && hasPermission("editResults")) ||
-        (typeof isAdmin !== "undefined" && isAdmin) ||
-        String(currentUser?.email || "").toLowerCase() === "pica.fern@gmail.com";
-
-      btn.disabled = !allowed;
-      btn.title = allowed ? "" : "Sem permissão para editar resultados.";
-
-      if (btn.dataset.footballDataReady !== "1") {
-        btn.dataset.footballDataReady = "1";
-        btn.addEventListener("click", () => {
-          if (typeof syncFootballDataResultsV139 === "function") {
-            syncFootballDataResultsV139();
-          } else {
-            toast("A ligação football-data não carregou. Atualiza a página e tenta novamente.");
-          }
-        });
-      }
-    }
+    if (document.querySelector(".tab-panel.active")?.id !== "settingsTab") return;
+    if (typeof ensureFootballDataSettingsBoxV213 === "function") ensureFootballDataSettingsBoxV213();
   } catch (error) {
-    console.warn("Botão football-data v143 falhou:", error);
+    console.warn("Botão football-data settings fixo falhou:", error);
   }
 }
 
@@ -8961,14 +8952,18 @@ function footballFreeFormatDateV149(value) {
 function renderFootballFreeStatusV149(data = null) {
   try {
     let box = document.getElementById("footballFreeStatusBoxV149");
-    const adminRoot = document.getElementById("footballDataAdminFixedBoxV143") || document.querySelector(".tab-panel.active") || document.querySelector("main") || document.body;
+    const target =
+      (typeof settingsSectionContentV213 === "function" ? settingsSectionContentV213("system") : null) ||
+      document.getElementById("settingsTab") ||
+      document.querySelector("main") ||
+      document.body;
 
     if (!box) {
       box = document.createElement("div");
       box.id = "footballFreeStatusBoxV149";
       box.className = "football-free-status-box-v149";
-      adminRoot.insertAdjacentElement("afterend", box);
     }
+    if (box.parentElement !== target) target.appendChild(box);
 
     const last = data?.lastSyncIso || localStorage.getItem("mundial_football_free_last_sync_iso_v149") || "";
     const upcoming = Array.isArray(data?.upcoming) ? data.upcoming.slice(0, 4) : [];
@@ -9615,12 +9610,12 @@ function getAllEditableGamesV159() {
 
 function renderSuspendedGameAdminV159() {
   try {
-    const isAdminPanel = document.querySelector(".tab-panel.active")?.id === "adminTab" || document.body.textContent.includes("Permissões de utilizadores");
-    if (!isAdminPanel) return;
+    const isSettingsPanel = document.querySelector(".tab-panel.active")?.id === "settingsTab";
+    if (!isSettingsPanel) return;
 
-    const adminPanel =
-      document.getElementById("adminTab") ||
-      document.querySelector(".tab-panel.active") ||
+    const target =
+      (typeof settingsSectionContentV213 === "function" ? settingsSectionContentV213("system") : null) ||
+      document.getElementById("settingsTab") ||
       document.querySelector("main") ||
       document.body;
 
@@ -9644,17 +9639,11 @@ function renderSuspendedGameAdminV159() {
         <p class="suspended-game-admin-note-v159">O jogo fica em Faltam Resultados, mostra Suspenso e só passa para Jogado quando houver resultado final.</p>
       `;
 
-      const anchor =
-        document.getElementById("footballRealtimeSyncBoxV156") ||
-        document.getElementById("footballManualFallbackV157") ||
-        adminPanel.querySelector(".admin-section, .admin-card, .panel, .card");
-
-      if (anchor?.insertAdjacentElement) anchor.insertAdjacentElement("afterend", box);
-      else adminPanel.prepend(box);
-
       box.querySelector("#markSuspendedBtnV159")?.addEventListener("click", () => setSuspendedGameV159(true));
       box.querySelector("#clearSuspendedBtnV159")?.addEventListener("click", () => setSuspendedGameV159(false));
     }
+
+    if (box.parentElement !== target) target.appendChild(box);
 
     const select = document.getElementById("suspendedGameSelectV159");
     if (!select) return;
@@ -10027,7 +10016,7 @@ function renderInstallGuideV164() {
     <div class="install-guide-head-v164">
       <div>
         <h3>Guia de instalação</h3>
-        <p>Passos rápidos para instalar a PWA em iPhone, Android e PC.</p>
+        <p>Instalação em iPhone, Android e PC.</p>
       </div>
       <button type="button" class="primary" data-install-now-v164>Instalar agora</button>
     </div>
@@ -10121,8 +10110,13 @@ async function callPushFunctionV181(functionName, payload = {}) {
 function defaultPushPreferencesV181() {
   return {
     gameStart: true,
-    gameEnd: true,
     goals: true,
+    gameEnd: true,
+    results: true,
+    knockout: true,
+    chatGeneral: false,
+    chatAdmin: true,
+    mentions: true,
     quietHours: { enabled: true, startHour: 23, endHour: 9, timezone: "Europe/Lisbon" }
   };
 }
@@ -10139,8 +10133,13 @@ function currentPushPreferencesV181() {
   const saved = savedPushPreferencesV181();
   return {
     gameStart: $("pushGameStartInputV181")?.checked ?? saved.gameStart,
-    gameEnd: $("pushGameEndInputV181")?.checked ?? saved.gameEnd,
     goals: $("pushGoalsInputV181")?.checked ?? saved.goals,
+    gameEnd: $("pushGameEndInputV181")?.checked ?? saved.gameEnd,
+    results: $("pushResultsInputV200")?.checked ?? saved.results,
+    knockout: $("pushKnockoutInputV200")?.checked ?? saved.knockout,
+    chatGeneral: $("pushChatGeneralInputV200")?.checked ?? saved.chatGeneral,
+    chatAdmin: $("pushChatAdminInputV200")?.checked ?? saved.chatAdmin,
+    mentions: $("pushMentionsInputV200")?.checked ?? saved.mentions,
     quietHours: {
       enabled: $("pushQuietHoursInputV181")?.checked ?? saved.quietHours?.enabled ?? true,
       startHour: 23,
@@ -10266,8 +10265,13 @@ function currentPushTestPayloadV184() {
   const custom = String($("pushTestMessageInputV184")?.value || "").trim();
   const defaults = {
     gameStart: { title: "Jogo começou", body: `${game} já começou.` },
-    gameEnd: { title: "Jogo acabou", body: `${game} terminou.` },
     goals: { title: `Golo ${team}`, body: `Golo de ${team} no jogo ${game}.` },
+    gameEnd: { title: "Jogo acabou", body: `${game} terminou.` },
+    results: { title: "Resultado novo guardado", body: `${game}: resultado atualizado.` },
+    knockout: { title: "Fase final atualizada", body: "A fase final do Mundial Pontos 2026 foi alterada." },
+    chatGeneral: { title: "Nova mensagem no chat geral", body: "Mensagem de teste no chat geral." },
+    chatAdmin: { title: "Nova mensagem no chat admin", body: "Mensagem de teste no chat admin." },
+    mentions: { title: `${team} mencionou-te`, body: "Teste de menção no chat." },
     custom: { title: "Teste push Mundial", body: custom || "As notificações push estão a funcionar." }
   };
   const selected = defaults[type] || defaults.custom;
@@ -10378,15 +10382,15 @@ function renderPushNotificationsPanelV165() {
   const preferences = savedPushPreferencesV181();
   const hasToken = Boolean(localStorage.getItem(pushLastTokenStorageKeyV181()));
   const permissionText = support.permission === "granted" ? "Permitidas" : support.permission === "denied" ? "Bloqueadas" : support.permission === "unsupported" ? "Não suportadas" : "Por ativar";
-  const deviceText = support.ios ? (support.standalone ? "iPhone PWA instalada" : "iPhone: instalar no Ecrã Principal") : /android/i.test(navigator.userAgent) ? "Android" : "PC / Browser";
+  const deviceText = support.ios ? (support.standalone ? "iPhone PWA instalada" : "iPhone: instalar no Ecra Principal") : /android/i.test(navigator.userAgent) ? "Android" : "PC / Browser";
   const vapidText = support.hasVapid ? "VAPID configurada" : "VAPID default Firebase";
 
   panel.innerHTML = `
     <div class="push-panel-head-v165">
       <div>
         <strong>Push Android / iPhone</strong>
-        <span>Fluxo único via Firebase Functions: preferências, ativação e teste.</span>
-        <small>Funciona com a app fechada quando o dispositivo está subscrito. Silêncio por defeito: 23h-09h.</small>
+        <span>Preferências, ativação e teste.</span>
+        <small>Silêncio por defeito: 23h-09h.</small>
       </div>
       <div class="push-panel-actions-v165">
         <button id="enablePushBtnV165" class="primary" type="button">Ativar neste dispositivo</button>
@@ -10399,10 +10403,19 @@ function renderPushNotificationsPanelV165() {
       <span>${escapeHtml(vapidText)}</span>
       <span>${hasToken ? "Token guardado" : "Token por ativar"}</span>
     </div>
-    <div class="push-options-v165">
+    <div class="push-options-v165 push-options-v200">
+      <div class="push-options-title-v200">
+        <strong>Notificações</strong>
+        <span>Escolhe os alertas deste dispositivo.</span>
+      </div>
       <label><input id="pushGameStartInputV181" type="checkbox" ${preferences.gameStart ? "checked" : ""} /> Jogo começou</label>
+      <label><input id="pushGoalsInputV181" type="checkbox" ${preferences.goals ? "checked" : ""} /> Golos / alteração no marcador</label>
       <label><input id="pushGameEndInputV181" type="checkbox" ${preferences.gameEnd ? "checked" : ""} /> Jogo acabou</label>
-      <label><input id="pushGoalsInputV181" type="checkbox" ${preferences.goals ? "checked" : ""} /> Golo da equipa</label>
+      <label><input id="pushResultsInputV200" type="checkbox" ${preferences.results ? "checked" : ""} /> Resultado guardado manualmente</label>
+      <label><input id="pushKnockoutInputV200" type="checkbox" ${preferences.knockout ? "checked" : ""} /> Fase Final atualizada</label>
+      <label><input id="pushChatGeneralInputV200" type="checkbox" ${preferences.chatGeneral ? "checked" : ""} /> Chat geral</label>
+      <label><input id="pushChatAdminInputV200" type="checkbox" ${preferences.chatAdmin ? "checked" : ""} /> Chat admin</label>
+      <label><input id="pushMentionsInputV200" type="checkbox" ${preferences.mentions !== false ? "checked" : ""} /> Menções no chat</label>
       <label><input id="pushQuietHoursInputV181" type="checkbox" ${preferences.quietHours?.enabled !== false ? "checked" : ""} /> Silenciar 23h-09h</label>
       <button id="savePushPrefsBtnV181" class="secondary" type="button">Guardar preferências</button>
     </div>
@@ -10410,8 +10423,13 @@ function renderPushNotificationsPanelV165() {
       <label>Tipo
         <select id="pushTestTypeInputV184">
           <option value="gameStart">Jogo começou</option>
+          <option value="goals">Golo / marcador</option>
           <option value="gameEnd">Jogo acabou</option>
-          <option value="goals">Golo da equipa</option>
+          <option value="results">Resultado manual</option>
+          <option value="knockout">Fase Final</option>
+          <option value="chatGeneral">Chat geral</option>
+          <option value="chatAdmin">Chat admin</option>
+          <option value="mentions">Menção no chat</option>
           <option value="custom">Mensagem livre</option>
         </select>
       </label>
@@ -10422,10 +10440,10 @@ function renderPushNotificationsPanelV165() {
         <input id="pushTestGameInputV184" type="text" value="Portugal vs Uzbequistão" />
       </label>
       <label>Mensagem opcional
-        <input id="pushTestMessageInputV184" type="text" placeholder="Vazio usa o texto automático" />
+        <input id="pushTestMessageInputV184" type="text" placeholder="Vazio usa texto automatico" />
       </label>
     </div>
-    <p class="push-note-v165">Diagnóstico: ${escapeHtml(pushDiagnosticV181())}</p>
+    <p class="push-note-v165">Estado: ${escapeHtml(pushDiagnosticV181())}</p>
   `;
 
   $("savePushPrefsBtnV181")?.addEventListener("click", savePushPreferencesV181);
@@ -10521,7 +10539,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// v190 — Corrige Users offline prematuro e limpa Admin por secções.
+// v190 - Corrige Users offline prematuro e limpa Admin por secções.
 async function ensureFirebaseOnlineForPresenceV190() {
   try {
     if (db && firebaseApi && storageMode === "firebase" && (currentUser || firebaseAuth?.currentUser)) {
@@ -10683,7 +10701,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// v192 — vibração segura: evita erro de "user hasn't tapped".
+// v192 - vibração segura: evita erro de "user hasn't tapped".
 function safeVibrateV192(pattern) {
   try {
     if (!navigator?.vibrate) return false;
@@ -10694,7 +10712,7 @@ function safeVibrateV192(pattern) {
   }
 }
 
-// v192 — permissões: torna checkboxes clicáveis e marca o card como alterado.
+// v192 - permissões: torna checkboxes clicáveis e marca o card como alterado.
 function markPermissionCardDirtyV192(input) {
   try {
     const card = input?.closest?.("[data-permission-card]");
@@ -10735,7 +10753,7 @@ document.addEventListener("click", event => {
   savePermissionUser(saveBtn.dataset.savePermissions);
 }, true);
 
-// v192 — reforça visual do filtro ativo.
+// v192 - reforça visual do filtro ativo.
 function applyCalendarFilterHighlightV192() {
   try {
     const map = {
@@ -10767,3 +10785,1312 @@ document.addEventListener("click", event => {
     setTimeout(applyCalendarFilterHighlightV192, 180);
   }
 }, true);
+
+
+// v201 - painel Admin: estado claro da sync inteligente football-data.org.
+function footballSmartSyncFormatAgeV201(value) {
+  if (!value) return "nunca";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const diff = Date.now() - date.getTime();
+  if (diff < 60_000) return "há menos de 1 min";
+  if (diff < 3_600_000) return `há ${Math.round(diff / 60_000)} min`;
+  return date.toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" });
+}
+
+function footballSmartSyncEnsureDetailsV201(box) {
+  let details = document.getElementById("footballSmartSyncDetailsV201");
+  if (details) return details;
+  details = document.createElement("div");
+  details.id = "footballSmartSyncDetailsV201";
+  details.className = "football-smart-sync-details-v201";
+  box.appendChild(details);
+  return details;
+}
+
+const footballRealtimeSyncRenderOriginalV201 = typeof footballRealtimeSyncRenderV156 === "function" ? footballRealtimeSyncRenderV156 : null;
+footballRealtimeSyncRenderV156 = function footballRealtimeSyncRenderV201(data = null) {
+  if (footballRealtimeSyncRenderOriginalV201) footballRealtimeSyncRenderOriginalV201(data);
+
+  try {
+    footballRealtimeSyncLastDataV156 = data || footballRealtimeSyncLastDataV156 || {};
+    const current = footballRealtimeSyncLastDataV156 || {};
+    const box = footballRealtimeSyncEnsureBoxV156();
+    const pill = document.getElementById("footballRealtimeSyncPillV156");
+    const sub = document.getElementById("footballRealtimeSyncSubV156");
+    const details = footballSmartSyncEnsureDetailsV201(box);
+
+    const status = String(current.status || current.state || "waiting").toLowerCase();
+    const statusLabel =
+      status === "active" ? "Ativa" :
+      status === "error" ? "Erro" :
+      "Em espera";
+
+    if (pill) {
+      pill.className = `football-realtime-sync-pill-v156 ${status === "active" ? "online" : status === "error" ? "error" : "warning"}`;
+      const span = pill.querySelector("span");
+      if (span) span.textContent = statusLabel;
+    }
+
+    const nextLabel = current.nextSyncGame?.label || current.nextSyncGame || "-";
+    const nextAt = current.nextSyncStartsAt ? new Date(current.nextSyncStartsAt).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" }) : "-";
+    const activeCount = Array.isArray(current.activeSyncGames) ? current.activeSyncGames.length : Number(current.activeSyncGamesCount || 0);
+    const lastCheck = current.lastCheckIso || current.lastCheckAt || current.lastSyncIso || "";
+    const lastReal = current.lastRealSyncIso || current.lastRealSyncAt || "";
+    const reason = current.lastError || current.lastActiveReason || current.lastSkippedReason || "sem dados";
+    const provider = current.provider || "football-data";
+
+    if (sub) {
+      sub.textContent = `API: ${provider} · ${statusLabel}`;
+    }
+
+    details.innerHTML = `
+      <div><span>Próximo jogo</span><strong>${escapeHtml(String(nextLabel))}</strong></div>
+      <div><span>Início</span><strong>${escapeHtml(String(nextAt))}</strong></div>
+      <div><span>Ativos</span><strong>${escapeHtml(String(activeCount))}</strong></div>
+      <div><span>Verificação</span><strong>${escapeHtml(footballSmartSyncFormatAgeV201(lastCheck))}</strong></div>
+      <div><span>Sync real</span><strong>${escapeHtml(footballSmartSyncFormatAgeV201(lastReal))}</strong></div>
+      <div><span>Motivo</span><strong>${escapeHtml(String(reason))}</strong></div>
+    `;
+
+    const title = box.querySelector(".football-realtime-sync-top-v156 strong");
+    if (title) title.textContent = "API football-data.org";
+
+    box.dataset.smartStateV201 = status;
+  } catch (error) {
+    console.warn("footballRealtimeSyncRenderV201 falhou:", error);
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => footballRealtimeSyncRenderV156(), 900);
+});
+
+
+// v213 - limpeza final: login robusto, Configuracoes organizadas e blocos tecnicos no sitio certo.
+const ADMIN_SECTION_CHOICES_V213 = [
+  ["users", "Users", "Contas e acessos"],
+  ["results", "Resultados", "Jogos e Excel"],
+  ["points", "Pontos", "Regras de pontos"],
+  ["knockout", "Fase Final", "Jogos a eliminar"],
+  ["system", "Sistema", "Fica nas Configurações"]
+];
+
+const PAGE_LOCATION_CHOICES_V213 = [
+  ["calendar", "Calendário", "calendarTab"],
+  ["score", "Pontuação", "scoreTab"],
+  ["knockout", "Fase Final", "knockoutTab"],
+  ["notifications", "Notificações", "notificationsTab"],
+  ["logs", "Logs", "logsTab"],
+  ["adminTab", "Admin", "adminTab"],
+  ["settings", "Configurações", "settingsTab"]
+];
+
+const SETTINGS_SECTIONS_V213 = [
+  ["organization", "Organização", "Escolhe páginas e secções visíveis."],
+  ["system", "Sistema, Firebase e API", "Estado Firebase, API e push."],
+  ["install", "Instalação / PWA", "Versão, cache e instalação."],
+  ["preferences", "Preferências", "Preferências da app."],
+  ["admin", "Ferramentas Admin", "Ferramentas de gestão."],
+  ["other", "Outros", "Outras opções."]
+];
+
+const TECHNICAL_BLOCK_IDS_V213 = [
+  "footballRealtimeSyncBoxV156",
+  "footballManualFallbackV157",
+  "footballFreeStatusBoxV149",
+  "footballDataAdminFixedBoxV143",
+  "suspendedGameAdminBoxV159",
+  "firebaseHealthPanelV187",
+  "pushHealthPanelV187",
+  "notificationsHealthPanelV187",
+  "footballDataSettingsBoxV213"
+];
+
+function setActiveTabStateV217(tabId) {
+  const targetId = tabId && $(tabId) ? tabId : "calendarTab";
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.classList.toggle("active", tab.dataset.tab === targetId);
+  });
+  document.querySelectorAll(".tab-panel").forEach(panel => {
+    panel.classList.toggle("active", panel.id === targetId);
+  });
+  return targetId;
+}
+
+function normalizeActiveTabStateV217() {
+  const activeButton = document.querySelector(".tab.active[data-tab]");
+  const activePanel = document.querySelector(".tab-panel.active");
+  let targetId = activeButton?.dataset.tab || activePanel?.id || "calendarTab";
+
+  if (!$(targetId) || !permissionTabAllowed(targetId)) {
+    const allowed = [...document.querySelectorAll(".tab")].find(button => permissionTabAllowed(button.dataset.tab) && !button.classList.contains("hidden") && !button.classList.contains("user-hidden-v202"));
+    targetId = allowed?.dataset.tab || "calendarTab";
+  }
+
+  return setActiveTabStateV217(targetId);
+}
+
+function forceShowAppAfterLoginV213() {
+  const shell = $("appShell");
+  const login = $("loginScreen");
+  login?.classList.add("hidden");
+  if (login) login.style.display = "none";
+  shell?.classList.remove("auth-hidden");
+  if (shell) shell.style.display = "";
+  document.body.classList.add("app-authenticated-v213");
+}
+
+function adminLayoutSettingsKeyV213() {
+  return `${STORAGE_KEY}_admin_layout_settings_v202`;
+}
+
+function defaultAdminLayoutSettingsV213() {
+  return {
+    adminSections: { users: "admin", results: "admin", points: "admin", knockout: "admin", system: "settings" },
+    pages: { calendar: true, score: true, knockout: true, notifications: true, logs: true, adminTab: true, settings: true }
+  };
+}
+
+function savedAdminLayoutSettingsV213() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(adminLayoutSettingsKeyV213()) || "{}") || {};
+    const base = defaultAdminLayoutSettingsV213();
+    return {
+      adminSections: { ...base.adminSections, ...(raw.adminSections || {}), system: "settings" },
+      pages: { ...base.pages, ...(raw.pages || {}) }
+    };
+  } catch {
+    return defaultAdminLayoutSettingsV213();
+  }
+}
+
+function saveAdminLayoutSettingsV213(settings) {
+  const base = defaultAdminLayoutSettingsV213();
+  const clean = {
+    adminSections: { ...base.adminSections, ...(settings?.adminSections || {}), system: "settings" },
+    pages: { ...base.pages, ...(settings?.pages || {}) }
+  };
+  localStorage.setItem(adminLayoutSettingsKeyV213(), JSON.stringify(clean));
+}
+
+function settingsSectionContentV213(key) {
+  ensureSettingsSectionsV213();
+  return document.querySelector(`#settingsSectionV213_${CSS.escape(key)} .settings-section-content-v213`);
+}
+
+function ensureSettingsSectionsV213() {
+  const settingsTab = $("settingsTab");
+  if (!settingsTab) return null;
+
+  let accordion = $("settingsAccordionV213");
+  if (!accordion) {
+    accordion = document.createElement("div");
+    accordion.id = "settingsAccordionV213";
+    accordion.className = "settings-accordion-v213";
+
+    SETTINGS_SECTIONS_V213.forEach(([key, title, desc], index) => {
+      const details = document.createElement("details");
+      details.id = `settingsSectionV213_${key}`;
+      details.className = "settings-section-v213";
+      details.dataset.settingsSectionV213 = key;
+      const touched = localStorage.getItem(`${STORAGE_KEY}_settings_section_touched_v213_${key}`) === "1";
+      const savedOpen = localStorage.getItem(`${STORAGE_KEY}_settings_section_open_v213_${key}`) === "1";
+      details.open = touched ? savedOpen : index === 0;
+      details.innerHTML = `
+        <summary><span>${escapeHtml(title)}</span><small>${escapeHtml(desc)}</small></summary>
+        <div class="settings-section-content-v213"></div>
+      `;
+      details.addEventListener("toggle", () => {
+        localStorage.setItem(`${STORAGE_KEY}_settings_section_touched_v213_${key}`, "1");
+        localStorage.setItem(`${STORAGE_KEY}_settings_section_open_v213_${key}`, details.open ? "1" : "0");
+      });
+      accordion.appendChild(details);
+    });
+  }
+
+  const header = settingsTab.querySelector(":scope > .section-head");
+  if (!accordion.parentElement) {
+    if (header?.nextSibling) settingsTab.insertBefore(accordion, header.nextSibling);
+    else settingsTab.appendChild(accordion);
+  }
+
+  [...settingsTab.children].forEach(child => {
+    if (child === header || child === accordion || child.id === "settingsQuickTabsV213") return;
+    if (child.closest?.("#settingsAccordionV213")) return;
+    const section = settingsSectionForElementV213(child);
+    const content = document.querySelector(`#settingsSectionV213_${CSS.escape(section)} .settings-section-content-v213`);
+    if (content) content.appendChild(child);
+  });
+
+  renderOrganizationPanelV213();
+  ensureFootballDataSettingsBoxV213();
+  moveTechnicalBlocksToSettingsV213();
+  updateSettingsSectionCountsV213();
+  return accordion;
+}
+
+function settingsSectionForElementV213(el) {
+  const id = String(el?.id || "").toLowerCase();
+  const text = String(el?.textContent || "").toLowerCase();
+  if (id.includes("organization") || id.includes("adminlayout") || text.includes("organização da app")) return "organization";
+  if (id.includes("football") || id.includes("firebase") || id.includes("health") || id.includes("suspended") || text.includes("football-data") || text.includes("sync inteligente") || text.includes("firebase e push") || text.includes("saúde da app") || text.includes("jogo suspenso")) return "system";
+  if (id.includes("install") || id.includes("settings-grid") || text.includes("instalação") || text.includes("pwa") || text.includes("versão") || text.includes("cache")) return "install";
+  if (text.includes("prefer") || text.includes("tema")) return "preferences";
+  if (text.includes("admin") || text.includes("logs")) return "admin";
+  return "other";
+}
+
+function updateSettingsSectionCountsV213() {
+  SETTINGS_SECTIONS_V213.forEach(([key]) => {
+    const details = $(`settingsSectionV213_${key}`);
+    if (!details) return;
+    const count = details.querySelectorAll(":scope > .settings-section-content-v213 > *").length;
+    details.dataset.count = String(count);
+  });
+}
+
+function renderOrganizationPanelV213() {
+  const content = document.querySelector("#settingsSectionV213_organization .settings-section-content-v213") || $("settingsTab");
+  if (!content) return;
+
+  const organizationBoxes = Array.from(document.querySelectorAll("#settingsOrganizationSingleV213"));
+  let box = organizationBoxes.find(el => el.parentElement === content) || organizationBoxes[0] || null;
+  organizationBoxes.forEach(el => {
+    if (el !== box) el.remove();
+  });
+
+  if (!box) {
+    box = document.createElement("section");
+    box.id = "settingsOrganizationSingleV213";
+  }
+  box.className = "settings-organization-single-v213";
+
+  const settings = savedAdminLayoutSettingsV213();
+  const adminCount = ADMIN_SECTION_CHOICES_V213.filter(([key]) => key !== "system" && settings.adminSections?.[key] === "admin").length;
+  const settingsCount = ADMIN_SECTION_CHOICES_V213.filter(([key]) => (settings.adminSections?.[key] || (key === "system" ? "settings" : "admin")) === "settings").length;
+  const hiddenCount = ADMIN_SECTION_CHOICES_V213.filter(([key]) => settings.adminSections?.[key] === "hidden").length;
+  const visiblePagesCount = PAGE_LOCATION_CHOICES_V213.filter(([key]) => settings.pages?.[key] !== false).length;
+
+  const sectionRows = ADMIN_SECTION_CHOICES_V213.map(([key, label, desc]) => {
+    const value = settings.adminSections?.[key] || (key === "system" ? "settings" : "admin");
+    const locked = key === "system";
+    const control = locked
+      ? `<span class="settings-org-fixed-v215">Fixo em Config.</span>`
+      : `<select data-admin-section-location-v213="${escapeHtml(key)}">
+          <option value="admin" ${value === "admin" ? "selected" : ""}>Mostrar no Admin</option>
+          <option value="settings" ${value === "settings" ? "selected" : ""}>Mostrar em Configurações</option>
+          <option value="hidden" ${value === "hidden" ? "selected" : ""}>Não mostrar</option>
+        </select>`;
+    return `
+      <label class="settings-org-row-v213 settings-org-row-v214">
+        <span><b>${escapeHtml(label)}</b><small>${escapeHtml(desc || "")}</small></span>
+        ${control}
+      </label>`;
+  }).join("");
+
+  const pageRows = PAGE_LOCATION_CHOICES_V213.map(([key, label]) => `
+    <label class="settings-org-page-v213 settings-org-page-v214">
+      <input type="checkbox" data-page-visible-v213="${escapeHtml(key)}" ${settings.pages?.[key] !== false ? "checked" : ""} />
+      <span>${escapeHtml(label)}</span>
+    </label>`).join("");
+
+  box.innerHTML = `
+    <div class="settings-org-head-v213">
+      <div>
+        <strong>Organização da app</strong>
+        <span>Escolhe o que fica visível.</span>
+      </div>
+      <button type="button" class="secondary small" data-admin-layout-reset-v213>Repor</button>
+    </div>
+    <div class="settings-org-summary-v214">
+      <span><b>${adminCount}</b> no Admin</span>
+      <span><b>${settingsCount}</b> em Configurações</span>
+      <span><b>${hiddenCount}</b> escondidas</span>
+      <span><b>${visiblePagesCount}</b> páginas visíveis</span>
+    </div>
+    <div class="settings-org-grid-v213 settings-org-grid-v214">
+      <div>
+        <h4>Secções</h4>
+        <div class="settings-org-table-v214">${sectionRows}</div>
+      </div>
+      <div>
+        <h4>Menu</h4>
+        <div class="settings-org-pages-v213 settings-org-pages-v214">${pageRows}</div>
+      </div>
+    </div>
+  `;
+
+  if (box.parentElement !== content) content.prepend(box);
+}
+
+function adminCardsV214() {
+  const cards = Array.from(document.querySelectorAll("#adminUnlocked > .admin-card, #settingsAdminMovedCardsV214 > .admin-card, #adminHiddenCardsV214 > .admin-card"));
+  cards.forEach((card, index) => {
+    if (!card.dataset.adminManagedV214) {
+      card.dataset.adminManagedV214 = "1";
+      card.dataset.adminOrderV214 = String(index);
+    }
+  });
+  return cards.sort((a, b) => Number(a.dataset.adminOrderV214 || 0) - Number(b.dataset.adminOrderV214 || 0));
+}
+
+function adminCardHostsV214() {
+  const adminUnlocked = $("adminUnlocked");
+  let settingsHost = $("settingsAdminMovedCardsV214");
+  const settingsContent = document.querySelector("#settingsSectionV213_admin .settings-section-content-v213") || $("settingsTab");
+  if (!settingsHost && settingsContent) {
+    settingsHost = document.createElement("div");
+    settingsHost.id = "settingsAdminMovedCardsV214";
+    settingsHost.className = "settings-admin-moved-cards-v214";
+    settingsContent.appendChild(settingsHost);
+  }
+
+  let hiddenHost = $("adminHiddenCardsV214");
+  if (!hiddenHost) {
+    hiddenHost = document.createElement("div");
+    hiddenHost.id = "adminHiddenCardsV214";
+    hiddenHost.hidden = true;
+    hiddenHost.style.display = "none";
+    (adminUnlocked || document.body).appendChild(hiddenHost);
+  }
+
+  return { adminUnlocked, settingsHost, hiddenHost };
+}
+
+function routeAdminCardsV214(settings = savedAdminLayoutSettingsV213()) {
+  const { adminUnlocked, settingsHost, hiddenHost } = adminCardHostsV214();
+  const availableAdminSections = new Set();
+  const cards = adminCardsV214();
+
+  cards.forEach(card => {
+    const section = adminSectionForCardV187(card);
+    const location = section === "system" ? "settings" : (settings.adminSections?.[section] || "admin");
+    card.dataset.adminSectionV187 = section;
+    card.classList.remove("admin-section-hidden-v187", "admin-section-force-hidden-v202");
+    card.hidden = false;
+    card.style.display = "";
+
+    if (location === "settings" && settingsHost) {
+      settingsHost.appendChild(card);
+      if (card.tagName?.toLowerCase() === "details") card.open = false;
+      return;
+    }
+
+    if (location === "hidden" && hiddenHost) {
+      hiddenHost.appendChild(card);
+      card.hidden = true;
+      card.style.display = "none";
+      return;
+    }
+
+    if (adminUnlocked) {
+      adminUnlocked.appendChild(card);
+      availableAdminSections.add(section);
+    }
+  });
+
+  return availableAdminSections;
+}
+
+function ensureFootballDataSettingsBoxV213() {
+  const content = document.querySelector("#settingsSectionV213_system .settings-section-content-v213") || $("settingsTab");
+  if (!content) return null;
+  let box = $("footballDataSettingsBoxV213");
+  if (!box) {
+    box = document.createElement("section");
+    box.id = "footballDataSettingsBoxV213";
+    box.className = "configs-technical-card-v213";
+    box.innerHTML = `
+      <div>
+        <strong>API football-data.org</strong>
+        <span>Resultados e live score.</span>
+      </div>
+      <div class="settings-actions-v162" id="footballDataSettingsActionsV213"></div>
+    `;
+  }
+  if (box.parentElement !== content) content.appendChild(box);
+
+  const actions = $("footballDataSettingsActionsV213");
+  let btn = $("syncFootballDataBtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "syncFootballDataBtn";
+    btn.className = "primary";
+    btn.type = "button";
+    btn.textContent = "Atualizar resultados automáticos";
+    btn.addEventListener("click", () => syncFootballDataResultsV139?.());
+  }
+  if (actions && btn.parentElement !== actions) actions.appendChild(btn);
+  btn.classList.remove("hidden");
+  btn.hidden = false;
+  btn.style.display = "";
+  btn.disabled = !hasPermission("editResults");
+  return box;
+}
+
+function moveTechnicalBlocksToSettingsV213() {
+  const content = document.querySelector("#settingsSectionV213_system .settings-section-content-v213") || $("settingsTab");
+  if (!content) return;
+  TECHNICAL_BLOCK_IDS_V213.forEach(id => {
+    const el = $(id);
+    if (!el || el.id === "footballDataSettingsBoxV213") return;
+    el.classList.remove("hidden", "admin-section-hidden-v187", "admin-section-force-hidden-v202", "force-hide-technical-v209", "force-hide-technical-v210", "force-not-in-admin-v206");
+    el.style.display = "";
+    if (el.parentElement !== content) content.appendChild(el);
+  });
+}
+
+function cleanupAdminTechnicalBlocksV213() {
+  ensureFootballDataSettingsBoxV213();
+  document.querySelectorAll("#adminTab #settingsOrganizationSingleV213").forEach(el => el.remove());
+  TECHNICAL_BLOCK_IDS_V213.forEach(id => {
+    const el = document.querySelector(`#adminTab #${CSS.escape(id)}, #loginScreen #${CSS.escape(id)}`);
+    if (el) moveTechnicalBlocksToSettingsV213();
+  });
+}
+
+function applyAdminLayoutSettingsV213() {
+  const settings = savedAdminLayoutSettingsV213();
+  PAGE_LOCATION_CHOICES_V213.forEach(([key, , tabId]) => {
+    const tab = document.querySelector(`[data-tab="${CSS.escape(tabId)}"]`);
+    if (tab) tab.classList.toggle("user-hidden-v202", settings.pages?.[key] === false);
+  });
+
+  const availableAdminSections = routeAdminCardsV214(settings);
+  const available = [...availableAdminSections];
+  let active = localStorage.getItem(`${STORAGE_KEY}_admin_section_v187`) || available[0] || "";
+  if (!availableAdminSections.has(active)) {
+    active = available[0] || "";
+    if (active) localStorage.setItem(`${STORAGE_KEY}_admin_section_v187`, active);
+  }
+
+  document.querySelectorAll("#adminSectionTabsV187 [data-admin-section-v187]").forEach(button => {
+    const section = button.dataset.adminSectionV187;
+    const visible = availableAdminSections.has(section);
+    button.classList.toggle("hidden", !visible);
+    button.hidden = !visible;
+    button.classList.toggle("active", section === active);
+  });
+
+  document.querySelectorAll("#adminUnlocked > .admin-card").forEach(card => {
+    const section = card.dataset.adminSectionV187 || adminSectionForCardV187(card);
+    const hide = !active || section !== active;
+    card.classList.toggle("admin-section-hidden-v187", hide);
+    card.hidden = hide;
+    if (!hide && card.tagName?.toLowerCase() === "details") card.open = true;
+  });
+
+  const hasAdminContent = availableAdminSections.size > 0;
+  ["firebaseStatusBox", "adminOverviewV162", "adminSectionTabsV187"].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.hidden = !hasAdminContent;
+    el.style.display = hasAdminContent ? "" : "none";
+  });
+
+  const activeTab = document.querySelector(".tab.active");
+  if (activeTab?.classList.contains("user-hidden-v202")) switchToFirstAllowedTab();
+
+  cleanupAdminTechnicalBlocksV213();
+}
+
+function applySettingsLayoutV213() {
+  try {
+    ensureSettingsSectionsV213();
+    renderOrganizationPanelV213();
+    routeAdminCardsV214();
+    ensureFootballDataSettingsBoxV213();
+    moveTechnicalBlocksToSettingsV213();
+    updateSettingsSectionCountsV213();
+  } catch (error) {
+    console.warn("applySettingsLayoutV213 falhou:", error);
+  }
+}
+
+const originalFootballRealtimeSyncEnsureBoxV213 = typeof footballRealtimeSyncEnsureBoxV156 === "function" ? footballRealtimeSyncEnsureBoxV156 : null;
+if (originalFootballRealtimeSyncEnsureBoxV213) {
+  footballRealtimeSyncEnsureBoxV156 = function footballRealtimeSyncEnsureBoxSettingsV213() {
+    const content = document.querySelector("#settingsSectionV213_system .settings-section-content-v213") || $("settingsTab");
+    let box = $("footballRealtimeSyncBoxV156");
+    if (!box) {
+      box = document.createElement("section");
+      box.id = "footballRealtimeSyncBoxV156";
+      box.className = "football-realtime-sync-box-v156";
+      box.innerHTML = `
+        <div class="football-realtime-sync-top-v156">
+          <div><strong>Sync API em tempo real</strong><span id="footballRealtimeSyncSubV156">A ligar ao Firestore...</span></div>
+          <div class="football-realtime-sync-pill-v156 unknown" id="footballRealtimeSyncPillV156"><i></i><span>A verificar</span></div>
+        </div>
+        <div class="football-realtime-sync-grid-v156">
+          <div><b id="footballRealtimeSyncLastV156"></b><span>Última sync</span></div>
+          <div><b id="footballRealtimeSyncMatchesV156"></b><span>Jogos API</span></div>
+          <div><b id="footballRealtimeSyncFinishedV156"></b><span>Terminados</span></div>
+          <div><b id="footballRealtimeSyncUpdatedV156"></b><span>Atualizados</span></div>
+        </div>`;
+    }
+    if (content && box.parentElement !== content) content.appendChild(box);
+    return box;
+  };
+}
+
+if (typeof ensureFootballDataButtonV142 === "function") {
+  ensureFootballDataButtonV142 = function ensureFootballDataButtonSettingsV213() {
+    if (document.querySelector(".tab-panel.active")?.id === "settingsTab") ensureFootballDataSettingsBoxV213();
+  };
+}
+
+if (typeof ensureFootballDataAdminFixedButtonV143 === "function") {
+  ensureFootballDataAdminFixedButtonV143 = function ensureFootballDataAdminFixedButtonSettingsV213() {
+    if (document.querySelector(".tab-panel.active")?.id === "settingsTab") ensureFootballDataSettingsBoxV213();
+  };
+}
+
+const renderAppSettingsPanelOriginalV213 = typeof renderAppSettingsPanelV162 === "function" ? renderAppSettingsPanelV162 : null;
+if (renderAppSettingsPanelOriginalV213) {
+  renderAppSettingsPanelV162 = function renderAppSettingsPanelV213() {
+    renderAppSettingsPanelOriginalV213();
+    applySettingsLayoutV213();
+    try { renderFirebaseHealthPanelV187(); } catch (error) { console.warn("renderFirebaseHealthPanelV187 falhou:", error); }
+    try { footballRealtimeSyncRenderV156?.(); } catch (error) { console.warn("footballRealtimeSyncRenderV156 falhou:", error); }
+    try { renderFootballFreeStatusV149?.(); } catch (error) { console.warn("renderFootballFreeStatusV149 falhou:", error); }
+    applySettingsLayoutV213();
+  };
+}
+
+const renderAdminSectionsOriginalV213 = typeof renderAdminSectionsV187 === "function" ? renderAdminSectionsV187 : null;
+if (renderAdminSectionsOriginalV213) {
+  renderAdminSectionsV187 = function renderAdminSectionsV213() {
+    renderAdminSectionsOriginalV213();
+    applyAdminLayoutSettingsV213();
+  };
+}
+
+const renderActivePageOriginalV213 = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+if (renderActivePageOriginalV213) {
+  renderActivePageV187 = function renderActivePageCleanV213(tabId = activeTabIdV187()) {
+    renderActivePageOriginalV213(tabId);
+    if (tabId === "settingsTab") applySettingsLayoutV213();
+    if (tabId === "adminTab") applyAdminLayoutSettingsV213();
+  };
+}
+
+const applyPermissionsToUiOriginalV213 = typeof applyPermissionsToUi === "function" ? applyPermissionsToUi : null;
+if (applyPermissionsToUiOriginalV213) {
+  applyPermissionsToUi = function applyPermissionsToUiCleanV213() {
+    applyPermissionsToUiOriginalV213();
+    applyAdminLayoutSettingsV213();
+    const activeTab = document.querySelector(".tab.active");
+    if (activeTab?.classList.contains("user-hidden-v202")) switchToFirstAllowedTab();
+  };
+}
+
+document.addEventListener("change", event => {
+  const sectionSelect = event.target.closest?.("[data-admin-section-location-v213]");
+  const pageCheckbox = event.target.closest?.("[data-page-visible-v213]");
+  if (!sectionSelect && !pageCheckbox) return;
+  const settings = savedAdminLayoutSettingsV213();
+  if (sectionSelect) {
+    const sectionKey = sectionSelect.getAttribute("data-admin-section-location-v213");
+    if (sectionKey) settings.adminSections[sectionKey] = sectionSelect.value;
+  }
+  if (pageCheckbox) {
+    const pageKey = pageCheckbox.getAttribute("data-page-visible-v213");
+    if (pageKey) settings.pages[pageKey] = pageCheckbox.checked;
+  }
+  saveAdminLayoutSettingsV213(settings);
+  applyAdminLayoutSettingsV213();
+  applySettingsLayoutV213();
+  setTimeout(renderOrganizationPanelV213, 0);
+  toast("Organização guardada neste dispositivo.");
+}, true);
+
+document.addEventListener("click", event => {
+  if (event.target.closest?.("[data-admin-layout-reset-v213]")) {
+    event.preventDefault();
+    localStorage.removeItem(adminLayoutSettingsKeyV213());
+    renderOrganizationPanelV213();
+    applyAdminLayoutSettingsV213();
+    toast("Organização reposta.");
+    return;
+  }
+  if (event.target.closest?.("[data-tab='settingsTab']")) setTimeout(applySettingsLayoutV213, 80);
+  if (event.target.closest?.("[data-tab='adminTab'],[data-admin-section-v187]")) setTimeout(applyAdminLayoutSettingsV213, 80);
+}, true);
+
+document.addEventListener("change", event => {
+  const input = event.target.closest?.("#pushNotificationsPanelV165 input[type='checkbox']");
+  if (!input) return;
+  try { savePushPreferencesLocalV181(); } catch (error) { console.warn("Guardar preferências push local falhou:", error); }
+  const btn = $("savePushPrefsBtnV181");
+  if (btn) btn.textContent = "Guardar preferências";
+}, true);
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => { if ($("settingsTab")?.classList.contains("active")) applySettingsLayoutV213(); }, 400);
+  setTimeout(() => { if ($("adminTab")?.classList.contains("active")) applyAdminLayoutSettingsV213(); }, 700);
+});
+
+
+// v214 — Users popup sempre à frente, fora do stacking da topbar/tabs.
+function positionOnlineUsersPopupV214() {
+  const panel = $("onlineUsersPanel");
+  const list = $("onlineUsersList");
+  const trigger = panel?.querySelector("summary");
+  if (!panel || !list || !trigger || !panel.open) return;
+
+  const rect = trigger.getBoundingClientRect();
+  const margin = 12;
+  const viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  const desiredWidth = Math.min(520, Math.max(320, viewportW - margin * 2));
+  const left = Math.max(margin, Math.min(rect.right - desiredWidth, viewportW - desiredWidth - margin));
+  const top = Math.max(margin, Math.min(rect.bottom + 8, viewportH - 120));
+
+  list.style.position = "fixed";
+  list.style.left = `${Math.round(left)}px`;
+  list.style.right = "auto";
+  list.style.top = `${Math.round(top)}px`;
+  list.style.width = `${Math.round(desiredWidth)}px`;
+  list.style.maxWidth = `calc(100vw - ${margin * 2}px)`;
+  list.style.maxHeight = `${Math.max(220, Math.round(viewportH - top - margin))}px`;
+  list.style.zIndex = "2147483000";
+  list.style.transform = "none";
+  list.style.pointerEvents = "auto";
+
+  panel.classList.add("online-users-floating-v214");
+  document.body.classList.add("online-users-open-v214");
+}
+
+function closeOnlineUsersPanelV214(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const panel = $("onlineUsersPanel");
+  if (panel) panel.open = false;
+  document.body.classList.remove("online-users-open-v214");
+  return false;
+}
+
+window.closeOnlineUsersPanelNow = closeOnlineUsersPanelV214;
+
+function bindOnlineUsersPopupV214() {
+  const panel = $("onlineUsersPanel");
+  if (!panel || panel.dataset.usersPopupV214 === "1") return;
+  panel.dataset.usersPopupV214 = "1";
+
+  panel.addEventListener("toggle", () => {
+    if (panel.open) {
+      positionOnlineUsersPopupV214();
+      setTimeout(positionOnlineUsersPopupV214, 50);
+      setTimeout(positionOnlineUsersPopupV214, 250);
+    } else {
+      document.body.classList.remove("online-users-open-v214");
+      const list = $("onlineUsersList");
+      if (list) {
+        list.style.left = "";
+        list.style.top = "";
+        list.style.width = "";
+        list.style.maxHeight = "";
+        list.style.transform = "";
+      }
+    }
+  });
+
+  document.addEventListener("click", event => {
+    const opened = panel.open;
+    if (!opened) return;
+    if (event.target.closest?.("#onlineUsersPanel")) return;
+    panel.open = false;
+    document.body.classList.remove("online-users-open-v214");
+  }, true);
+
+  window.addEventListener("resize", positionOnlineUsersPopupV214, { passive: true });
+  window.addEventListener("scroll", positionOnlineUsersPopupV214, { passive: true });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindOnlineUsersPopupV214();
+  setTimeout(bindOnlineUsersPopupV214, 800);
+  setTimeout(positionOnlineUsersPopupV214, 900);
+});
+
+const renderOnlineUsersOriginalV214 = typeof renderOnlineUsers === "function" ? renderOnlineUsers : null;
+if (renderOnlineUsersOriginalV214 && !window.__renderOnlineUsersV214) {
+  window.__renderOnlineUsersV214 = true;
+  renderOnlineUsers = function renderOnlineUsersV214() {
+    renderOnlineUsersOriginalV214();
+    bindOnlineUsersPopupV214();
+    setTimeout(positionOnlineUsersPopupV214, 0);
+    setTimeout(positionOnlineUsersPopupV214, 120);
+  };
+}
+
+
+// v220 — Users popup em portal real no body.
+// Corrige de vez o problema de ficar por baixo de tabs/topbar/sticky bars.
+let onlineUsersOriginalParentV220 = null;
+let onlineUsersOriginalNextSiblingV220 = null;
+
+function onlineUsersPanelV220() {
+  return $("onlineUsersPanel");
+}
+
+function onlineUsersListV220() {
+  return $("onlineUsersList");
+}
+
+function onlineUsersTriggerV220() {
+  return onlineUsersPanelV220()?.querySelector("summary");
+}
+
+function moveOnlineUsersListToBodyV220() {
+  const list = onlineUsersListV220();
+  if (!list) return;
+
+  if (!onlineUsersOriginalParentV220) {
+    onlineUsersOriginalParentV220 = list.parentElement;
+    onlineUsersOriginalNextSiblingV220 = list.nextSibling;
+  }
+
+  if (list.parentElement !== document.body) {
+    document.body.appendChild(list);
+  }
+
+  list.classList.add("online-users-portal-v220");
+  document.body.classList.add("online-users-open-v220");
+}
+
+function restoreOnlineUsersListV220() {
+  const list = onlineUsersListV220();
+  if (!list) return;
+
+  list.classList.remove("online-users-portal-v220");
+  list.style.left = "";
+  list.style.top = "";
+  list.style.width = "";
+  list.style.maxHeight = "";
+  list.style.transform = "";
+
+  if (onlineUsersOriginalParentV220 && list.parentElement !== onlineUsersOriginalParentV220) {
+    if (onlineUsersOriginalNextSiblingV220 && onlineUsersOriginalNextSiblingV220.parentElement === onlineUsersOriginalParentV220) {
+      onlineUsersOriginalParentV220.insertBefore(list, onlineUsersOriginalNextSiblingV220);
+    } else {
+      onlineUsersOriginalParentV220.appendChild(list);
+    }
+  }
+
+  document.body.classList.remove("online-users-open-v220");
+}
+
+function positionOnlineUsersPopupV220() {
+  const panel = onlineUsersPanelV220();
+  const list = onlineUsersListV220();
+  const trigger = onlineUsersTriggerV220();
+  if (!panel || !list || !trigger || !panel.open) return;
+
+  moveOnlineUsersListToBodyV220();
+
+  const rect = trigger.getBoundingClientRect();
+  const margin = 12;
+  const viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  const width = Math.min(520, Math.max(340, viewportW - margin * 2));
+  const left = Math.max(margin, Math.min(rect.right - width, viewportW - width - margin));
+  const top = Math.max(margin, Math.min(rect.bottom + 10, viewportH - 160));
+  const maxHeight = Math.max(240, viewportH - top - margin);
+
+  list.style.position = "fixed";
+  list.style.left = `${Math.round(left)}px`;
+  list.style.top = `${Math.round(top)}px`;
+  list.style.width = `${Math.round(width)}px`;
+  list.style.maxHeight = `${Math.round(maxHeight)}px`;
+  list.style.transform = "none";
+  list.style.zIndex = "2147483600";
+  list.style.pointerEvents = "auto";
+}
+
+function closeOnlineUsersPanelV220(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const panel = onlineUsersPanelV220();
+  if (panel) panel.open = false;
+  restoreOnlineUsersListV220();
+  return false;
+}
+
+window.closeOnlineUsersPanelNow = closeOnlineUsersPanelV220;
+
+function bindOnlineUsersPortalV220() {
+  const panel = onlineUsersPanelV220();
+  if (!panel || panel.dataset.usersPortalV220 === "1") return;
+
+  panel.dataset.usersPortalV220 = "1";
+
+  panel.addEventListener("toggle", () => {
+    if (panel.open) {
+      positionOnlineUsersPopupV220();
+      setTimeout(positionOnlineUsersPopupV220, 40);
+      setTimeout(positionOnlineUsersPopupV220, 180);
+    } else {
+      restoreOnlineUsersListV220();
+    }
+  });
+
+  document.addEventListener("click", event => {
+    const p = onlineUsersPanelV220();
+    const list = onlineUsersListV220();
+    if (!p?.open) return;
+
+    if (event.target.closest?.("#onlineUsersPanel")) return;
+    if (event.target.closest?.("#onlineUsersList")) return;
+
+    p.open = false;
+    restoreOnlineUsersListV220();
+  }, true);
+
+  window.addEventListener("resize", positionOnlineUsersPopupV220, { passive: true });
+  window.addEventListener("scroll", positionOnlineUsersPopupV220, { passive: true });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindOnlineUsersPortalV220();
+  setTimeout(bindOnlineUsersPortalV220, 700);
+  setTimeout(positionOnlineUsersPopupV220, 900);
+});
+
+const renderOnlineUsersOriginalV220 = typeof renderOnlineUsers === "function" ? renderOnlineUsers : null;
+if (renderOnlineUsersOriginalV220 && !window.__renderOnlineUsersV220) {
+  window.__renderOnlineUsersV220 = true;
+  renderOnlineUsers = function renderOnlineUsersV220() {
+    renderOnlineUsersOriginalV220();
+    bindOnlineUsersPortalV220();
+
+    const panel = onlineUsersPanelV220();
+    if (panel?.open) {
+      moveOnlineUsersListToBodyV220();
+      setTimeout(positionOnlineUsersPopupV220, 0);
+      setTimeout(positionOnlineUsersPopupV220, 120);
+    }
+  };
+}
+
+
+// v221 — cor ativa dos botões de filtro do calendário.
+function calendarFilterModeV221() {
+  return String(calendarViewMode || "missing").trim().toLowerCase();
+}
+
+function updateCalendarFilterButtonsV221() {
+  const mode = calendarFilterModeV221();
+
+  const map = [
+    ["calendarMissingResultsBtn", "missing"],
+    ["calendarPlayedGamesBtn", "played"],
+    ["calendarAllGamesBtn", "all"]
+  ];
+
+  map.forEach(([id, value]) => {
+    const btn = $(id);
+    if (!btn) return;
+
+    const active = mode === value;
+    btn.classList.toggle("calendar-filter-active-v221", active);
+    btn.classList.toggle("calendar-filter-inactive-v221", !active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+
+    if (id === "calendarMissingResultsBtn") btn.dataset.filterKindV221 = "missing";
+    if (id === "calendarPlayedGamesBtn") btn.dataset.filterKindV221 = "played";
+    if (id === "calendarAllGamesBtn") btn.dataset.filterKindV221 = "all";
+  });
+}
+
+document.addEventListener("click", event => {
+  if (
+    event.target.closest?.("#calendarMissingResultsBtn") ||
+    event.target.closest?.("#calendarPlayedGamesBtn") ||
+    event.target.closest?.("#calendarAllGamesBtn")
+  ) {
+    setTimeout(updateCalendarFilterButtonsV221, 0);
+    setTimeout(updateCalendarFilterButtonsV221, 120);
+  }
+}, true);
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(updateCalendarFilterButtonsV221, 300);
+  setTimeout(updateCalendarFilterButtonsV221, 1200);
+});
+
+const renderCalendarOriginalV221 = typeof renderCalendar === "function" ? renderCalendar : null;
+if (renderCalendarOriginalV221 && !window.__renderCalendarButtonsV221) {
+  window.__renderCalendarButtonsV221 = true;
+  renderCalendar = function renderCalendarV221() {
+    const result = renderCalendarOriginalV221.apply(this, arguments);
+    setTimeout(updateCalendarFilterButtonsV221, 0);
+    return result;
+  };
+}
+
+const renderAllOriginalV221 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllOriginalV221 && !window.__renderAllButtonsV221) {
+  window.__renderAllButtonsV221 = true;
+  renderAll = function renderAllV221() {
+    const result = renderAllOriginalV221.apply(this, arguments);
+    setTimeout(updateCalendarFilterButtonsV221, 0);
+    return result;
+  };
+}
+
+
+// v228 - Admin e Configuracoes com colapsaveis unicos e estaveis.
+const COLLAPSE_STATE_KEY_V228 = `${STORAGE_KEY}_collapse_state_v228`;
+const COLLAPSE_TOUCHED_KEY_V228 = `${STORAGE_KEY}_collapse_touched_v228`;
+
+function noopCollapseLegacyV228() {}
+
+try {
+  if (typeof applyAdminCollapseV222 === "function") applyAdminCollapseV222 = noopCollapseLegacyV228;
+  if (typeof closeAllAdminCollapseV222 === "function") closeAllAdminCollapseV222 = noopCollapseLegacyV228;
+  if (typeof prepareSettingsCollapseV223 === "function") prepareSettingsCollapseV223 = noopCollapseLegacyV228;
+  if (typeof closeAllSettingsCollapseV223 === "function") closeAllSettingsCollapseV223 = noopCollapseLegacyV228;
+  if (typeof removeFakeAdminCollapseSectionsV224 === "function") removeFakeAdminCollapseSectionsV224 = noopCollapseLegacyV228;
+  if (typeof removeFakeSettingsCollapseSectionsV225 === "function") removeFakeSettingsCollapseSectionsV225 = noopCollapseLegacyV228;
+  if (typeof applyFirstTabsOpenV226 === "function") applyFirstTabsOpenV226 = noopCollapseLegacyV228;
+  if (typeof openFirstDetailsV226 === "function") openFirstDetailsV226 = noopCollapseLegacyV228;
+  if (typeof visibleUsefulDetailsV226 === "function") visibleUsefulDetailsV226 = () => [];
+  if (typeof settingsUserToggleV227 !== "undefined") settingsUserToggleV227 = null;
+} catch (error) {
+  console.warn("Neutralizar colapsaveis antigos falhou:", error);
+}
+
+function collapseStateV228(scope) {
+  try {
+    const all = JSON.parse(localStorage.getItem(COLLAPSE_STATE_KEY_V228) || "{}") || {};
+    return all[scope] && typeof all[scope] === "object" ? all[scope] : {};
+  } catch {
+    return {};
+  }
+}
+
+function collapseTouchedV228(scope) {
+  try {
+    const all = JSON.parse(localStorage.getItem(COLLAPSE_TOUCHED_KEY_V228) || "{}") || {};
+    return all[scope] === true;
+  } catch {
+    return false;
+  }
+}
+
+function saveCollapseStateV228(scope, key, open) {
+  try {
+    const all = JSON.parse(localStorage.getItem(COLLAPSE_STATE_KEY_V228) || "{}") || {};
+    all[scope] = { ...(all[scope] || {}), [key]: Boolean(open) };
+    localStorage.setItem(COLLAPSE_STATE_KEY_V228, JSON.stringify(all));
+
+    const touched = JSON.parse(localStorage.getItem(COLLAPSE_TOUCHED_KEY_V228) || "{}") || {};
+    touched[scope] = true;
+    localStorage.setItem(COLLAPSE_TOUCHED_KEY_V228, JSON.stringify(touched));
+  } catch (error) {
+    console.warn("Guardar estado dos colapsaveis falhou:", error);
+  }
+}
+
+function usefulElementV228(el) {
+  if (!el || el.hidden) return false;
+  if (el.id === "adminHiddenCardsV214" || el.id === "settingsAdminMovedCardsV214") return false;
+  if (el.classList?.contains("hidden") || el.classList?.contains("user-hidden-v202")) return false;
+  if (el.classList?.contains("admin-section-tabs-v187")) return false;
+  const text = String(el.textContent || "").replace(/\s+/g, " ").trim();
+  if (text.length > 6) return true;
+  return Boolean(el.querySelector?.("button,input,select,textarea,table,img,canvas,svg,[id]"));
+}
+
+function usefulChildrenV228(container) {
+  return [...(container?.children || [])].filter(usefulElementV228);
+}
+
+function unwrapDetailsV228(details, contentSelector) {
+  const parent = details?.parentElement;
+  const content = details?.querySelector?.(contentSelector);
+  if (!parent || !content) {
+    details?.remove?.();
+    return;
+  }
+  [...content.children].forEach(child => parent.insertBefore(child, details));
+  details.remove();
+}
+
+function unwrapLegacyCollapseV228(root) {
+  if (!root) return;
+  root.querySelectorAll("details.admin-collapse-section-v222").forEach(details => unwrapDetailsV228(details, ":scope > .admin-collapse-content-v222"));
+  root.querySelectorAll("details.admin-card-collapse-v222").forEach(details => unwrapDetailsV228(details, ":scope > .admin-card-collapse-content-v222"));
+  root.querySelectorAll("details.settings-collapse-section-v223").forEach(details => unwrapDetailsV228(details, ":scope > .settings-collapse-content-v223"));
+  root.querySelectorAll("#adminCollapseShellV222,#settingsCollapseShellV223").forEach(shell => {
+    [...shell.children].forEach(child => shell.parentElement?.insertBefore(child, shell));
+    shell.remove();
+  });
+  document.body.classList.remove("settings-collapsed-v223");
+}
+
+function unwrapCleanSectionsV228(root, selector) {
+  if (!root) return;
+  root.querySelectorAll(selector).forEach(section => {
+    const content = section.querySelector(":scope > .clean-collapse-content-v228");
+    if (content) [...content.children].forEach(child => section.parentElement?.insertBefore(child, section));
+    section.remove();
+  });
+}
+
+function makeCleanSectionV228({ scope, key, title, description = "", items = [], index = 0 }) {
+  const details = document.createElement("details");
+  details.className = `${scope}-clean-section-v228 clean-collapse-section-v228`;
+  details.dataset.cleanCollapseScopeV228 = scope;
+  details.dataset.cleanCollapseKeyV228 = key;
+
+  const state = collapseStateV228(scope);
+  const touched = collapseTouchedV228(scope);
+  details.open = touched ? state[key] === true : index === 0;
+
+  const summary = document.createElement("summary");
+  summary.innerHTML = `<span>${escapeHtml(title)}</span>${description ? `<small>${escapeHtml(description)}</small>` : ""}`;
+
+  const content = document.createElement("div");
+  content.className = "clean-collapse-content-v228";
+  items.forEach(item => content.appendChild(item));
+
+  details.appendChild(summary);
+  details.appendChild(content);
+  details.addEventListener("toggle", () => saveCollapseStateV228(scope, key, details.open));
+  return details;
+}
+
+function adminSectionForCardV228(card) {
+  const title = String(card?.querySelector?.(":scope > summary h2, h2, h3, strong")?.textContent || "").toLowerCase();
+  const text = String(card?.textContent || "").toLowerCase();
+  if (title.includes("permiss") || title.includes("users do jogo") || text.includes("guardar utilizador") || text.includes("adicionar user")) return "users";
+  if (title.includes("fase final") || text.includes("knockout")) return "knockout";
+  if (title.includes("pontos") || title.includes("exportar pontos") || title.includes("resultados especiais") || text.includes("guardar pontos")) return "points";
+  if (title.includes("resultado") || title.includes("excel") || text.includes("importar excel") || text.includes("adminGamesList")) return "results";
+  return "system";
+}
+
+function organizeAdminPageV228() {
+  const adminTab = $("adminTab");
+  const adminUnlocked = $("adminUnlocked");
+  if (!adminTab || !adminUnlocked) return;
+
+  unwrapLegacyCollapseV228(adminTab);
+  unwrapCleanSectionsV228(adminUnlocked, ":scope > .admin-clean-section-v228");
+
+  const settings = savedAdminLayoutSettingsV213();
+  const availableSections = typeof routeAdminCardsV214 === "function" ? routeAdminCardsV214(settings) : new Set();
+  cleanupAdminTechnicalBlocksV213?.();
+
+  const tabs = $("adminSectionTabsV187");
+  if (tabs) {
+    tabs.hidden = true;
+    tabs.style.display = "none";
+  }
+
+  const summaryItems = [$("firebaseStatusBox"), $("adminOverviewV162")].filter(el => el && adminUnlocked.contains(el));
+  summaryItems.forEach(el => {
+    el.hidden = false;
+    el.style.display = "";
+  });
+
+  const buckets = {
+    summary: summaryItems,
+    users: [],
+    results: [],
+    points: [],
+    knockout: [],
+    system: []
+  };
+
+  [...adminUnlocked.children].forEach(child => {
+    if (!child.classList?.contains("admin-card")) return;
+    if (child.hidden || child.style.display === "none") return;
+    const key = adminSectionForCardV228(child);
+    if (!buckets[key]) buckets.system.push(child);
+    else buckets[key].push(child);
+  });
+
+  const sectionDefs = [
+    ["summary", "Resumo", "Estado geral da app"],
+    ["users", "Users", "Contas, cargos e participantes"],
+    ["results", "Resultados", "Jogos, Excel e resultados"],
+    ["points", "Pontos", "Regras e extras"],
+    ["knockout", "Fase Final", "Jogos a eliminar"],
+    ["system", "Sistema", "Apenas se houver conteudo"],
+  ];
+
+  const sections = sectionDefs
+    .map(([key, title, description]) => ({ key, title, description, items: buckets[key].filter(usefulElementV228) }))
+    .filter(section => section.items.length > 0);
+
+  sections.forEach((section, index) => {
+    const details = makeCleanSectionV228({ scope: "admin", key: section.key, title: section.title, description: section.description, items: section.items, index });
+    adminUnlocked.appendChild(details);
+  });
+
+  adminUnlocked.querySelectorAll(".admin-collapse-section-v222,.admin-card-collapse-v222").forEach(el => el.remove());
+}
+
+function organizeSettingsPageV228() {
+  const settingsTab = $("settingsTab");
+  if (!settingsTab) return;
+
+  unwrapLegacyCollapseV228(settingsTab);
+  if (typeof ensureSettingsSectionsV213 === "function") ensureSettingsSectionsV213();
+  if (typeof renderOrganizationPanelV213 === "function") renderOrganizationPanelV213();
+  if (typeof ensureFootballDataSettingsBoxV213 === "function") ensureFootballDataSettingsBoxV213();
+  if (typeof moveTechnicalBlocksToSettingsV213 === "function") moveTechnicalBlocksToSettingsV213();
+
+  const accordion = $("settingsAccordionV213");
+  if (!accordion) return;
+
+  const wantedOrder = ["organization", "system", "install", "preferences", "admin", "other"];
+  wantedOrder.forEach(key => {
+    const section = $(`settingsSectionV213_${key}`);
+    if (section && section.parentElement === accordion) accordion.appendChild(section);
+  });
+
+  const usefulSections = [];
+  accordion.querySelectorAll(":scope > details.settings-section-v213").forEach(details => {
+    const key = details.dataset.settingsSectionV213 || details.id.replace("settingsSectionV213_", "");
+    const content = details.querySelector(":scope > .settings-section-content-v213");
+    const useful = usefulChildrenV228(content).length > 0;
+    const knownOptional = ["preferences", "admin", "other"].includes(key);
+
+    if (!useful || (knownOptional && !useful)) {
+      details.hidden = true;
+      details.style.display = "none";
+      return;
+    }
+
+    details.hidden = false;
+    details.style.display = "";
+    usefulSections.push(details);
+  });
+
+  const state = collapseStateV228("settings");
+  const touched = collapseTouchedV228("settings");
+  usefulSections.forEach((details, index) => {
+    const key = details.dataset.settingsSectionV213 || details.id || `settings_${index}`;
+    details.open = touched ? state[key] === true : index === 0;
+    if (!details.dataset.cleanToggleV228) {
+      details.dataset.cleanToggleV228 = "1";
+      details.addEventListener("toggle", () => saveCollapseStateV228("settings", key, details.open));
+    }
+  });
+
+  settingsTab.querySelectorAll("details.settings-collapse-section-v223,#settingsCollapseShellV223").forEach(el => el.remove());
+}
+
+function applyAdminLayoutSettingsV228() {
+  const settings = savedAdminLayoutSettingsV213();
+  PAGE_LOCATION_CHOICES_V213.forEach(([key, , tabId]) => {
+    const tab = document.querySelector(`[data-tab="${CSS.escape(tabId)}"]`);
+    if (tab) tab.classList.toggle("user-hidden-v202", settings.pages?.[key] === false);
+  });
+
+  organizeAdminPageV228();
+  const activeTab = document.querySelector(".tab.active");
+  if (activeTab?.classList.contains("user-hidden-v202")) switchToFirstAllowedTab();
+}
+
+function applySettingsLayoutV228() {
+  organizeSettingsPageV228();
+}
+
+function innerCollapseDetailsV229(summary) {
+  const details = summary?.parentElement;
+  if (!(details instanceof HTMLDetailsElement)) return null;
+  if (details.classList.contains("clean-collapse-section-v228")) return null;
+  if (details.classList.contains("settings-section-v213")) return null;
+
+  const insideAdmin = details.matches(".admin-card.admin-collapse") && details.closest(".admin-clean-section-v228");
+  const insideSettings = details.closest("#settingsTab .settings-section-content-v213") && !details.classList.contains("settings-section-v213");
+  return insideAdmin || insideSettings ? details : null;
+}
+
+function toggleInnerCollapseV229(summary, event) {
+  const details = innerCollapseDetailsV229(summary);
+  if (!details) return false;
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  details.open = !details.open;
+  details.dataset.userOpenV229 = details.open ? "1" : "0";
+  return true;
+}
+
+try {
+  applyAdminLayoutSettingsV213 = applyAdminLayoutSettingsV228;
+  applySettingsLayoutV213 = applySettingsLayoutV228;
+} catch (error) {
+  console.warn("Substituir layouts antigos falhou:", error);
+}
+
+const renderAdminOriginalV228 = typeof renderAdmin === "function" ? renderAdmin : null;
+if (renderAdminOriginalV228 && !window.__renderAdminCleanV228) {
+  window.__renderAdminCleanV228 = true;
+  renderAdmin = function renderAdminCleanV228() {
+    const result = renderAdminOriginalV228.apply(this, arguments);
+    setTimeout(organizeAdminPageV228, 0);
+    return result;
+  };
+}
+
+const renderAdminSectionsOriginalV228 = typeof renderAdminSectionsV187 === "function" ? renderAdminSectionsV187 : null;
+if (renderAdminSectionsOriginalV228 && !window.__renderAdminSectionsCleanV228) {
+  window.__renderAdminSectionsCleanV228 = true;
+  renderAdminSectionsV187 = function renderAdminSectionsCleanV228() {
+    const result = renderAdminSectionsOriginalV228.apply(this, arguments);
+    setTimeout(organizeAdminPageV228, 0);
+    return result;
+  };
+}
+
+const renderSettingsOriginalV228 = typeof renderAppSettingsPanelV162 === "function" ? renderAppSettingsPanelV162 : null;
+if (renderSettingsOriginalV228 && !window.__renderSettingsCleanV228) {
+  window.__renderSettingsCleanV228 = true;
+  renderAppSettingsPanelV162 = function renderSettingsCleanV228() {
+    const result = renderSettingsOriginalV228.apply(this, arguments);
+    setTimeout(organizeSettingsPageV228, 0);
+    return result;
+  };
+}
+
+const renderAllOriginalV228 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllOriginalV228 && !window.__renderAllCleanCollapseV228) {
+  window.__renderAllCleanCollapseV228 = true;
+  renderAll = function renderAllCleanCollapseV228() {
+    const result = renderAllOriginalV228.apply(this, arguments);
+    setTimeout(() => {
+      if ($("adminTab")?.classList.contains("active")) organizeAdminPageV228();
+      if ($("settingsTab")?.classList.contains("active")) organizeSettingsPageV228();
+    }, 0);
+    return result;
+  };
+}
+
+document.addEventListener("click", event => {
+  if (toggleKnockoutUnlockControlV231(event)) return;
+
+  const innerSummary = event.target.closest?.("#adminTab .admin-card.admin-collapse > summary, #settingsTab .settings-section-content-v213 details > summary");
+  if (innerSummary && toggleInnerCollapseV229(innerSummary, event)) return;
+
+  if (event.target.closest?.("[data-tab='adminTab']")) setTimeout(organizeAdminPageV228, 80);
+  if (event.target.closest?.("[data-tab='settingsTab']")) setTimeout(organizeSettingsPageV228, 80);
+}, true);
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => { if ($("adminTab")?.classList.contains("active")) organizeAdminPageV228(); }, 500);
+  setTimeout(() => { if ($("settingsTab")?.classList.contains("active")) organizeSettingsPageV228(); }, 500);
+});
