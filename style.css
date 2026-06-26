@@ -16268,3 +16268,52 @@ body.mandatory-notice-open-v295{
 #knockoutTab [data-tab].page-hidden-v301{
   display:none!important;
 }
+
+
+/* v302 — Calendário estável: sem cards a ajeitar sozinhos */
+#calendarTab.calendar-stable-v302,
+#calendarTab.calendar-stable-v302 #gamesList,
+#calendarTab.calendar-stable-v302 .day-block,
+#calendarTab.calendar-stable-v302 .match-list,
+#calendarTab.calendar-stable-v302 .match-row{
+  transition:none!important;
+  animation:none!important;
+  scroll-behavior:auto!important;
+}
+
+#calendarTab.calendar-stable-v302 .match-row,
+#calendarTab .match-row.calendar-card-stable-v302{
+  transform:none!important;
+  will-change:auto!important;
+  contain:layout paint!important;
+  backface-visibility:hidden!important;
+}
+
+#calendarTab.calendar-stable-v302 .match-list{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+  align-items:stretch!important;
+}
+
+#calendarTab.calendar-stable-v302 .day-block{
+  overflow:visible!important;
+}
+
+/* Mobile: estrutura fixa para não mudar altura/colunas depois do render */
+@media(max-width:760px){
+  #calendarTab.calendar-stable-v302 .match-row{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  #calendarTab.calendar-stable-v302 .match-row .team strong,
+  #calendarTab.calendar-stable-v302 .match-row .bet-note,
+  #calendarTab.calendar-stable-v302 .match-row .state,
+  #calendarTab.calendar-stable-v302 .match-row .time{
+    transition:none!important;
+    animation:none!important;
+  }
+}

@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v301";
+const APP_VERSION_LABEL = "v302";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -22597,5 +22597,145 @@ window.debugBarraPaginasV301 = function debugBarraPaginasV301() {
       display: el.style.display,
       classes: el.className
     }))
+  };
+};
+
+
+/* v302 — Calendário: cards estáveis, sem se ajeitarem sozinhos */
+const APP_VERSION_V302_CALENDAR_STABLE_CARDS = "302.0";
+let calendarLastSignatureV302 = "";
+let calendarLastRenderAtV302 = 0;
+
+function calendarSignatureV302() {
+  try {
+    const list = typeof filteredGames === "function" ? filteredGames() : (games || []);
+    return JSON.stringify({
+      mode: calendarViewMode || "",
+      count: list.length,
+      games: list.map(game => [
+        game.id,
+        game.matchDate || game.date || "",
+        game.homeTeam || "",
+        game.awayTeam || "",
+        game.homeScore ?? "",
+        game.awayScore ?? "",
+        game.status || "",
+        game.group || ""
+      ])
+    });
+  } catch {
+    return `${Date.now()}`;
+  }
+}
+
+function freezeCalendarCardsV302() {
+  const tab = document.getElementById("calendarTab");
+  const list = document.getElementById("gamesList");
+  if (!tab || !list) return;
+
+  tab.classList.add("calendar-stable-v302");
+  list.classList.add("calendar-list-stable-v302");
+
+  list.querySelectorAll(".match-row").forEach(row => {
+    row.classList.add("calendar-card-stable-v302");
+    row.style.transform = "none";
+    row.style.animation = "none";
+  });
+}
+
+(function installCalendarStableCardsV302() {
+  if (window.__calendarStableCardsV302) return;
+  window.__calendarStableCardsV302 = true;
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__stableCardsV302) {
+    renderCalendar = function renderCalendarStableCardsV302() {
+      const container = document.getElementById("gamesList");
+      const active = document.querySelector(".tab-panel.active")?.id === "calendarTab";
+      const signature = calendarSignatureV302();
+      const now = Date.now();
+
+      // Quando o conteúdo é igual, não voltar a destruir/recriar os cards.
+      // Isto era o que fazia o Calendário estar sempre a "ajeitar" visualmente.
+      if (
+        active &&
+        container &&
+        container.children.length &&
+        signature === calendarLastSignatureV302 &&
+        now - calendarLastRenderAtV302 < 12000
+      ) {
+        try { renderCalendarFilterState?.(); } catch {}
+        freezeCalendarCardsV302();
+        return;
+      }
+
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const result = originalRenderCalendar.apply(this, arguments);
+
+      calendarLastSignatureV302 = signature;
+      calendarLastRenderAtV302 = Date.now();
+
+      freezeCalendarCardsV302();
+
+      // Mantém a posição se o render veio de sync/refresh e não de troca de filtro.
+      if (active && scrollY > 0) {
+        requestAnimationFrame(() => {
+          try { window.scrollTo({ top: scrollY, left: 0, behavior: "auto" }); } catch { window.scrollTo(0, scrollY); }
+        });
+      }
+
+      setTimeout(freezeCalendarCardsV302, 0);
+      setTimeout(freezeCalendarCardsV302, 180);
+      return result;
+    };
+    renderCalendar.__stableCardsV302 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  // Estes wrappers antigos aplicavam estilos depois do render e davam sensação de cards a mexer.
+  // Mantemos as cores necessárias, mas sem transições e sem repetir em loop.
+  const originalKoV262Apply = typeof koV262ApplyCalendarDayRoundColors === "function" ? koV262ApplyCalendarDayRoundColors : null;
+  if (originalKoV262Apply && !originalKoV262Apply.__stableCardsV302) {
+    koV262ApplyCalendarDayRoundColors = function koV262ApplyCalendarDayRoundColorsStableV302() {
+      const result = originalKoV262Apply.apply(this, arguments);
+      freezeCalendarCardsV302();
+      return result;
+    };
+    koV262ApplyCalendarDayRoundColors.__stableCardsV302 = true;
+    window.koV262ApplyCalendarDayRoundColors = koV262ApplyCalendarDayRoundColors;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#calendarMissingResultsBtn,#calendarPlayedGamesBtn,#calendarAllGamesBtn,#calendarKnockoutGamesBtn")) {
+      // Se o user troca filtro, permitimos render completo.
+      calendarLastSignatureV302 = "";
+      calendarLastRenderAtV302 = 0;
+      setTimeout(freezeCalendarCardsV302, 120);
+    }
+  }, true);
+
+  window.addEventListener("resize", () => {
+    // Não forçar render no resize; só reaplicar estabilidade ao que já existe.
+    setTimeout(freezeCalendarCardsV302, 80);
+  }, { passive: true });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) setTimeout(freezeCalendarCardsV302, 120);
+  });
+
+  setTimeout(freezeCalendarCardsV302, 900);
+})();
+
+window.debugCalendarioEstavelV302 = function debugCalendarioEstavelV302() {
+  return {
+    version: APP_VERSION_V302_CALENDAR_STABLE_CARDS,
+    active: document.querySelector(".tab-panel.active")?.id || "",
+    signature: calendarSignatureV302().slice(0, 180),
+    rows: [...document.querySelectorAll("#calendarTab .match-row")].slice(0, 8).map(row => ({
+      h: Math.round(row.getBoundingClientRect().height),
+      cls: row.className
+    })),
+    lastRenderAt: calendarLastRenderAtV302,
+    now: Date.now()
   };
 };
