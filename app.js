@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v310";
+const APP_VERSION_LABEL = "v311";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -24156,4 +24156,196 @@ window.debugGestaoApostasDonoV310 = function debugGestaoApostasDonoV310() {
     selectedGame: ownerBetManagerGameIdV310,
     selectedPlayer: ownerBetManagerPlayerIdV310
   };
+};
+
+
+/* v311 — Admin: abas novas com estilo igual e sem fechar sozinhas */
+const APP_VERSION_V311_ADMIN_COLLAPSE_STYLE_FIX = "311.0";
+
+function adminCollapseStateKeyV311(id) {
+  return `${STORAGE_KEY || "mundial"}_admin_collapse_${id}_v311`;
+}
+
+function desiredAdminCollapseOpenV311(details) {
+  if (!details?.id) return false;
+  return localStorage.getItem(adminCollapseStateKeyV311(details.id)) === "1";
+}
+
+function setAdminCollapseOpenV311(details, open) {
+  if (!details?.id) return;
+  details.open = Boolean(open);
+  localStorage.setItem(adminCollapseStateKeyV311(details.id), details.open ? "1" : "0");
+  const summary = details.querySelector(":scope > summary");
+  if (summary) summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+  const icon = details.querySelector(":scope > summary .collapse-icon");
+  if (icon) icon.textContent = details.open ? "−" : "+";
+}
+
+function normalizeCustomAdminCollapseV311(details) {
+  if (!details) return;
+
+  details.classList.add("admin-card", "admin-collapse", "admin-collapse-normal-v311");
+  details.classList.remove("mandatory-notice-collapse-v306", "mandatory-notice-collapse-open-fix-v307");
+
+  const summary = details.querySelector(":scope > summary");
+  if (!summary) return;
+
+  summary.classList.add("admin-collapse-summary-v311");
+  summary.setAttribute("role", "button");
+  summary.setAttribute("tabindex", "0");
+  summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+
+  let icon = summary.querySelector(".collapse-icon");
+  if (!icon) {
+    icon = document.createElement("span");
+    icon.className = "collapse-icon";
+    summary.appendChild(icon);
+  }
+  icon.textContent = details.open ? "−" : "+";
+
+  if (!details.__adminCollapseFixedV311) {
+    details.__adminCollapseFixedV311 = true;
+
+    const toggle = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      setAdminCollapseOpenV311(details, !details.open);
+    };
+
+    summary.addEventListener("click", toggle, true);
+    summary.addEventListener("touchend", toggle, { capture: true, passive: false });
+    summary.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      toggle(event);
+    }, true);
+
+    details.addEventListener("toggle", () => {
+      setAdminCollapseOpenV311(details, details.open);
+    });
+  }
+
+  // Reaplica o estado guardado depois de renders antigos que forçavam fechado.
+  setAdminCollapseOpenV311(details, desiredAdminCollapseOpenV311(details));
+}
+
+function fixAdminCustomCollapsesV311() {
+  const notice = document.getElementById("mandatoryNoticeCollapseV306");
+  const ownerBets = document.getElementById("ownerBetManagerPanelV310");
+
+  [notice, ownerBets].filter(Boolean).forEach(details => {
+    normalizeCustomAdminCollapseV311(details);
+    details.hidden = false;
+    details.style.display = "";
+  });
+}
+
+(function installAdminCollapseStyleFixV311() {
+  if (window.__adminCollapseStyleFixV311) return;
+  window.__adminCollapseStyleFixV311 = true;
+
+  const originalMakeNotice = typeof makeMandatoryNoticeAdminCollapsibleV306 === "function" ? makeMandatoryNoticeAdminCollapsibleV306 : null;
+  if (originalMakeNotice && !originalMakeNotice.__v311) {
+    makeMandatoryNoticeAdminCollapsibleV306 = function makeMandatoryNoticeAdminCollapsibleStyleFixV311() {
+      const result = originalMakeNotice.apply(this, arguments);
+      setTimeout(fixAdminCustomCollapsesV311, 0);
+      return result;
+    };
+    makeMandatoryNoticeAdminCollapsibleV306.__v311 = true;
+    window.makeMandatoryNoticeAdminCollapsibleV306 = makeMandatoryNoticeAdminCollapsibleV306;
+  }
+
+  const originalBindNotice = typeof bindMandatoryNoticeCollapseOpenV307 === "function" ? bindMandatoryNoticeCollapseOpenV307 : null;
+  if (originalBindNotice && !originalBindNotice.__v311) {
+    bindMandatoryNoticeCollapseOpenV307 = function bindMandatoryNoticeCollapseOpenStyleFixV311() {
+      const result = originalBindNotice.apply(this, arguments);
+      setTimeout(fixAdminCustomCollapsesV311, 0);
+      return result;
+    };
+    bindMandatoryNoticeCollapseOpenV307.__v311 = true;
+    window.bindMandatoryNoticeCollapseOpenV307 = bindMandatoryNoticeCollapseOpenV307;
+  }
+
+  const originalRenderOwnerBets = typeof renderOwnerBetManagerV310 === "function" ? renderOwnerBetManagerV310 : null;
+  if (originalRenderOwnerBets && !originalRenderOwnerBets.__v311) {
+    renderOwnerBetManagerV310 = function renderOwnerBetManagerStyleFixV311() {
+      const panel = document.getElementById("ownerBetManagerPanelV310");
+      const wasOpen = panel ? desiredAdminCollapseOpenV311(panel) : false;
+      const result = originalRenderOwnerBets.apply(this, arguments);
+      const nextPanel = document.getElementById("ownerBetManagerPanelV310");
+      if (nextPanel) setAdminCollapseOpenV311(nextPanel, wasOpen);
+      setTimeout(fixAdminCustomCollapsesV311, 0);
+      return result;
+    };
+    renderOwnerBetManagerV310.__v311 = true;
+    window.renderOwnerBetManagerV310 = renderOwnerBetManagerV310;
+  }
+
+  const originalMoveNotice = typeof moveMandatoryNoticePanelToAdminV305 === "function" ? moveMandatoryNoticePanelToAdminV305 : null;
+  if (originalMoveNotice && !originalMoveNotice.__v311) {
+    moveMandatoryNoticePanelToAdminV305 = function moveMandatoryNoticePanelStyleFixV311() {
+      const details = document.getElementById("mandatoryNoticeCollapseV306");
+      const wasOpen = details ? desiredAdminCollapseOpenV311(details) : false;
+      const result = originalMoveNotice.apply(this, arguments);
+      const nextDetails = document.getElementById("mandatoryNoticeCollapseV306");
+      if (nextDetails) setAdminCollapseOpenV311(nextDetails, wasOpen);
+      setTimeout(fixAdminCustomCollapsesV311, 0);
+      return result;
+    };
+    moveMandatoryNoticePanelToAdminV305.__v311 = true;
+    window.moveMandatoryNoticePanelToAdminV305 = moveMandatoryNoticePanelToAdminV305;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__collapseStyleV311) {
+    renderActivePageV187 = function renderActivePageCollapseStyleV311() {
+      const states = {};
+      ["mandatoryNoticeCollapseV306", "ownerBetManagerPanelV310"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) states[id] = desiredAdminCollapseOpenV311(el);
+      });
+
+      const result = originalRenderActive.apply(this, arguments);
+
+      setTimeout(() => {
+        Object.entries(states).forEach(([id, open]) => {
+          const el = document.getElementById(id);
+          if (el) setAdminCollapseOpenV311(el, open);
+        });
+        fixAdminCustomCollapsesV311();
+      }, 50);
+
+      return result;
+    };
+    renderActivePageV187.__collapseStyleV311 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  document.addEventListener("click", event => {
+    const summary = event.target.closest?.("#mandatoryNoticeCollapseV306 > summary, #ownerBetManagerPanelV310 > summary");
+    if (!summary) return;
+    const details = summary.parentElement;
+    if (!details) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setAdminCollapseOpenV311(details, !details.open);
+  }, true);
+
+  setTimeout(fixAdminCustomCollapsesV311, 600);
+  setTimeout(fixAdminCustomCollapsesV311, 1400);
+  setTimeout(fixAdminCustomCollapsesV311, 2600);
+})();
+
+window.debugAdminAbasV311 = function debugAdminAbasV311() {
+  return ["mandatoryNoticeCollapseV306", "ownerBetManagerPanelV310"].map(id => {
+    const el = document.getElementById(id);
+    return {
+      version: APP_VERSION_V311_ADMIN_COLLAPSE_STYLE_FIX,
+      id,
+      exists: Boolean(el),
+      open: Boolean(el?.open),
+      saved: el ? localStorage.getItem(adminCollapseStateKeyV311(id)) : null,
+      classes: el?.className || "",
+      parent: el?.parentElement?.id || ""
+    };
+  });
 };

@@ -1,4 +1,4 @@
-const CACHE_NAME = "mundial-pontos-2026-v310-dono-editar-limpar-apostas";
+const CACHE_NAME = "mundial-pontos-2026-v311-admin-abas-fix";
 const APP_VERSION_SW_V298_USER_NOTIFICATIONS = "298.0";
 let userNotificationsEnabledSwV298 = true;
 
