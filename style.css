@@ -16444,3 +16444,153 @@ body.mandatory-notice-open-v295{
   display:grid!important;
   place-items:center!important;
 }
+
+
+/* v309 — Ver apostas eliminatórias exatamente igual ao modal antigo */
+#betsModal .bets-summary-card,
+#betsModal .bets-list-head,
+#betsModal .bet-user-row{
+  transition:none!important;
+}
+
+#betsModal .bets-list-head{
+  grid-template-columns:minmax(0,1fr) 120px 170px 70px;
+}
+
+#betsModal .bet-user-row{
+  grid-template-columns:minmax(0,1fr) 120px 170px 70px;
+}
+
+@media(max-width:760px){
+  #betsModal .bets-list-head{
+    display:none!important;
+  }
+
+  #betsModal .bet-user-row{
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* v310 — Gestão de apostas pelo Dono */
+.owner-bet-manager-v310{
+  order:-4;
+  border-color:rgba(248,113,113,.22)!important;
+  background:linear-gradient(135deg,rgba(127,29,29,.12),rgba(15,23,42,.88))!important;
+}
+
+.owner-bet-manager-body-v310{
+  display:grid;
+  gap:14px;
+  padding-top:12px;
+}
+
+.owner-bet-toolbar-v310,
+.owner-bet-fields-v310{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.owner-bet-toolbar-v310 label,
+.owner-bet-fields-v310 label{
+  display:grid;
+  gap:6px;
+  color:#cbd5e1;
+  font-size:12px;
+  font-weight:1000;
+}
+
+.owner-bet-toolbar-v310 select,
+.owner-bet-fields-v310 input,
+.owner-bet-fields-v310 select{
+  width:100%;
+  min-height:42px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#07111d;
+  color:#fff;
+  padding:9px 11px;
+  font-weight:900;
+  box-sizing:border-box;
+}
+
+.owner-bet-edit-card-v310,
+.owner-bet-danger-v310,
+.owner-bet-game-list-v310{
+  display:grid;
+  gap:12px;
+  padding:13px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.035);
+}
+
+.owner-bet-edit-card-v310 strong,
+.owner-bet-danger-v310 strong{
+  display:block;
+  color:#fff;
+  font-size:16px;
+}
+
+.owner-bet-edit-card-v310 span,
+.owner-bet-danger-v310 span,
+.owner-bet-edit-card-v310 small{
+  display:block;
+  color:#aab8ce;
+  margin-top:3px;
+  font-weight:800;
+}
+
+.owner-bet-actions-v310,
+.owner-bet-danger-v310{
+  grid-template-columns:1fr auto auto;
+  align-items:center;
+}
+
+.owner-bet-actions-v310{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.owner-bet-game-list-v310 h3{
+  margin:0;
+}
+
+.owner-bet-game-list-v310 article{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  padding:9px 10px;
+  border-radius:12px;
+  background:rgba(15,23,42,.70);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.owner-bet-game-list-v310 article strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.owner-bet-game-list-v310 article span{
+  color:#fef3c7;
+  font-weight:1000;
+  white-space:nowrap;
+}
+
+@media(max-width:760px){
+  .owner-bet-toolbar-v310,
+  .owner-bet-fields-v310,
+  .owner-bet-danger-v310,
+  .owner-bet-game-list-v310 article{
+    grid-template-columns:1fr;
+  }
+
+  .owner-bet-actions-v310 button,
+  .owner-bet-danger-v310 button{
+    width:100%;
+  }
+}
