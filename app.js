@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v304";
+const APP_VERSION_LABEL = "v305";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -23112,5 +23112,143 @@ window.debugApostasEliminatoriasLabelV304 = function debugApostasEliminatoriasLa
   return {
     version: APP_VERSION_V304_APOSTAS_ELIMINATORIAS_LABEL,
     matches: [...document.querySelectorAll("button,a")].filter(el => /Apostas/i.test(el.textContent || "")).map(el => el.textContent.trim())
+  };
+};
+
+
+/* v305 — Avisos obrigatórios ficam na página Admin */
+const APP_VERSION_V305_MANDATORY_NOTICE_IN_ADMIN = "305.0";
+
+function mandatoryNoticeAdminHostV305() {
+  const adminUnlocked = document.getElementById("adminUnlocked");
+  if (!adminUnlocked) return null;
+  return adminUnlocked;
+}
+
+function moveMandatoryNoticePanelToAdminV305() {
+  if (typeof mandatoryNoticeCanManageV295 === "function" && !mandatoryNoticeCanManageV295()) return;
+
+  const host = mandatoryNoticeAdminHostV305();
+  const panel = document.getElementById("mandatoryNoticeAdminPanelV295");
+  if (!host || !panel) return;
+
+  panel.classList.add("mandatory-notice-admin-fixed-v305");
+  panel.classList.remove("admin-section-hidden-v187", "admin-section-force-hidden-v202");
+  panel.dataset.adminSectionV187 = "users";
+  panel.hidden = false;
+  panel.style.display = "";
+
+  // Coloca logo depois das tabs do Admin, para ficar fácil de encontrar.
+  const tabs = document.getElementById("adminSectionTabsV187");
+  if (tabs && tabs.parentNode === host) {
+    if (tabs.nextSibling !== panel) host.insertBefore(panel, tabs.nextSibling);
+  } else {
+    const firstCard = host.querySelector(".admin-card");
+    if (firstCard && firstCard !== panel) host.insertBefore(panel, firstCard);
+    else if (panel.parentElement !== host) host.prepend(panel);
+  }
+}
+
+(function installMandatoryNoticeAdminPageV305() {
+  if (window.__mandatoryNoticeAdminPageV305) return;
+  window.__mandatoryNoticeAdminPageV305 = true;
+
+  const originalRenderNoticePanel = typeof renderMandatoryNoticeAdminPanelV295 === "function" ? renderMandatoryNoticeAdminPanelV295 : null;
+  if (originalRenderNoticePanel && !originalRenderNoticePanel.__v305) {
+    renderMandatoryNoticeAdminPanelV295 = function renderMandatoryNoticeAdminPanelInAdminV305() {
+      const result = originalRenderNoticePanel.apply(this, arguments);
+      moveMandatoryNoticePanelToAdminV305();
+      setTimeout(moveMandatoryNoticePanelToAdminV305, 0);
+      setTimeout(moveMandatoryNoticePanelToAdminV305, 180);
+      return result;
+    };
+    renderMandatoryNoticeAdminPanelV295.__v305 = true;
+    window.renderMandatoryNoticeAdminPanelV295 = renderMandatoryNoticeAdminPanelV295;
+  }
+
+  const originalRouteCards = typeof routeAdminCardsV214 === "function" ? routeAdminCardsV214 : null;
+  if (originalRouteCards && !originalRouteCards.__noticeAdminV305) {
+    routeAdminCardsV214 = function routeAdminCardsKeepNoticeAdminV305() {
+      const result = originalRouteCards.apply(this, arguments);
+      moveMandatoryNoticePanelToAdminV305();
+      setTimeout(moveMandatoryNoticePanelToAdminV305, 0);
+      return result;
+    };
+    routeAdminCardsV214.__noticeAdminV305 = true;
+    window.routeAdminCardsV214 = routeAdminCardsV214;
+  }
+
+  const originalApplyLayout = typeof applyAdminLayoutSettingsV213 === "function" ? applyAdminLayoutSettingsV213 : null;
+  if (originalApplyLayout && !originalApplyLayout.__noticeAdminV305) {
+    applyAdminLayoutSettingsV213 = function applyAdminLayoutNoticeAdminV305() {
+      const result = originalApplyLayout.apply(this, arguments);
+      try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+      moveMandatoryNoticePanelToAdminV305();
+      return result;
+    };
+    applyAdminLayoutSettingsV213.__noticeAdminV305 = true;
+    window.applyAdminLayoutSettingsV213 = applyAdminLayoutSettingsV213;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__noticeAdminV305) {
+    renderActivePageV187 = function renderActivePageNoticeAdminV305(tabId = document.querySelector(".tab-panel.active")?.id || "calendarTab") {
+      const result = originalRenderActive.apply(this, arguments);
+      if (tabId === "adminTab" || document.querySelector(".tab-panel.active")?.id === "adminTab") {
+        setTimeout(() => {
+          try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+          moveMandatoryNoticePanelToAdminV305();
+        }, 120);
+      }
+      return result;
+    };
+    renderActivePageV187.__noticeAdminV305 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__noticeAdminV305) {
+    renderAll = function renderAllNoticeAdminV305() {
+      const result = originalRenderAll.apply(this, arguments);
+      setTimeout(() => {
+        try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+        moveMandatoryNoticePanelToAdminV305();
+      }, 300);
+      return result;
+    };
+    renderAll.__noticeAdminV305 = true;
+    window.renderAll = renderAll;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.('[data-tab="adminTab"],[data-admin-section-v187]')) {
+      setTimeout(() => {
+        try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+        moveMandatoryNoticePanelToAdminV305();
+      }, 180);
+    }
+  }, true);
+
+  setTimeout(() => {
+    try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+    moveMandatoryNoticePanelToAdminV305();
+  }, 900);
+
+  setTimeout(() => {
+    try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+    moveMandatoryNoticePanelToAdminV305();
+  }, 1800);
+})();
+
+window.debugAvisosAdminV305 = function debugAvisosAdminV305() {
+  const panel = document.getElementById("mandatoryNoticeAdminPanelV295");
+  return {
+    version: APP_VERSION_V305_MANDATORY_NOTICE_IN_ADMIN,
+    canManage: typeof mandatoryNoticeCanManageV295 === "function" ? mandatoryNoticeCanManageV295() : null,
+    panelExists: Boolean(panel),
+    parent: panel?.parentElement?.id || "",
+    hidden: Boolean(panel?.hidden),
+    display: panel?.style?.display || "",
+    activeTab: document.querySelector(".tab-panel.active")?.id || ""
   };
 };

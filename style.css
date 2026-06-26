@@ -16368,3 +16368,15 @@ body.mandatory-notice-open-v295{
 #adminSectionTabsV187 [data-admin-section-v187="results"]{
   display:none!important;
 }
+
+
+/* v305 — Avisos obrigatórios fixos no Admin */
+#mandatoryNoticeAdminPanelV295.mandatory-notice-admin-fixed-v305{
+  display:grid!important;
+  margin:0 0 14px!important;
+  order:-5;
+}
+
+#settingsTab #mandatoryNoticeAdminPanelV295.mandatory-notice-admin-fixed-v305{
+  display:none!important;
+}
