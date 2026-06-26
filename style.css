@@ -11382,3 +11382,4889 @@ body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) 
   max-height:calc(100dvh - 170px)!important;
   border-radius:0 0 12px 12px!important;
 }
+
+
+/* v241 — Ligação Users ↔ Jogadores + apostas Fase Final */
+.player-link-summary-v241{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:linear-gradient(180deg,rgba(99,102,241,.12),rgba(15,23,42,.55));margin-bottom:12px}
+.player-link-summary-v241 strong{display:block;color:var(--gold,#ffd45a)}
+.player-link-summary-v241 span{display:block;color:var(--muted,#a8b3c7);font-size:12px;margin-top:3px}
+.player-link-card-v241 .permission-user-head{align-items:flex-start}
+.permission-player-label-v241{display:flex;flex-direction:column;gap:5px;min-width:210px;font-size:11px;color:var(--muted,#a8b3c7);font-weight:800}
+.permission-player-label-v241 select{min-height:34px}
+.player-link-badge-v241{display:inline-flex;align-items:center;width:max-content;margin-top:7px;padding:5px 9px;border-radius:999px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.74);font-size:11px;font-weight:950}
+.player-link-linked{color:#86efac;border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.10)}
+.player-link-suggestion{color:#fde68a;border-color:rgba(245,158,11,.32);background:rgba(245,158,11,.10)}
+.player-link-missing{color:#fecaca;border-color:rgba(239,68,68,.32);background:rgba(239,68,68,.10)}
+.player-link-suggestion-v241{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(245,158,11,.24);background:rgba(245,158,11,.08);color:#fde68a;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.session-player-link-v241{display:inline-flex;margin-left:8px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:900;border:1px solid rgba(148,163,184,.18)}
+.session-player-link-v241.linked{color:#86efac;background:rgba(34,197,94,.10)}
+.session-player-link-v241.missing{color:#fecaca;background:rgba(239,68,68,.10)}
+.ko-user-bet-btn-v241{width:100%;margin-top:8px;min-height:32px;border-radius:10px;border:1px solid rgba(109,92,255,.40);background:linear-gradient(135deg,rgba(109,92,255,.22),rgba(56,189,248,.12));color:#eef2ff;font-weight:950;cursor:pointer}
+.ko-user-bet-btn-v241:hover:not(:disabled){border-color:rgba(109,92,255,.78);box-shadow:0 10px 24px rgba(79,70,229,.22)}
+.ko-user-bet-btn-v241:disabled{opacity:.5;cursor:not-allowed}
+.knockout-bet-card-v241{max-width:560px}
+.knockout-bet-body-v241{display:flex;flex-direction:column;gap:14px}
+.knockout-bet-warning-v241,.knockout-bet-status-v241,.knockout-bet-player-v241{padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.72)}
+.knockout-bet-warning-v241{border-color:rgba(245,158,11,.32);background:rgba(245,158,11,.08);color:#fde68a}
+.knockout-bet-warning-v241 strong,.knockout-bet-player-v241 strong{display:block;color:#fff}
+.knockout-bet-warning-v241 span,.knockout-bet-player-v241 span{display:block;color:var(--muted,#a8b3c7);margin-top:3px}
+.knockout-bet-match-v241{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px}
+.knockout-bet-match-v241 div{display:flex;flex-direction:column;gap:6px}
+.knockout-bet-match-v241 span{color:var(--muted,#a8b3c7);font-weight:900}
+.knockout-bet-match-v241 input{text-align:center;font-size:22px;font-weight:1000}
+.knockout-bet-match-v241 b{align-self:center;color:var(--gold,#ffd45a)}
+.knockout-bet-penalties-v241{border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.03)}
+.knockout-bet-penalties-v241 summary{cursor:pointer;color:var(--muted,#a8b3c7);font-weight:900}
+.knockout-bet-penalties-v241 .penalties{margin-top:10px}
+.knockout-bet-status-v241.open{color:#86efac;border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.08)}
+.knockout-bet-status-v241.locked{color:#fecaca;border-color:rgba(239,68,68,.28);background:rgba(239,68,68,.08)}
+.danger-soft-v241{border-color:rgba(239,68,68,.35)!important;color:#fecaca!important}
+@media(max-width:760px){.permission-user-actions{width:100%}.permission-player-label-v241{width:100%}.knockout-bet-match-v241{grid-template-columns:1fr}}
+
+/* v243 — Data/hora e modal automático da Fase Final */
+.ko-match-date-label-v243{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted,#a8b3c7);font-weight:900;min-width:165px}
+.ko-match-date-label-v243 input{min-height:34px;border-radius:10px}
+.ko-match-date-line-v243{margin-top:6px;padding:5px 8px;border-radius:999px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.62);color:var(--muted,#a8b3c7);font-size:11px;font-weight:900;text-align:center}
+.knockout-bet-auto-v243,.knockout-bet-deadline-v243{padding:12px 14px;border-radius:14px;border:1px solid rgba(56,189,248,.28);background:rgba(56,189,248,.09);color:#dff7ff}
+.knockout-bet-auto-v243 strong,.knockout-bet-deadline-v243 strong{display:block;color:#fff}
+.knockout-bet-auto-v243 span,.knockout-bet-deadline-v243 span{display:block;color:var(--muted,#a8b3c7);margin-top:3px}
+.knockout-bet-qualified-v243{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.72);color:var(--muted,#a8b3c7);font-weight:900}
+.knockout-bet-qualified-v243 select{min-height:42px;border-radius:12px;font-weight:900}
+@media(max-width:760px){.ko-match-date-label-v243{width:100%;min-width:0}.ko-match-date-label-v243 input{width:100%}}
+
+/* v244 — botão visível para abrir modal de resultado na Fase Final */
+.ko-record-open-btn-v244{margin-top:8px;width:100%;justify-content:center;border-radius:12px;font-weight:900}
+.ko-record-open-btn-v244.mobile{margin-top:10px}
+.knockout-match .ko-record-open-btn-v244{position:relative;z-index:4}
+
+
+/* v245 — Botão obrigatório de apostas/resultados da Fase Final na página inicial */
+.ko-required-home-v245{margin:0 0 18px;padding:18px;border-radius:24px;border:1px solid rgba(148,163,184,.22);background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(2,6,23,.92));box-shadow:0 22px 60px rgba(0,0,0,.22)}
+.ko-required-home-v245.urgent{border-color:rgba(248,113,113,.55);background:linear-gradient(135deg,rgba(127,29,29,.58),rgba(15,23,42,.96) 52%,rgba(2,6,23,.94))}
+.ko-required-home-v245.pulse-v245{animation:koRequiredPulseV245 1.25s ease both}
+@keyframes koRequiredPulseV245{0%,100%{transform:translateY(0)}35%{transform:translateY(-3px);box-shadow:0 0 0 5px rgba(248,113,113,.18),0 22px 60px rgba(0,0,0,.24)}}
+.ko-required-head-v245{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.ko-required-title-v245{display:flex;align-items:flex-start;gap:14px;min-width:0}
+.ko-required-title-v245 h3{margin:0;font-size:20px;line-height:1.15;color:#fff}
+.ko-required-title-v245 p{margin:6px 0 0;color:var(--muted,#a8b3c7);font-weight:700;line-height:1.35}
+.ko-required-badge-v245{flex:0 0 auto;padding:7px 10px;border-radius:999px;background:rgba(248,113,113,.18);border:1px solid rgba(248,113,113,.38);color:#fee2e2;font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.06em}
+.ko-required-home-v245.calm .ko-required-badge-v245{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.34);color:#bbf7d0}
+.ko-required-actions-v245{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.ko-required-main-btn-v245{min-height:44px;border-radius:14px;font-weight:1000}
+.ko-required-list-v245{display:none;margin-top:16px;gap:12px}
+.ko-required-home-v245.expanded .ko-required-list-v245{display:grid}
+.ko-required-block-v245{display:grid;gap:9px;padding-top:12px;border-top:1px solid rgba(148,163,184,.14)}
+.ko-required-block-v245>strong{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#e5edff}
+.ko-required-row-v245{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-radius:16px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72)}
+.ko-required-row-v245.open{border-color:rgba(248,113,113,.36);background:rgba(127,29,29,.20)}
+.ko-required-row-v245.missed{opacity:.78;background:rgba(15,23,42,.58)}
+.ko-required-row-v245.admin{border-color:rgba(56,189,248,.28);background:rgba(8,47,73,.28)}
+.ko-required-row-main-v245{min-width:0;display:grid;gap:3px}
+.ko-required-row-main-v245 span{font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#a8b3c7)}
+.ko-required-row-main-v245 strong{font-size:15px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ko-required-row-main-v245 small{color:var(--muted,#a8b3c7);font-weight:800}
+.ko-required-empty-v245{padding:13px;border-radius:16px;border:1px dashed rgba(148,163,184,.28);color:var(--muted,#a8b3c7);font-weight:800;background:rgba(15,23,42,.50)}
+.ko-required-empty-v245.warning{border-color:rgba(251,191,36,.35);color:#fde68a;background:rgba(120,53,15,.20)}
+@media(max-width:760px){.ko-required-home-v245{margin:0 0 14px;padding:15px;border-radius:20px}.ko-required-head-v245{align-items:stretch;flex-direction:column}.ko-required-title-v245{gap:10px}.ko-required-title-v245 h3{font-size:18px}.ko-required-actions-v245{display:grid;grid-template-columns:1fr;justify-content:stretch}.ko-required-row-v245{grid-template-columns:1fr}.ko-required-row-v245 button{width:100%;min-height:42px}.ko-required-row-main-v245 strong{white-space:normal}}
+
+/* v247 - modal obrigatorio da Fase Final */
+body.ko-mandatory-open-v247{
+  overflow:hidden;
+}
+
+.ko-mandatory-modal-v247{
+  z-index:100000!important;
+  padding:18px;
+  background:rgba(2,6,23,.76)!important;
+  backdrop-filter:blur(12px);
+}
+
+.ko-mandatory-card-v247{
+  width:min(980px,100%)!important;
+  max-height:min(820px,calc(100dvh - 28px))!important;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  border-radius:22px!important;
+  border:1px solid rgba(124,92,255,.38)!important;
+  background:
+    radial-gradient(circle at 0% 0%,rgba(124,92,255,.18),transparent 34%),
+    linear-gradient(180deg,rgba(13,24,43,.98),rgba(3,8,18,.98))!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.56),inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+
+.ko-mandatory-head-v247{
+  flex:0 0 auto;
+  margin:0!important;
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(148,163,184,.14);
+}
+
+.ko-mandatory-head-v247 h2{
+  margin:0;
+  color:#fff;
+  font-size:26px;
+  line-height:1.1;
+}
+
+.ko-mandatory-head-v247 p{
+  margin:7px 0 0;
+  color:#a8b3c7;
+  font-weight:800;
+}
+
+.ko-mandatory-body-v247{
+  min-height:0;
+  overflow:auto;
+  display:grid;
+  gap:12px;
+  padding-right:4px;
+}
+
+.ko-mandatory-warning-v247,
+.ko-mandatory-empty-v247{
+  padding:13px 15px;
+  border-radius:16px;
+  border:1px solid rgba(251,191,36,.34);
+  background:rgba(120,53,15,.18);
+  color:#fde68a;
+}
+
+.ko-mandatory-warning-v247 strong,
+.ko-mandatory-empty-v247 strong{
+  display:block;
+  color:#fff;
+}
+
+.ko-mandatory-warning-v247 span,
+.ko-mandatory-empty-v247 span{
+  display:block;
+  margin-top:4px;
+  color:#d8e2f2;
+  font-weight:800;
+}
+
+.ko-mandatory-empty-v247.success{
+  border-color:rgba(34,197,94,.34);
+  background:rgba(22,101,52,.16);
+  color:#bbf7d0;
+}
+
+.ko-mandatory-empty-v247.warning{
+  border-color:rgba(251,191,36,.38);
+}
+
+.ko-mandatory-row-v247{
+  display:grid;
+  gap:14px;
+  padding:16px;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:18px;
+  background:linear-gradient(180deg,rgba(15,23,42,.84),rgba(8,13,26,.82));
+}
+
+.ko-mandatory-match-v247{
+  display:grid;
+  gap:4px;
+}
+
+.ko-mandatory-match-v247 span{
+  color:#ffd45a;
+  font-size:12px;
+  font-weight:1000;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.ko-mandatory-match-v247 strong{
+  color:#fff;
+  font-size:19px;
+  line-height:1.2;
+}
+
+.ko-mandatory-match-v247 small{
+  color:#a8b3c7;
+  font-weight:800;
+}
+
+.ko-mandatory-form-v247{
+  display:grid;
+  grid-template-columns:minmax(130px,1fr) auto minmax(130px,1fr) minmax(180px,1fr) auto;
+  align-items:end;
+  gap:10px;
+}
+
+.ko-mandatory-form-v247 label{
+  display:grid;
+  gap:6px;
+  min-width:0;
+  color:#a8b3c7;
+  font-size:12px;
+  font-weight:950;
+}
+
+.ko-mandatory-form-v247 input,
+.ko-mandatory-form-v247 select,
+.ko-qualified-label-v247 select{
+  width:100%;
+  min-height:42px;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:12px;
+  color:#fff;
+  background:#060b13;
+  font-weight:950;
+}
+
+.ko-mandatory-form-v247 input{
+  text-align:center;
+  font-size:20px;
+}
+
+.ko-mandatory-form-v247 b{
+  align-self:center;
+  color:#ffd45a;
+  font-weight:1000;
+}
+
+.ko-mandatory-save-v247{
+  min-height:42px!important;
+  white-space:nowrap;
+}
+
+.ko-qualified-label-v247{
+  min-width:170px;
+}
+
+.ko-user-status-v247{
+  margin-top:8px;
+  width:max-content;
+  max-width:100%;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.18);
+  color:#dbe7f7;
+  background:rgba(15,23,42,.72);
+  font-size:11px;
+  font-weight:1000;
+}
+
+.ko-user-status-v247.pending{
+  color:#fee2e2;
+  border-color:rgba(248,113,113,.38);
+  background:rgba(127,29,29,.22);
+}
+
+.ko-user-status-v247.done,
+.ko-user-status-v247.result{
+  color:#bbf7d0;
+  border-color:rgba(34,197,94,.32);
+  background:rgba(22,101,52,.18);
+}
+
+.ko-user-status-v247.missed{
+  color:#fde68a;
+  border-color:rgba(251,191,36,.36);
+  background:rgba(120,53,15,.20);
+}
+
+@media(max-width:820px){
+  .ko-mandatory-card-v247{
+    max-height:calc(100dvh - 18px)!important;
+    padding:14px!important;
+    border-radius:18px!important;
+  }
+
+  .ko-mandatory-form-v247{
+    grid-template-columns:1fr;
+  }
+
+  .ko-mandatory-form-v247 b{
+    justify-self:center;
+  }
+
+  .ko-mandatory-save-v247{
+    width:100%;
+  }
+}
+
+
+/* v246 — Fase Final em ecrã total, sem moldura centrada */
+@media(min-width:761px){
+  body.knockout-layout-active{
+    width:100vw!important;
+    height:100dvh!important;
+    margin:0!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active .app-shell,
+  body.knockout-layout-active .app-shell.knockout-screen-active,
+  body.knockout-layout-active #app,
+  body.knockout-layout-active .app{
+    width:100vw!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active .topbar{
+    display:none!important;
+  }
+
+  body.knockout-layout-active .tabs{
+    width:calc(100vw - 16px)!important;
+    max-width:none!important;
+    margin:8px!important;
+    padding:6px!important;
+    border-radius:10px!important;
+    flex:0 0 auto!important;
+  }
+
+  body.knockout-layout-active main{
+    width:100vw!important;
+    max-width:none!important;
+    height:calc(100dvh - 58px)!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutTab.active{
+    width:100vw!important;
+    max-width:none!important;
+    height:calc(100dvh - 58px)!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0 8px 8px!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutTab.active .section-head{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutLockNotice:empty{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutLockNotice:not(:empty){
+    margin:0 0 8px!important;
+    border-radius:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket.knockout-bracket{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100%!important;
+    margin:0!important;
+    padding:8px!important;
+    border-radius:14px!important;
+    border:1px solid rgba(255,212,90,.22)!important;
+    background:
+      radial-gradient(circle at 50% 0%,rgba(255,212,90,.10),transparent 32%),
+      linear-gradient(180deg,rgba(9,15,26,.94),rgba(4,8,15,.98))!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-shell{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100%!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:10px 12px 12px!important;
+    border-radius:12px!important;
+    border:1px solid rgba(255,212,90,.18)!important;
+    background:
+      radial-gradient(circle at 50% 0%,rgba(255,212,90,.07),transparent 28%),
+      linear-gradient(180deg,rgba(10,17,29,.96),rgba(6,11,20,.96))!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-title-row{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    --ko-card:clamp(54px, 6.35vh, 72px);
+    --ko-team:clamp(17px, 1.85vh, 22px);
+    --ko-team-text:clamp(9px, .92vh, 11px);
+    --ko-title-text:clamp(7px, .78vh, 9px);
+    --ko-gap:clamp(3px, .42vh, 6px);
+    --r16-top:clamp(28px, 3.8vh, 44px);
+    --r16-gap:clamp(62px, 8.3vh, 94px);
+    --qf-top:clamp(88px, 11.9vh, 132px);
+    --qf-gap:clamp(188px, 24.6vh, 276px);
+    --sf-top:clamp(214px, 28.6vh, 320px);
+    --line-r32:clamp(29px, 3.9vh, 45px);
+    --line-r16:clamp(60px, 8.0vh, 92px);
+    --line-qf:clamp(124px, 16.3vh, 184px);
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100%!important;
+    min-height:0!important;
+    display:grid!important;
+    grid-template-columns:
+      minmax(138px,1.12fr)
+      minmax(132px,1.04fr)
+      minmax(126px,.96fr)
+      minmax(116px,.86fr)
+      minmax(112px,.66fr)
+      minmax(116px,.86fr)
+      minmax(126px,.96fr)
+      minmax(132px,1.04fr)
+      minmax(138px,1.12fr)!important;
+    gap:clamp(6px,.55vw,12px)!important;
+    align-items:stretch!important;
+    overflow:visible!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round,
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:100%!important;
+    min-height:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round h3{
+    display:grid!important;
+    place-items:center!important;
+    height:26px!important;
+    min-height:26px!important;
+    margin:0 0 6px!important;
+    padding:0 6px!important;
+    border-radius:999px!important;
+    color:#fff2b7!important;
+    background:rgba(255,212,90,.10)!important;
+    border:1px solid rgba(255,212,90,.25)!important;
+    box-shadow:none!important;
+    font-size:10px!important;
+    font-weight:1000!important;
+    line-height:1!important;
+    text-align:center!important;
+    text-transform:uppercase!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-matches{
+    height:calc(100% - 32px)!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    overflow:visible!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match{
+    width:100%!important;
+    max-width:none!important;
+    height:var(--ko-card)!important;
+    min-height:var(--ko-card)!important;
+    margin:0!important;
+    padding:5px 6px!important;
+    display:grid!important;
+    grid-template-rows:auto auto auto!important;
+    gap:3px!important;
+    border-radius:9px!important;
+    overflow:hidden!important;
+    border-color:rgba(255,212,90,.25)!important;
+    background:linear-gradient(180deg,rgba(17,28,45,.96),rgba(7,12,22,.96))!important;
+    box-shadow:0 8px 18px rgba(0,0,0,.24)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match-title{
+    min-width:0!important;
+    margin:0!important;
+    color:#b8c5d8!important;
+    font-size:var(--ko-title-text)!important;
+    line-height:1.05!important;
+    font-weight:1000!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team{
+    width:100%!important;
+    min-width:0!important;
+    height:var(--ko-team)!important;
+    min-height:var(--ko-team)!important;
+    padding:0 6px!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 18px!important;
+    gap:4px!important;
+    align-items:center!important;
+    border-radius:6px!important;
+    border:1px solid rgba(255,212,90,.38)!important;
+    background:rgba(255,212,90,.06)!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team + .ko-team{
+    margin-top:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team span,
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team b{
+    min-width:0!important;
+    color:#ffe58a!important;
+    font-size:var(--ko-team-text)!important;
+    line-height:1!important;
+    font-weight:1000!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team b{
+    color:#f8fbff!important;
+    text-align:right!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-status-line,
+  body.knockout-layout-active #knockoutBracket .ko-match-date-line-v243,
+  body.knockout-layout-active #knockoutBracket .ko-user-bet-btn-v241,
+  body.knockout-layout-active #knockoutBracket .ko-record-open-btn-v244.desktop{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .round-r32 .bracket-photo-matches{
+    padding-top:0!important;
+    gap:var(--ko-gap)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .round-r16 .bracket-photo-matches{
+    padding-top:var(--r16-top)!important;
+    gap:var(--r16-gap)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .round-qf .bracket-photo-matches{
+    padding-top:var(--qf-top)!important;
+    gap:var(--qf-gap)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .round-sf .bracket-photo-matches{
+    padding-top:var(--sf-top)!important;
+    gap:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-side-left .knockout-match::after{
+    right:calc(-1 * clamp(7px,.75vw,13px))!important;
+    width:clamp(7px,.75vw,13px)!important;
+    border-top-color:rgba(255,212,90,.35)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match::after{
+    left:calc(-1 * clamp(7px,.75vw,13px))!important;
+    width:clamp(7px,.75vw,13px)!important;
+    border-top-color:rgba(255,212,90,.35)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-side-left:not(.round-sf) .knockout-match:nth-child(odd)::before,
+  body.knockout-layout-active #knockoutBracket .bracket-side-left:not(.round-sf) .knockout-match:nth-child(even)::before{
+    right:calc(-1 * clamp(7px,.75vw,13px))!important;
+    border-right-color:rgba(255,212,90,.28)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) .knockout-match:nth-child(odd)::before,
+  body.knockout-layout-active #knockoutBracket .bracket-side-right:not(.round-sf) .knockout-match:nth-child(even)::before{
+    left:calc(-1 * clamp(7px,.75vw,13px))!important;
+    border-right-color:rgba(255,212,90,.28)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .round-r32 .knockout-match:nth-child(odd)::before,
+  body.knockout-layout-active #knockoutBracket .round-r32 .knockout-match:nth-child(even)::before{
+    height:var(--line-r32)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .round-r16 .knockout-match:nth-child(odd)::before,
+  body.knockout-layout-active #knockoutBracket .round-r16 .knockout-match:nth-child(even)::before{
+    height:var(--line-r16)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .round-qf .knockout-match:nth-child(odd)::before,
+  body.knockout-layout-active #knockoutBracket .round-qf .knockout-match:nth-child(even)::before{
+    height:var(--line-qf)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    padding-top:36px!important;
+    display:grid!important;
+    grid-template-rows:auto auto!important;
+    justify-items:center!important;
+    align-content:start!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge{
+    width:100%!important;
+    max-width:128px!important;
+    min-height:112px!important;
+    padding:10px 8px!important;
+    border-radius:16px!important;
+    box-shadow:0 16px 36px rgba(255,212,90,.08)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge::before{
+    font-size:24px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge span{
+    font-size:18px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge strong{
+    font-size:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final{
+    width:100%!important;
+    max-width:128px!important;
+    margin-top:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final .knockout-match{
+    width:100%!important;
+    max-width:none!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-page-layout-panel{
+    top:10px!important;
+    right:10px!important;
+    width:180px!important;
+    opacity:.92!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-page-layout-panel summary{
+    min-height:30px!important;
+    font-size:10px!important;
+  }
+}
+
+@media(min-width:761px) and (max-width:1360px){
+  body.knockout-layout-active #knockoutBracket .bracket-photo-shell{
+    overflow:auto!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    min-width:1320px!important;
+  }
+}
+
+/* v255 — estado visível de apostas obrigatórias na Fase Final */
+.ko-user-status-v255{
+  position:relative;
+  z-index:5;
+  margin-top:4px;
+  padding:3px 6px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.25);
+  background:rgba(15,23,42,.78);
+  color:#cbd5e1;
+  font-size:9px;
+  line-height:1.05;
+  font-weight:1000;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ko-user-status-v255.pending{border-color:rgba(251,191,36,.55);background:rgba(251,191,36,.16);color:#fde68a;}
+.ko-user-status-v255.done{border-color:rgba(52,211,153,.45);background:rgba(16,185,129,.14);color:#bbf7d0;}
+.ko-user-status-v255.missed{border-color:rgba(248,113,113,.45);background:rgba(239,68,68,.14);color:#fecaca;}
+.ko-user-status-v255.not-ready{border-color:rgba(148,163,184,.20);background:rgba(15,23,42,.64);color:#94a3b8;}
+.ko-user-status-v255.no-player{border-color:rgba(96,165,250,.38);background:rgba(59,130,246,.13);color:#bfdbfe;}
+body.knockout-layout-active #knockoutBracket .ko-user-status-v255{display:block!important;font-size:8px!important;padding:2px 4px!important;margin-top:2px!important;}
+
+/* v259 - Fase Final no Calendário normal */
+.knockout-calendar-row-v259{
+  border-color:rgba(255,216,92,.18);
+  background:linear-gradient(135deg, rgba(255,216,92,.055), rgba(9,16,29,.86));
+}
+.ko-calendar-pill-v259{
+  background:rgba(255,216,92,.12);
+  border-color:rgba(255,216,92,.34);
+  color:#ffe28a;
+}
+.ko-calendar-note-v259 span{
+  color:#ffe28a;
+  font-weight:800;
+}
+.ko-calendar-actions-v259 button:disabled{
+  opacity:.58;
+  cursor:not-allowed;
+  filter:grayscale(.2);
+}
+#resultQualifiedWrapperV259 select{
+  width:100%;
+}
+
+
+/* v260 — Fase Final em lista simples e legível */
+body.knockout-layout-active #knockoutBracket.ko-list-root-v260,
+#knockoutBracket.ko-list-root-v260{
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-width:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+@media(min-width:761px){
+  body.knockout-layout-active main,
+  body.knockout-layout-active #knockoutTab.active{
+    overflow:auto!important;
+  }
+
+  body.knockout-layout-active #knockoutTab.active{
+    padding:8px 12px 22px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket.ko-list-root-v260{
+    height:auto!important;
+    overflow:visible!important;
+  }
+}
+
+#knockoutBracket .ko-list-page-v260{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:16px!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+
+#knockoutBracket .ko-list-hero-v260{
+  display:flex!important;
+  align-items:stretch!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  padding:18px!important;
+  border:1px solid rgba(255,212,90,.18)!important;
+  border-radius:18px!important;
+  background:
+    radial-gradient(circle at 0% 0%,rgba(255,212,90,.16),transparent 34%),
+    linear-gradient(135deg,rgba(14,22,36,.98),rgba(7,12,22,.96))!important;
+  box-shadow:0 22px 60px rgba(0,0,0,.24)!important;
+}
+
+#knockoutBracket .ko-list-hero-v260 span,
+#knockoutBracket .ko-list-round-head-v260 span{
+  display:block!important;
+  color:#ffd45a!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+}
+
+#knockoutBracket .ko-list-hero-v260 strong{
+  display:block!important;
+  margin-top:4px!important;
+  color:#f7fbff!important;
+  font-size:clamp(24px,3vw,40px)!important;
+  line-height:1.05!important;
+  font-weight:950!important;
+}
+
+#knockoutBracket .ko-list-hero-v260 small{
+  display:block!important;
+  margin-top:8px!important;
+  color:#b7c4d8!important;
+  font-size:14px!important;
+  font-weight:800!important;
+}
+
+#knockoutBracket .ko-list-champion-v260{
+  min-width:180px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  gap:5px!important;
+  padding:14px 18px!important;
+  border:1px solid rgba(255,212,90,.25)!important;
+  border-radius:16px!important;
+  background:rgba(255,212,90,.08)!important;
+  text-align:center!important;
+}
+
+#knockoutBracket .ko-list-champion-v260 strong{
+  margin:0!important;
+  font-size:18px!important;
+  color:#fff!important;
+}
+
+#knockoutBracket .ko-list-champion-v260.has-champion{
+  background:linear-gradient(135deg,rgba(255,212,90,.28),rgba(38,194,129,.16))!important;
+}
+
+#knockoutBracket .ko-list-stats-v260{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+
+#knockoutBracket .ko-list-stats-v260 span{
+  padding:13px 14px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  border-radius:14px!important;
+  background:rgba(13,21,34,.82)!important;
+  color:#b7c4d8!important;
+  font-size:13px!important;
+  font-weight:850!important;
+}
+
+#knockoutBracket .ko-list-stats-v260 strong{
+  color:#fff!important;
+  font-size:18px!important;
+  margin-right:6px!important;
+}
+
+#knockoutBracket .ko-list-rounds-v260{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:18px!important;
+}
+
+#knockoutBracket .ko-list-round-v260{
+  display:block!important;
+  padding:16px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(13,21,34,.92),rgba(7,11,19,.96))!important;
+}
+
+#knockoutBracket .ko-list-round-head-v260{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  margin-bottom:14px!important;
+  padding-bottom:12px!important;
+  border-bottom:1px solid rgba(255,255,255,.09)!important;
+}
+
+#knockoutBracket .ko-list-round-head-v260 strong{
+  display:block!important;
+  margin-top:3px!important;
+  color:#fff!important;
+  font-size:20px!important;
+  font-weight:950!important;
+}
+
+#knockoutBracket .ko-list-round-head-v260 small{
+  color:#aebbd0!important;
+  font-weight:850!important;
+  text-align:right!important;
+}
+
+#knockoutBracket .ko-list-cards-v260{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(330px,1fr))!important;
+  gap:12px!important;
+}
+
+#knockoutBracket .ko-list-card-v260{
+  position:relative!important;
+  min-height:0!important;
+  height:auto!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+  padding:14px!important;
+  border:1px solid rgba(255,255,255,.11)!important;
+  border-radius:16px!important;
+  background:rgba(8,15,27,.92)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.20)!important;
+  cursor:default!important;
+}
+
+#knockoutBracket .ko-list-card-v260.ko-match-clickable{
+  cursor:pointer!important;
+}
+
+#knockoutBracket .ko-list-card-v260.ko-match-clickable:hover{
+  border-color:rgba(255,212,90,.34)!important;
+  transform:translateY(-1px)!important;
+}
+
+#knockoutBracket .ko-list-card-top-v260,
+#knockoutBracket .ko-list-matchline-v260,
+#knockoutBracket .ko-list-meta-v260,
+#knockoutBracket .ko-list-actions-v260{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+
+#knockoutBracket .ko-list-card-top-v260{
+  justify-content:space-between!important;
+}
+
+#knockoutBracket .ko-list-card-top-v260 span{
+  color:#ffd45a!important;
+  font-size:10px!important;
+  font-weight:950!important;
+  text-transform:uppercase!important;
+}
+
+#knockoutBracket .ko-list-card-top-v260 strong{
+  display:block!important;
+  color:#fff!important;
+  font-size:15px!important;
+  font-weight:950!important;
+}
+
+#knockoutBracket .ko-list-status-v260{
+  flex:0 0 auto!important;
+  padding:6px 9px!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:999px!important;
+  color:#d8e4f7!important;
+  background:rgba(255,255,255,.06)!important;
+  font-style:normal!important;
+  font-size:11px!important;
+  font-weight:900!important;
+}
+
+#knockoutBracket .ko-status-open .ko-list-status-v260{ color:#b7ffe2!important; border-color:rgba(38,194,129,.35)!important; background:rgba(38,194,129,.10)!important; }
+#knockoutBracket .ko-status-done .ko-list-status-v260{ color:#ffeaa4!important; border-color:rgba(255,212,90,.38)!important; background:rgba(255,212,90,.12)!important; }
+#knockoutBracket .ko-status-no-date .ko-list-status-v260,
+#knockoutBracket .ko-status-waiting .ko-list-status-v260{ color:#c9d3e5!important; }
+#knockoutBracket .ko-status-needs-qualified .ko-list-status-v260{ color:#ffd3a3!important; border-color:rgba(251,146,60,.35)!important; background:rgba(251,146,60,.10)!important; }
+
+#knockoutBracket .ko-list-matchline-v260{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+  gap:10px!important;
+}
+
+#knockoutBracket .ko-list-team-v260{
+  min-width:0!important;
+  padding:10px 12px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.035)!important;
+  color:#f8fbff!important;
+  font-size:15px!important;
+  font-weight:950!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+#knockoutBracket .ko-list-team-v260.winner{
+  border-color:rgba(38,194,129,.42)!important;
+  background:rgba(38,194,129,.13)!important;
+  color:#c8ffe9!important;
+}
+
+#knockoutBracket .ko-list-score-v260{
+  min-width:58px!important;
+  padding:10px 12px!important;
+  border-radius:12px!important;
+  color:#050a12!important;
+  background:linear-gradient(135deg,#ffd45a,#fff1a6)!important;
+  text-align:center!important;
+  font-weight:950!important;
+}
+
+#knockoutBracket .ko-list-meta-v260{
+  flex-wrap:wrap!important;
+}
+
+#knockoutBracket .ko-list-meta-v260 span,
+#knockoutBracket .ko-list-qualified-v260{
+  color:#aebbd0!important;
+  font-size:12px!important;
+  font-weight:850!important;
+}
+
+#knockoutBracket .ko-list-meta-v260 span{
+  padding:5px 8px!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.05)!important;
+}
+
+#knockoutBracket .ko-list-meta-v260 .calendar-ok{
+  color:#b7ffe2!important;
+  background:rgba(38,194,129,.10)!important;
+}
+
+#knockoutBracket .ko-list-qualified-v260 strong{
+  color:#fff!important;
+}
+
+#knockoutBracket .ko-list-qualified-v260.muted{
+  color:#7f8ca3!important;
+}
+
+#knockoutBracket .ko-list-actions-v260{
+  justify-content:flex-end!important;
+  margin-top:auto!important;
+}
+
+#knockoutBracket .ko-list-actions-v260 button{
+  min-width:120px!important;
+}
+
+@media(max-width:760px){
+  #knockoutBracket.ko-list-root-v260{
+    padding:0!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBracket .ko-list-hero-v260,
+  #knockoutBracket .ko-list-round-head-v260{
+    flex-direction:column!important;
+    align-items:flex-start!important;
+  }
+
+  #knockoutBracket .ko-list-champion-v260{
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  #knockoutBracket .ko-list-stats-v260{
+    grid-template-columns:1fr!important;
+  }
+
+  #knockoutBracket .ko-list-cards-v260{
+    grid-template-columns:1fr!important;
+  }
+
+  #knockoutBracket .ko-list-matchline-v260{
+    grid-template-columns:1fr!important;
+  }
+
+  #knockoutBracket .ko-list-score-v260{
+    width:100%!important;
+  }
+
+  #knockoutMobileV121{
+    display:none!important;
+  }
+}
+
+
+/* v261 — cores progressivas na Fase Final: 16 avos → Final */
+.knockout-calendar-row-v259.ko-round-r32-v261,
+#knockoutBracket [data-ko-round-v260="r32"] .ko-list-card-v260{
+  border-color:rgba(59,130,246,.28)!important;
+  background:linear-gradient(135deg,rgba(59,130,246,.105),rgba(8,15,27,.93))!important;
+}
+.knockout-calendar-row-v259.ko-round-r32-v261 .ko-calendar-pill-v259,
+#knockoutBracket [data-ko-round-v260="r32"] .ko-list-card-top-v260 span{
+  color:#bfdbfe!important;
+}
+.knockout-calendar-row-v259.ko-round-r32-v261 .ko-calendar-pill-v259{
+  background:rgba(59,130,246,.13)!important;
+  border-color:rgba(59,130,246,.36)!important;
+}
+
+.knockout-calendar-row-v259.ko-round-r16-v261,
+#knockoutBracket [data-ko-round-v260="r16"] .ko-list-card-v260{
+  border-color:rgba(20,184,166,.30)!important;
+  background:linear-gradient(135deg,rgba(20,184,166,.11),rgba(8,15,27,.93))!important;
+}
+.knockout-calendar-row-v259.ko-round-r16-v261 .ko-calendar-pill-v259,
+#knockoutBracket [data-ko-round-v260="r16"] .ko-list-card-top-v260 span{
+  color:#99f6e4!important;
+}
+.knockout-calendar-row-v259.ko-round-r16-v261 .ko-calendar-pill-v259{
+  background:rgba(20,184,166,.13)!important;
+  border-color:rgba(20,184,166,.38)!important;
+}
+
+.knockout-calendar-row-v259.ko-round-qf-v261,
+#knockoutBracket [data-ko-round-v260="qf"] .ko-list-card-v260{
+  border-color:rgba(34,197,94,.30)!important;
+  background:linear-gradient(135deg,rgba(34,197,94,.11),rgba(8,15,27,.93))!important;
+}
+.knockout-calendar-row-v259.ko-round-qf-v261 .ko-calendar-pill-v259,
+#knockoutBracket [data-ko-round-v260="qf"] .ko-list-card-top-v260 span{
+  color:#bbf7d0!important;
+}
+.knockout-calendar-row-v259.ko-round-qf-v261 .ko-calendar-pill-v259{
+  background:rgba(34,197,94,.13)!important;
+  border-color:rgba(34,197,94,.38)!important;
+}
+
+.knockout-calendar-row-v259.ko-round-sf-v261,
+#knockoutBracket [data-ko-round-v260="sf"] .ko-list-card-v260{
+  border-color:rgba(168,85,247,.34)!important;
+  background:linear-gradient(135deg,rgba(168,85,247,.13),rgba(8,15,27,.94))!important;
+}
+.knockout-calendar-row-v259.ko-round-sf-v261 .ko-calendar-pill-v259,
+#knockoutBracket [data-ko-round-v260="sf"] .ko-list-card-top-v260 span{
+  color:#e9d5ff!important;
+}
+.knockout-calendar-row-v259.ko-round-sf-v261 .ko-calendar-pill-v259{
+  background:rgba(168,85,247,.14)!important;
+  border-color:rgba(168,85,247,.42)!important;
+}
+
+.knockout-calendar-row-v259.ko-round-final-v261,
+#knockoutBracket [data-ko-round-v260="final"] .ko-list-card-v260{
+  border-color:rgba(251,191,36,.46)!important;
+  background:
+    radial-gradient(circle at 86% -30%,rgba(251,191,36,.18),transparent 42%),
+    linear-gradient(135deg,rgba(251,191,36,.16),rgba(8,15,27,.95))!important;
+  box-shadow:0 16px 38px rgba(0,0,0,.26),0 0 0 1px rgba(251,191,36,.08)!important;
+}
+.knockout-calendar-row-v259.ko-round-final-v261 .ko-calendar-pill-v259,
+#knockoutBracket [data-ko-round-v260="final"] .ko-list-card-top-v260 span{
+  color:#fde68a!important;
+}
+.knockout-calendar-row-v259.ko-round-final-v261 .ko-calendar-pill-v259{
+  background:rgba(251,191,36,.16)!important;
+  border-color:rgba(251,191,36,.48)!important;
+}
+
+#knockoutBracket [data-ko-round-v260="r32"] .ko-list-score-v260{background:linear-gradient(135deg,#93c5fd,#dbeafe)!important;color:#07111f!important;}
+#knockoutBracket [data-ko-round-v260="r16"] .ko-list-score-v260{background:linear-gradient(135deg,#5eead4,#ccfbf1)!important;color:#04201e!important;}
+#knockoutBracket [data-ko-round-v260="qf"] .ko-list-score-v260{background:linear-gradient(135deg,#86efac,#dcfce7)!important;color:#052e16!important;}
+#knockoutBracket [data-ko-round-v260="sf"] .ko-list-score-v260{background:linear-gradient(135deg,#d8b4fe,#f3e8ff)!important;color:#210b34!important;}
+#knockoutBracket [data-ko-round-v260="final"] .ko-list-score-v260{background:linear-gradient(135deg,#facc15,#fef3c7)!important;color:#1d1300!important;}
+
+/* v262 — barras de data do Calendário com as cores da Fase Final */
+.day-block.ko-calendar-day-v262{
+  border-color:rgba(148,163,184,.20)!important;
+  box-shadow:0 16px 42px rgba(0,0,0,.24)!important;
+}
+.day-block.ko-calendar-day-v262 h3{
+  color:#06111f!important;
+  border:1px solid transparent!important;
+  border-radius:0!important;
+  letter-spacing:.01em!important;
+}
+.day-block.ko-calendar-day-round-r32-v262{
+  border-color:rgba(59,130,246,.32)!important;
+}
+.day-block.ko-calendar-day-round-r32-v262 h3{
+  background:linear-gradient(90deg,#2563eb,#93c5fd)!important;
+  color:#f8fbff!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.22)!important;
+}
+.day-block.ko-calendar-day-round-r16-v262{
+  border-color:rgba(20,184,166,.34)!important;
+}
+.day-block.ko-calendar-day-round-r16-v262 h3{
+  background:linear-gradient(90deg,#0f766e,#5eead4)!important;
+  color:#ecfeff!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.20)!important;
+}
+.day-block.ko-calendar-day-round-qf-v262{
+  border-color:rgba(34,197,94,.34)!important;
+}
+.day-block.ko-calendar-day-round-qf-v262 h3{
+  background:linear-gradient(90deg,#15803d,#86efac)!important;
+  color:#f0fdf4!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.20)!important;
+}
+.day-block.ko-calendar-day-round-sf-v262{
+  border-color:rgba(168,85,247,.38)!important;
+}
+.day-block.ko-calendar-day-round-sf-v262 h3{
+  background:linear-gradient(90deg,#7e22ce,#d8b4fe)!important;
+  color:#faf5ff!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.22)!important;
+}
+.day-block.ko-calendar-day-round-final-v262{
+  border-color:rgba(251,191,36,.48)!important;
+}
+.day-block.ko-calendar-day-round-final-v262 h3{
+  background:linear-gradient(90deg,#b45309,#facc15,#fef3c7)!important;
+  color:#1d1300!important;
+  text-shadow:none!important;
+}
+.day-block.ko-calendar-day-round-ko-v262{
+  border-color:rgba(248,113,113,.36)!important;
+}
+.day-block.ko-calendar-day-round-ko-v262 h3{
+  background:linear-gradient(90deg,#dc2626,#fb7185)!important;
+  color:#fff1f2!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.24)!important;
+}
+
+/* v265 - Limpar registo em cada jogo da Fase Final */
+#knockoutBracket .ko-list-actions-v260 .ko-clear-record-btn-v265{
+  min-width:130px!important;
+  border-color:rgba(239,68,68,.42)!important;
+  color:#ffd5d5!important;
+  background:rgba(239,68,68,.12)!important;
+}
+#knockoutBracket .ko-list-actions-v260 .ko-clear-record-btn-v265:hover{
+  border-color:rgba(239,68,68,.72)!important;
+  background:rgba(239,68,68,.20)!important;
+}
+@media(max-width:760px){
+  #knockoutBracket .ko-list-actions-v260{
+    justify-content:stretch!important;
+  }
+  #knockoutBracket .ko-list-actions-v260 button{
+    flex:1 1 140px!important;
+  }
+}
+
+
+/* v266 - Users online redesenhado */
+.topbar .topbar-online-users summary{
+  border-radius:999px!important;
+  padding:9px 14px!important;
+  background:linear-gradient(135deg, rgba(34,184,207,.18), rgba(99,102,241,.16))!important;
+  border-color:rgba(148,163,184,.24)!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.22)!important;
+}
+
+.topbar .topbar-online-users[open] summary{
+  border-color:rgba(34,197,94,.42)!important;
+  background:linear-gradient(135deg, rgba(34,197,94,.18), rgba(34,184,207,.14))!important;
+}
+
+.topbar .topbar-online-users .online-users-list,
+body > #onlineUsersList.online-users-portal-v220{
+  width:min(560px, calc(100vw - 24px))!important;
+  padding:0!important;
+  border-radius:22px!important;
+  border:1px solid rgba(148,163,184,.24)!important;
+  background:rgba(8,13,24,.985)!important;
+  box-shadow:0 34px 110px rgba(0,0,0,.72)!important;
+  overflow:hidden auto!important;
+}
+
+.online-users-popup-head-v266{
+  margin:0!important;
+  padding:15px 16px!important;
+  border-bottom:1px solid rgba(148,163,184,.16)!important;
+  background:linear-gradient(135deg, rgba(15,23,42,.98), rgba(8,13,24,.98))!important;
+  position:sticky!important;
+  top:0!important;
+  z-index:10!important;
+}
+
+.online-users-popup-head-v266 > div{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:3px!important;
+  min-width:0!important;
+}
+
+.online-users-popup-head-v266 strong{
+  font-size:17px!important;
+  letter-spacing:-.02em!important;
+  color:#f8fafc!important;
+}
+
+.online-users-popup-head-v266 span{
+  color:#94a3b8!important;
+  font-size:12px!important;
+  font-weight:750!important;
+}
+
+.online-users-content-v266{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+  padding:14px!important;
+}
+
+.online-users-section-title-v266{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  margin:0 2px 8px!important;
+  color:#cbd5e1!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+}
+
+.online-users-section-title-v266 b{
+  min-width:24px!important;
+  height:24px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  background:rgba(148,163,184,.14)!important;
+  color:#e2e8f0!important;
+  font-size:11px!important;
+}
+
+.online-users-cards-v266{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+}
+
+.online-user-card-v266{
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr)!important;
+  gap:11px!important;
+  align-items:center!important;
+  padding:11px!important;
+  border:1px solid rgba(148,163,184,.14)!important;
+  border-radius:16px!important;
+  background:rgba(15,23,42,.62)!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.18)!important;
+}
+
+.online-user-card-v266.is-online{
+  border-color:rgba(34,197,94,.28)!important;
+  background:linear-gradient(135deg, rgba(34,197,94,.12), rgba(15,23,42,.62))!important;
+}
+
+.online-user-card-v266.is-away{
+  border-color:rgba(245,158,11,.24)!important;
+  background:linear-gradient(135deg, rgba(245,158,11,.10), rgba(15,23,42,.62))!important;
+}
+
+.online-user-avatar-v266{
+  width:42px!important;
+  height:42px!important;
+  border-radius:14px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-weight:1000!important;
+  font-size:16px!important;
+  color:#fff!important;
+  background:linear-gradient(135deg, rgba(34,184,207,.85), rgba(99,102,241,.85))!important;
+}
+
+.online-user-info-v266{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:5px!important;
+}
+
+.online-user-main-v266,
+.online-user-meta-v266,
+.online-user-sub-v266{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-width:0!important;
+}
+
+.online-user-main-v266{
+  justify-content:space-between!important;
+}
+
+.online-user-main-v266 strong{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:#f8fafc!important;
+  font-size:14px!important;
+  font-weight:1000!important;
+}
+
+.online-user-status-v266{
+  flex:0 0 auto!important;
+  border-radius:999px!important;
+  padding:4px 8px!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  border:1px solid rgba(148,163,184,.16)!important;
+  color:#e2e8f0!important;
+  background:rgba(148,163,184,.12)!important;
+}
+.online-user-status-v266.online{ background:rgba(34,197,94,.16)!important; border-color:rgba(34,197,94,.24)!important; color:#bbf7d0!important; }
+.online-user-status-v266.away{ background:rgba(245,158,11,.14)!important; border-color:rgba(245,158,11,.22)!important; color:#fde68a!important; }
+.online-user-status-v266.offline{ background:rgba(100,116,139,.14)!important; border-color:rgba(100,116,139,.22)!important; color:#cbd5e1!important; }
+
+.online-user-meta-v266 span,
+.online-user-sub-v266 span{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:#94a3b8!important;
+  font-size:12px!important;
+  font-weight:750!important;
+}
+
+.online-user-meta-v266 span:first-child{
+  color:#cbd5e1!important;
+}
+
+.online-users-close{
+  border-radius:999px!important;
+}
+
+.online-empty-v266{
+  margin:14px!important;
+}
+
+@media(max-width:760px){
+  body > #onlineUsersList.online-users-portal-v220,
+  .topbar .topbar-online-users .online-users-list{
+    left:10px!important;
+    right:10px!important;
+    top:max(70px, env(safe-area-inset-top))!important;
+    width:auto!important;
+    max-height:calc(100dvh - 86px)!important;
+    border-radius:20px!important;
+  }
+
+  .online-users-content-v266{
+    padding:12px!important;
+    gap:12px!important;
+  }
+
+  .online-user-card-v266{
+    grid-template-columns:38px minmax(0,1fr)!important;
+    padding:10px!important;
+    border-radius:15px!important;
+  }
+
+  .online-user-avatar-v266{
+    width:38px!important;
+    height:38px!important;
+    border-radius:13px!important;
+  }
+
+  .online-user-main-v266{
+    align-items:flex-start!important;
+  }
+
+  .online-user-meta-v266,
+  .online-user-sub-v266{
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:2px!important;
+  }
+}
+
+/* v269 — Diagnóstico API sem aplicar alterações */
+.football-api-diagnostic-v269 {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, .52);
+  color: inherit;
+}
+.football-api-diag-head-v269 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.football-api-diag-head-v269 span {
+  font-size: .78rem;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(148,163,184,.16);
+  color: rgba(226,232,240,.88);
+}
+.football-api-diag-head-v269 span.ok { background: rgba(34,197,94,.16); color: #86efac; }
+.football-api-diag-head-v269 span.bad { background: rgba(239,68,68,.16); color: #fca5a5; }
+.football-api-diag-grid-v269 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.football-api-diag-grid-v269 > div {
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.football-api-diag-grid-v269 b { display:block; font-size:1.25rem; }
+.football-api-diag-grid-v269 span { display:block; font-size:.76rem; opacity:.75; margin-top:2px; }
+.football-api-diag-note-v269 { font-size:.82rem; opacity:.78; margin-bottom: 10px; }
+.football-api-diagnostic-v269 details {
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding-top: 9px;
+  margin-top: 9px;
+}
+.football-api-diagnostic-v269 summary { cursor: pointer; font-weight: 700; }
+.football-api-diagnostic-v269 ul { margin: 8px 0 0; padding-left: 18px; }
+.football-api-diagnostic-v269 li { margin: 7px 0; }
+.football-api-diagnostic-v269 li small { display:block; opacity:.72; margin-top:2px; }
+
+/* v270 — Fase Final: botão lista/mapa e mapa visual estilo oficial */
+.ko-view-toggle-v270 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(7,12,24,.92));
+  box-shadow: 0 16px 36px rgba(0,0,0,.16);
+}
+.ko-view-toggle-v270 strong { display:block; color:#fff; font-size: .98rem; }
+.ko-view-toggle-v270 span { display:block; color: rgba(226,232,240,.72); font-size:.78rem; margin-top:2px; }
+.ko-view-toggle-actions-v270 { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.ko-view-toggle-actions-v270 button {
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(15,23,42,.75);
+  color: rgba(226,232,240,.86);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 900;
+  cursor:pointer;
+}
+.ko-view-toggle-actions-v270 button.active {
+  border-color: rgba(250,204,21,.7);
+  background: linear-gradient(135deg, #facc15, #f97316);
+  color: #111827;
+  box-shadow: 0 0 22px rgba(250,204,21,.18);
+}
+.ko-road-root-v270 { width: 100%; overflow-x: auto; padding-bottom: 12px; }
+.ko-road-page-v270 { min-width: 1260px; width: 100%; }
+.ko-road-hero-v270 {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding: 18px 18px;
+  margin-bottom: 14px;
+  border-radius: 22px;
+  border:1px solid rgba(148,163,184,.14);
+  background: radial-gradient(circle at 50% 0%, rgba(59,130,246,.16), transparent 42%), linear-gradient(135deg, rgba(15,23,42,.96), rgba(2,6,23,.95));
+}
+.ko-road-hero-v270 span { display:block; color:#facc15; font-size:.76rem; font-weight:1000; text-transform:uppercase; }
+.ko-road-hero-v270 strong { display:block; color:#fff; font-size:1.65rem; line-height:1.05; margin-top:4px; }
+.ko-road-hero-v270 small { display:block; color:rgba(226,232,240,.72); margin-top:6px; }
+.ko-road-champion-v270 {
+  min-width: 170px;
+  text-align:center;
+  border-radius: 18px;
+  border:1px solid rgba(250,204,21,.28);
+  background: rgba(250,204,21,.08);
+  padding: 12px;
+}
+.ko-road-champion-v270 span { color: rgba(254,240,138,.86); }
+.ko-road-champion-v270 strong { font-size:1rem; color:#fde68a; margin-top:2px; }
+.ko-road-board-v270 {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr);
+  gap: 18px;
+  min-height: 720px;
+  padding: 26px 22px 30px;
+  border-radius: 26px;
+  border: 1px solid rgba(250,204,21,.16);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(250,204,21,.10), transparent 11%),
+    radial-gradient(circle at 48% 47%, transparent 0 28%, rgba(148,163,184,.20) 28.2% 28.5%, transparent 28.7%),
+    radial-gradient(circle at 52% 52%, transparent 0 42%, rgba(59,130,246,.16) 42.2% 42.5%, transparent 42.7%),
+    linear-gradient(135deg, rgba(2,6,23,.96), rgba(8,13,28,.98));
+  overflow: hidden;
+}
+.ko-road-board-v270::before,
+.ko-road-board-v270::after {
+  content:"";
+  position:absolute;
+  inset:auto;
+  width: 48%;
+  height: 2px;
+  top: 50%;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,.32), transparent);
+  pointer-events:none;
+}
+.ko-road-board-v270::before { left: 0; transform: rotate(-23deg); transform-origin:right center; }
+.ko-road-board-v270::after { right: 0; transform: rotate(23deg); transform-origin:left center; }
+.ko-road-path-label-v270 {
+  position:absolute;
+  z-index:1;
+  top:50%;
+  font-size:.72rem;
+  font-weight:1000;
+  letter-spacing:.14em;
+  color:rgba(203,213,225,.52);
+  transform:translateY(-50%) rotate(-90deg);
+  pointer-events:none;
+}
+.ko-road-path-label-v270.left { left: 10px; }
+.ko-road-path-label-v270.right { right: 8px; transform:translateY(-50%) rotate(90deg); }
+.ko-road-side-v270 {
+  position:relative;
+  z-index:2;
+  display:grid;
+  grid-template-columns: 1.2fr 1.05fr .92fr .85fr;
+  gap: 12px;
+  align-items: stretch;
+}
+.ko-road-side-v270.right { grid-template-columns: .85fr .92fr 1.05fr 1.2fr; }
+.ko-road-column-v270 { display:flex; flex-direction:column; min-width:0; }
+.ko-road-column-v270 h3 {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  text-align:center;
+  color:#fef3c7;
+  background: rgba(250,204,21,.10);
+  border:1px solid rgba(250,204,21,.30);
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+}
+.ko-road-column-cards-v270 {
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-around;
+  gap: 8px;
+}
+.ko-road-card-v270 {
+  position:relative;
+  isolation:isolate;
+  border-radius: 10px;
+  border:1px solid rgba(148,163,184,.22);
+  background: rgba(15,23,42,.88);
+  color:#e5e7eb;
+  padding: 7px 8px 8px;
+  min-height: 86px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.16);
+  overflow:hidden;
+}
+.ko-road-card-v270::before {
+  content:"";
+  position:absolute;
+  left:0; top:0; right:0;
+  height: 4px;
+  background: var(--ko-round-accent, #facc15);
+  z-index:-1;
+  opacity:.98;
+}
+.ko-road-card-v270.is-editable { cursor:pointer; }
+.ko-road-card-v270.is-editable:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.36);
+  box-shadow: 0 14px 30px rgba(0,0,0,.22), 0 0 0 1px rgba(255,255,255,.05) inset;
+}
+.ko-road-card-head-v270 { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom: 5px; }
+.ko-road-card-head-v270 b {
+  color:#fff;
+  font-size:.72rem;
+  background: rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius: 7px;
+  padding: 2px 6px;
+}
+.ko-road-card-head-v270 span { color:rgba(226,232,240,.76); font-size:.63rem; font-weight:900; text-transform:uppercase; }
+.ko-road-teams-v270 { display:grid; gap:3px; font-weight:900; font-size:.76rem; line-height:1.15; }
+.ko-road-teams-v270 span {
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ko-road-teams-v270 span.winner { color:#bbf7d0; text-shadow:0 0 14px rgba(34,197,94,.18); }
+.ko-road-card-foot-v270 { display:flex; justify-content:space-between; gap:6px; align-items:flex-end; margin-top:6px; }
+.ko-road-card-foot-v270 strong { color:#fef08a; font-size:.76rem; }
+.ko-road-card-foot-v270 small { color:rgba(203,213,225,.62); font-size:.58rem; text-align:right; }
+.ko-road-card-v270 em {
+  position:absolute;
+  right:6px;
+  bottom:4px;
+  opacity:0;
+  color:#fff;
+  font-size:.58rem;
+  font-style:normal;
+  transition:opacity .15s ease;
+}
+.ko-road-card-v270.is-editable:hover em { opacity:.72; }
+.ko-road-empty-v270 {
+  border:1px dashed rgba(148,163,184,.18);
+  border-radius: 12px;
+  color:rgba(226,232,240,.55);
+  padding: 14px 8px;
+  text-align:center;
+  font-size:.78rem;
+}
+.ko-road-center-v270 {
+  position:relative;
+  z-index:3;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap: 16px;
+}
+.ko-road-trophy-v270 {
+  width:86px;
+  height:86px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  font-size:2.4rem;
+  background: radial-gradient(circle, rgba(250,204,21,.24), rgba(15,23,42,.88));
+  border:1px solid rgba(250,204,21,.30);
+  box-shadow: 0 0 48px rgba(250,204,21,.16);
+}
+.ko-road-final-v270 {
+  width: 160px;
+  min-height: 128px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding: 14px;
+  border-radius: 18px;
+  border:1px solid rgba(250,204,21,.38);
+  background: linear-gradient(180deg, rgba(250,204,21,.16), rgba(15,23,42,.90));
+  text-align:center;
+  box-shadow:0 18px 46px rgba(0,0,0,.25);
+}
+.ko-road-final-v270.is-editable { cursor:pointer; }
+.ko-road-final-v270.is-editable:hover { transform:translateY(-2px); box-shadow:0 20px 50px rgba(250,204,21,.15); }
+.ko-road-final-v270 span { color:#fde68a; font-weight:1000; font-size:.72rem; }
+.ko-road-final-v270 strong { color:#fef08a; font-size:1.5rem; }
+.ko-road-final-v270 small { color:#fff; font-weight:800; line-height:1.2; }
+.ko-road-final-v270 b { color:rgba(226,232,240,.70); font-size:.68rem; }
+.ko-road-r32-v261 { --ko-round-accent:#60a5fa; }
+.ko-road-r16-v261 { --ko-round-accent:#22d3ee; }
+.ko-road-qf-v261 { --ko-round-accent:#34d399; }
+.ko-road-sf-v261 { --ko-round-accent:#a78bfa; }
+.ko-road-final-v261 { --ko-round-accent:#facc15; }
+@media (max-width: 900px) {
+  .ko-view-toggle-v270 { align-items:flex-start; flex-direction:column; }
+  .ko-view-toggle-actions-v270 { width:100%; }
+  .ko-view-toggle-actions-v270 button { flex:1; }
+  .ko-road-page-v270 { min-width: 1080px; }
+  .ko-road-board-v270 { min-height: 620px; padding: 20px 16px; }
+}
+.ko-road-card-v270.ko-round-r32-v261 { --ko-round-accent:#60a5fa; }
+.ko-road-card-v270.ko-round-r16-v261 { --ko-round-accent:#22d3ee; }
+.ko-road-card-v270.ko-round-qf-v261 { --ko-round-accent:#34d399; }
+.ko-road-card-v270.ko-round-sf-v261 { --ko-round-accent:#a78bfa; }
+.ko-road-card-v270.ko-round-final-v261 { --ko-round-accent:#facc15; }
+
+/* v273 — estabilidade visual: reduzir saltos dos cards ao abrir páginas */
+:root{
+  --stable-match-row-height-v273: 78px;
+  --stable-ko-road-card-height-v273: 104px;
+  --stable-ko-list-card-min-v273: 96px;
+}
+
+/* Durante o primeiro render de uma página, mantém o espaço reservado e só mostra quando assenta. */
+body.page-stabilizing-v273 .tab-panel.active .calendar-list,
+body.page-stabilizing-v273 .tab-panel.active #knockoutBracket,
+body.page-stabilizing-v273 .tab-panel.active .score-detail-list,
+body.page-stabilizing-v273 .tab-panel.active .admin-stack{
+  visibility:hidden!important;
+}
+
+body.page-rendering-v273 *,
+body.page-stabilizing-v273 *{
+  transition:none!important;
+  animation:none!important;
+  scroll-behavior:auto!important;
+}
+
+.calendar-list{
+  min-height:420px;
+  align-content:start;
+}
+.day-block{
+  contain:layout paint;
+}
+.day-block h3{
+  min-height:46px;
+  display:flex;
+  align-items:center;
+}
+.match-list{
+  align-content:start;
+}
+.match-row{
+  min-height:var(--stable-match-row-height-v273)!important;
+  grid-auto-rows:minmax(var(--stable-match-row-height-v273), auto);
+  align-items:center;
+}
+.match-row .team,
+.match-row .team strong,
+.match-row .team span{
+  min-height:24px;
+}
+.match-row .group-pill,
+.match-row .status-pill,
+.match-row .score-pill,
+.match-row .filter-count{
+  min-width:64px;
+  min-height:26px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.match-row button,
+.match-row .primary,
+.match-row .secondary{
+  min-height:38px;
+}
+.calendar-actions,
+.match-row > :last-child{
+  min-width:168px;
+}
+
+#knockoutBracket.knockout-bracket{
+  min-height:640px;
+  contain:layout paint;
+}
+#knockoutBracket .bracket-photo-shell,
+#knockoutBracket .ko-road-page-v270{
+  contain:layout paint;
+}
+#knockoutBracket .ko-road-board-v270{
+  min-height:680px!important;
+  align-items:start;
+}
+#knockoutBracket .ko-road-column-v270{
+  min-height:620px;
+}
+#knockoutBracket .ko-road-column-cards-v270{
+  align-content:start;
+}
+#knockoutBracket .ko-road-card-v270{
+  min-height:var(--stable-ko-road-card-height-v273)!important;
+  height:var(--stable-ko-road-card-height-v273)!important;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+#knockoutBracket .ko-road-card-head-v270{
+  min-height:18px;
+}
+#knockoutBracket .ko-road-teams-v270{
+  min-height:40px;
+}
+#knockoutBracket .ko-road-teams-v270 span{
+  min-height:18px;
+  display:block;
+}
+#knockoutBracket .ko-road-card-foot-v270{
+  min-height:18px;
+}
+#knockoutBracket .ko-road-final-v270{
+  min-height:170px!important;
+  box-sizing:border-box;
+}
+#knockoutBracket .knockout-list-v260,
+#knockoutBracket .knockout-round-list-v260{
+  align-content:start;
+}
+#knockoutBracket .knockout-record-card,
+#knockoutBracket .knockout-match,
+#knockoutBracket .ko-list-card-v260{
+  min-height:var(--stable-ko-list-card-min-v273);
+  box-sizing:border-box;
+}
+
+/* Evita que badges/contadores carregados tarde empurrem cards e cabeçalhos. */
+.filter-count,
+.online-users-badge,
+.chat-unread-badge,
+.tab-badge-v164,
+.status-pill,
+.score-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:28px;
+  min-height:22px;
+}
+.topbar,
+.tabs,
+.section-head{
+  contain:layout paint;
+}
+
+@media(max-width:760px){
+  body.page-stabilizing-v273 .tab-panel.active .calendar-list,
+  body.page-stabilizing-v273 .tab-panel.active #knockoutBracket,
+  body.page-stabilizing-v273 .tab-panel.active .score-detail-list,
+  body.page-stabilizing-v273 .tab-panel.active .admin-stack{
+    visibility:visible!important;
+  }
+  .match-row{
+    min-height:96px!important;
+  }
+  #knockoutBracket.knockout-bracket{
+    min-height:520px;
+  }
+}
+
+
+/* v274 — mapa oficial: esconder etiqueta Mxx e espelhar/alinhar o lado direito */
+body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match-title{
+  color: transparent !important;
+  user-select: none !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .bracket-photo-matches{
+  align-items: flex-end !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match{
+  margin-left: auto !important;
+  text-align: right !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match .ko-team{
+  grid-template-columns: 18px minmax(0,1fr) !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match .ko-team span{
+  order: 2 !important;
+  text-align: right !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match .ko-team b{
+  order: 1 !important;
+  text-align: left !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match .ko-status-line{
+  text-align: right !important;
+}
+body.knockout-layout-active #knockoutBracket .bracket-side-right .knockout-match .ko-team.winner{
+  justify-items: stretch !important;
+}
+
+
+/* v275 — Login estável + loading pós-login */
+#loginScreen.login-screen{
+  min-height:100dvh!important;
+  display:grid!important;
+  place-items:center!important;
+  contain:layout paint style!important;
+}
+
+#loginScreen .login-card{
+  min-height:430px!important;
+  transform:translateZ(0)!important;
+  backface-visibility:hidden!important;
+  will-change:auto!important;
+}
+
+#loginScreen.login-busy-v275 .login-card{
+  pointer-events:auto!important;
+}
+
+#loginScreen.login-busy-v275 #loginBtn,
+#loginScreen.login-busy-v275 #createAccountBtn{
+  opacity:.72!important;
+  cursor:wait!important;
+}
+
+#loginScreen.login-leaving-v275{
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:opacity .16s ease!important;
+}
+
+.app-boot-loader-v275{
+  position:fixed!important;
+  inset:0!important;
+  z-index:99999!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:24px!important;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,212,90,.13), transparent 32%),
+    radial-gradient(circle at 78% 18%, rgba(34,184,207,.13), transparent 34%),
+    rgba(4,8,16,.94)!important;
+  backdrop-filter:blur(10px)!important;
+}
+
+.app-boot-loader-v275.hidden{
+  display:none!important;
+}
+
+.app-boot-loader-card-v275{
+  width:min(430px, calc(100vw - 36px))!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:20px!important;
+  padding:20px!important;
+  background:linear-gradient(180deg,rgba(13,21,34,.98),rgba(7,11,19,.99))!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.45)!important;
+}
+
+.app-boot-loader-top-v275{
+  display:flex!important;
+  align-items:center!important;
+  gap:14px!important;
+}
+
+.app-boot-loader-top-v275 img{
+  width:48px!important;
+  height:48px!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  padding:4px!important;
+  flex:0 0 auto!important;
+}
+
+.app-boot-loader-top-v275 span{
+  display:block!important;
+  color:#ffd84d!important;
+  font-size:12px!important;
+  font-weight:1000!important;
+  text-transform:uppercase!important;
+}
+
+.app-boot-loader-top-v275 strong{
+  display:block!important;
+  color:#f8fbff!important;
+  font-size:22px!important;
+  line-height:1.15!important;
+  margin-top:2px!important;
+}
+
+.app-boot-progress-v275{
+  height:10px!important;
+  margin:18px 0 10px!important;
+  border-radius:999px!important;
+  overflow:hidden!important;
+  background:rgba(255,255,255,.08)!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+}
+
+.app-boot-progress-v275 i{
+  display:block!important;
+  height:100%!important;
+  width:42%!important;
+  border-radius:inherit!important;
+  background:linear-gradient(90deg,#23d7bd,#ffd84d,#fb5b56)!important;
+  animation:appBootProgressV275 1.15s ease-in-out infinite!important;
+}
+
+.app-boot-loader-card-v275 small{
+  color:#b9c7dc!important;
+  font-weight:800!important;
+}
+
+@keyframes appBootProgressV275{
+  0%{ transform:translateX(-110%); }
+  55%{ transform:translateX(75%); }
+  100%{ transform:translateX(250%); }
+}
+
+body.app-boot-loading-v275 #appShell.app-boot-hidden-v275{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
+body.app-boot-loading-v275{
+  overflow:hidden!important;
+}
+
+/* Evita que o shell apareça “a saltar” logo após login antes das dimensões assentarem. */
+body.app-authenticated-v213:not(.app-boot-ready-v275) #appShell:not(.auth-hidden){
+  min-height:100dvh!important;
+}
+
+
+
+/* v276 — Calendário mobile: corrigir dimensões reais dos cards .match-row */
+@media (max-width: 760px){
+  #calendarTab .day-block{
+    border-radius:16px!important;
+    margin:12px 0!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  #calendarTab .day-block h3{
+    min-height:40px!important;
+    padding:10px 12px!important;
+    font-size:15px!important;
+    line-height:1.15!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+
+  #calendarTab .match-row{
+    --stable-match-row-height-v273:auto!important;
+    min-height:0!important;
+    height:auto!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 42px minmax(0,1fr)!important;
+    grid-template-areas:
+      "group group time"
+      "home vs away"
+      "state note note"
+      "actions actions actions"!important;
+    gap:8px 9px!important;
+    align-items:center!important;
+    padding:11px 12px!important;
+    border-radius:14px!important;
+    margin:0!important;
+  }
+
+  #calendarTab .match-row .group-pill{
+    grid-area:group!important;
+    justify-self:start!important;
+    min-width:0!important;
+    min-height:28px!important;
+    width:auto!important;
+    max-width:100%!important;
+    padding:5px 10px!important;
+    border-radius:999px!important;
+    font-size:12px!important;
+    line-height:1!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+
+  #calendarTab .match-row .time{
+    grid-area:time!important;
+    justify-self:end!important;
+    align-self:center!important;
+    text-align:right!important;
+    font-size:17px!important;
+    line-height:1!important;
+    min-height:0!important;
+    font-weight:950!important;
+    white-space:nowrap!important;
+  }
+
+  #calendarTab .match-row .team{
+    min-width:0!important;
+    min-height:34px!important;
+    height:auto!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:0!important;
+    font-size:18px!important;
+    line-height:1.12!important;
+    white-space:normal!important;
+  }
+
+  #calendarTab .match-row .team.home{
+    grid-area:home!important;
+    justify-content:flex-start!important;
+    text-align:left!important;
+  }
+
+  #calendarTab .match-row .team.away,
+  #calendarTab .match-row .away{
+    grid-area:away!important;
+    justify-content:flex-end!important;
+    text-align:right!important;
+  }
+
+  #calendarTab .match-row .team strong{
+    min-width:0!important;
+    white-space:normal!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    overflow-wrap:anywhere!important;
+    display:-webkit-box!important;
+    -webkit-line-clamp:2!important;
+    -webkit-box-orient:vertical!important;
+  }
+
+  #calendarTab .match-row .score-vs{
+    grid-area:vs!important;
+    justify-self:center!important;
+    align-self:center!important;
+    width:42px!important;
+    min-width:42px!important;
+    height:32px!important;
+    min-height:32px!important;
+    padding:0!important;
+    border-radius:999px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:14px!important;
+    line-height:1!important;
+    text-align:center!important;
+  }
+
+  #calendarTab .match-row .state{
+    grid-area:state!important;
+    justify-self:start!important;
+    min-width:0!important;
+    min-height:26px!important;
+    width:auto!important;
+    max-width:100%!important;
+    padding:5px 10px!important;
+    font-size:12px!important;
+    line-height:1!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+  }
+
+  #calendarTab .match-row .bet-note{
+    grid-area:note!important;
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    font-size:12px!important;
+    line-height:1.25!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    text-align:right!important;
+  }
+
+  #calendarTab .match-row .calendar-actions{
+    grid-area:actions!important;
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:7px!important;
+    justify-content:stretch!important;
+    align-items:stretch!important;
+    margin-top:2px!important;
+  }
+
+  #calendarTab .match-row .calendar-actions button,
+  #calendarTab .match-row .calendar-actions .small{
+    width:100%!important;
+    min-width:0!important;
+    min-height:38px!important;
+    height:38px!important;
+    padding:6px 7px!important;
+    border-radius:11px!important;
+    font-size:12px!important;
+    line-height:1.05!important;
+    white-space:normal!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+  }
+
+  /* Se só existirem 2 botões, eles ocupam melhor o espaço. */
+  #calendarTab .match-row .calendar-actions button:first-child:nth-last-child(2),
+  #calendarTab .match-row .calendar-actions button:first-child:nth-last-child(2) ~ button{
+    grid-column:auto!important;
+  }
+
+  #calendarTab .match-row .calendar-actions:has(button:nth-child(2):last-child){
+    grid-template-columns:1fr 1fr!important;
+  }
+
+  #calendarTab .match-row > *{
+    margin:0!important;
+  }
+
+  #calendarTab .match-row + .match-row{
+    border-top:1px solid rgba(255,255,255,.08)!important;
+  }
+}
+
+@media (max-width: 430px){
+  #calendarTab .match-row{
+    grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr)!important;
+    gap:7px!important;
+    padding:10px!important;
+  }
+
+  #calendarTab .match-row .team{
+    font-size:17px!important;
+    min-height:32px!important;
+  }
+
+  #calendarTab .match-row .score-vs{
+    width:38px!important;
+    min-width:38px!important;
+    height:30px!important;
+    min-height:30px!important;
+    font-size:13px!important;
+  }
+
+  #calendarTab .match-row .calendar-actions{
+    gap:6px!important;
+  }
+
+  #calendarTab .match-row .calendar-actions button,
+  #calendarTab .match-row .calendar-actions .small{
+    height:36px!important;
+    min-height:36px!important;
+    font-size:11.5px!important;
+    padding:5px 6px!important;
+  }
+}
+
+@media (max-width: 370px){
+  #calendarTab .match-row{
+    grid-template-areas:
+      "group group time"
+      "home vs away"
+      "state state note"
+      "actions actions actions"!important;
+  }
+
+  #calendarTab .match-row .calendar-actions{
+    grid-template-columns:1fr!important;
+  }
+
+  #calendarTab .match-row .calendar-actions button,
+  #calendarTab .match-row .calendar-actions .small{
+    height:38px!important;
+  }
+}
+
+
+
+/* v277 — Fase Final web: ajustar mapa oficial à altura real do browser */
+@media (min-width: 761px){
+  body.knockout-layout-active{
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+  }
+
+  body.knockout-layout-active #appShell{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    padding-top:8px!important;
+    padding-bottom:8px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active .topbar{
+    display:none!important;
+  }
+
+  body.knockout-layout-active main,
+  body.knockout-layout-active .tab-panel.active,
+  body.knockout-layout-active #knockoutTab{
+    height:calc(100dvh - 18px)!important;
+    max-height:calc(100dvh - 18px)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active .tabs{
+    min-height:36px!important;
+    height:36px!important;
+    margin:0 0 6px!important;
+    padding:4px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active .tabs .tab{
+    min-height:28px!important;
+    height:28px!important;
+    padding:0 12px!important;
+    font-size:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab > .section-head,
+  body.knockout-layout-active #knockoutTab > .section-header,
+  body.knockout-layout-active #knockoutTab > .panel-header,
+  body.knockout-layout-active #knockoutTab .knockout-entry-card,
+  body.knockout-layout-active #knockoutLockNotice{
+    margin:0 0 5px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .ko-view-toolbar-v270,
+  body.knockout-layout-active #knockoutTab .ko-view-switch-v270,
+  body.knockout-layout-active #knockoutTab .ko-view-toggle-v270,
+  body.knockout-layout-active #knockoutTab [class*="view-toggle"]{
+    min-height:34px!important;
+    margin:0 0 5px!important;
+    padding:6px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab [class*="view-toggle"] button{
+    min-height:28px!important;
+    height:28px!important;
+    padding:0 10px!important;
+    font-size:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .bracket-photo-shell{
+    height:calc(100dvh - 118px)!important;
+    max-height:calc(100dvh - 118px)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    padding:8px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .bracket-title-row{
+    min-height:36px!important;
+    height:36px!important;
+    margin:0 0 6px!important;
+    padding:6px 10px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .bracket-title-row span{
+    font-size:10px!important;
+    line-height:1!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .bracket-title-row strong{
+    font-size:16px!important;
+    line-height:1!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket{
+    height:calc(100dvh - 170px)!important;
+    max-height:calc(100dvh - 170px)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    height:100%!important;
+    max-height:100%!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    --ko-card:clamp(56px, 7.1vh, 72px)!important;
+    --ko-team:clamp(15px, 1.85vh, 20px)!important;
+    --ko-gap:clamp(4px, .62vh, 8px)!important;
+    --ko-team-text:clamp(9px, .86vw, 11px)!important;
+    --ko-title-text:clamp(7px, .66vw, 9px)!important;
+    --r16-top:clamp(28px, 5.4vh, 48px)!important;
+    --r16-gap:clamp(58px, 10.8vh, 96px)!important;
+    --qf-top:clamp(84px, 15vh, 136px)!important;
+    --qf-gap:clamp(158px, 28vh, 250px)!important;
+    --sf-top:clamp(190px, 33vh, 300px)!important;
+    --line-r32:clamp(40px, 6.6vh, 66px)!important;
+    --line-r16:clamp(82px, 13.6vh, 132px)!important;
+    --line-qf:clamp(166px, 27.4vh, 268px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round h3{
+    height:22px!important;
+    min-height:22px!important;
+    margin-bottom:5px!important;
+    font-size:9px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-matches{
+    height:calc(100% - 27px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match{
+    min-height:var(--ko-card)!important;
+    height:var(--ko-card)!important;
+    padding:4px 5px!important;
+    gap:2px!important;
+    border-radius:8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team{
+    min-height:var(--ko-team)!important;
+    height:var(--ko-team)!important;
+    padding:0 5px!important;
+    border-radius:5px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    padding-top:22px!important;
+    min-height:0!important;
+    height:100%!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge{
+    min-height:48px!important;
+    padding:8px!important;
+    margin-bottom:8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final .knockout-match{
+    max-width:118px!important;
+    min-height:82px!important;
+    height:82px!important;
+  }
+}
+
+/* Browser com pouca altura útil: compacta ainda mais, para não passar abaixo do ecrã. */
+@media (min-width: 761px) and (max-height: 850px){
+  body.knockout-layout-active #knockoutTab .bracket-photo-shell{
+    height:calc(100dvh - 104px)!important;
+    max-height:calc(100dvh - 104px)!important;
+    padding:6px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab .bracket-title-row{
+    height:32px!important;
+    min-height:32px!important;
+    margin-bottom:5px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket{
+    height:calc(100dvh - 146px)!important;
+    max-height:calc(100dvh - 146px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    --ko-card:clamp(48px, 6.45vh, 60px)!important;
+    --ko-team:clamp(13px, 1.65vh, 17px)!important;
+    --ko-gap:clamp(3px, .48vh, 6px)!important;
+    --ko-team-text:clamp(8px, .76vw, 10px)!important;
+    --ko-title-text:clamp(6px, .58vw, 8px)!important;
+    --r16-top:clamp(20px, 4.4vh, 36px)!important;
+    --r16-gap:clamp(45px, 9vh, 76px)!important;
+    --qf-top:clamp(68px, 13vh, 106px)!important;
+    --qf-gap:clamp(122px, 24vh, 196px)!important;
+    --sf-top:clamp(152px, 30vh, 238px)!important;
+    --line-r32:clamp(32px, 5.6vh, 52px)!important;
+    --line-r16:clamp(66px, 11.5vh, 104px)!important;
+    --line-qf:clamp(132px, 23vh, 210px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round h3{
+    height:20px!important;
+    min-height:20px!important;
+    margin-bottom:4px!important;
+    font-size:8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-matches{
+    height:calc(100% - 24px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match{
+    padding:3px 4px!important;
+    border-radius:7px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    padding-top:16px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge{
+    min-height:42px!important;
+    padding:6px!important;
+    margin-bottom:6px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final .knockout-match{
+    min-height:72px!important;
+    height:72px!important;
+  }
+}
+
+
+
+/* v278 — Calendário mobile: formato compacto igual ao pretendido */
+@media (max-width: 760px){
+  #calendarTab .calendar-list{
+    gap:12px!important;
+  }
+
+  #calendarTab .day-block{
+    padding:0!important;
+    margin:12px 0!important;
+    border-radius:16px!important;
+    overflow:hidden!important;
+  }
+
+  #calendarTab .day-block h3{
+    min-height:38px!important;
+    height:auto!important;
+    padding:9px 12px!important;
+    font-size:15px!important;
+    line-height:1.15!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+
+  /* A regra principal: o card real é .match-row */
+  #calendarTab .match-row{
+    --stable-match-row-height-v273:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    min-height:0!important;
+    height:auto!important;
+
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-areas:
+      "group group"
+      "home time"
+      "vs time"
+      "away time"
+      "state state"
+      "note note"
+      "actions actions"!important;
+
+    gap:7px 10px!important;
+    align-items:center!important;
+    align-content:start!important;
+    padding:12px!important;
+    margin:0!important;
+    border-radius:15px!important;
+    box-sizing:border-box!important;
+  }
+
+  #calendarTab .match-row + .match-row{
+    margin-top:10px!important;
+  }
+
+  #calendarTab .match-row > *{
+    min-width:0!important;
+    max-width:100%!important;
+    margin:0!important;
+  }
+
+  #calendarTab .match-row .group-pill{
+    grid-area:group!important;
+    justify-self:start!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:fit-content!important;
+    height:30px!important;
+    min-height:30px!important;
+    padding:0 12px!important;
+    border-radius:999px!important;
+    font-size:13px!important;
+    line-height:1!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+  }
+
+  #calendarTab .match-row .team{
+    min-width:0!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:28px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:0!important;
+    color:var(--text)!important;
+    font-size:18px!important;
+    line-height:1.15!important;
+    text-align:left!important;
+  }
+
+  #calendarTab .match-row .team.home{
+    grid-area:home!important;
+  }
+
+  #calendarTab .match-row .team.away,
+  #calendarTab .match-row .away{
+    grid-area:away!important;
+    justify-content:flex-start!important;
+    text-align:left!important;
+  }
+
+  #calendarTab .match-row .team strong{
+    display:block!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    font-size:18px!important;
+    line-height:1.15!important;
+  }
+
+  #calendarTab .match-row .team span{
+    display:none!important;
+  }
+
+  #calendarTab .match-row .score-vs{
+    grid-area:vs!important;
+    justify-self:start!important;
+    align-self:center!important;
+    width:48px!important;
+    min-width:48px!important;
+    max-width:48px!important;
+    height:26px!important;
+    min-height:26px!important;
+    padding:0!important;
+    border-radius:999px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+    color:var(--gold)!important;
+    font-size:16px!important;
+    line-height:1!important;
+    font-weight:1000!important;
+  }
+
+  #calendarTab .match-row .time{
+    grid-area:time!important;
+    justify-self:end!important;
+    align-self:center!important;
+    width:auto!important;
+    min-width:54px!important;
+    max-width:82px!important;
+    min-height:0!important;
+    height:auto!important;
+    padding:0!important;
+    color:#d7deea!important;
+    font-size:18px!important;
+    line-height:1!important;
+    font-weight:1000!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+  }
+
+  #calendarTab .match-row .state{
+    grid-area:state!important;
+    justify-self:start!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:fit-content!important;
+    height:30px!important;
+    min-height:30px!important;
+    padding:0 12px!important;
+    border-radius:999px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:13px!important;
+    line-height:1!important;
+    font-weight:1000!important;
+    white-space:nowrap!important;
+  }
+
+  #calendarTab .match-row .bet-note{
+    grid-area:note!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:20px!important;
+    color:var(--muted)!important;
+    font-size:14px!important;
+    line-height:1.2!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    text-align:left!important;
+  }
+
+  #calendarTab .match-row .calendar-actions{
+    grid-area:actions!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    grid-auto-rows:auto!important;
+    gap:8px!important;
+    justify-content:stretch!important;
+    align-items:stretch!important;
+    margin-top:2px!important;
+  }
+
+  #calendarTab .match-row .calendar-actions button,
+  #calendarTab .match-row .calendar-actions .small,
+  #calendarTab .match-row button.search-game-result-btn{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:42px!important;
+    min-height:42px!important;
+    padding:7px 10px!important;
+    border-radius:12px!important;
+    font-size:14px!important;
+    line-height:1.05!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+  }
+
+  /* Ordem visual: Pesquisar + Adicionar na primeira linha; Ver apostas na segunda linha inteira */
+  #calendarTab .match-row .calendar-actions .search-game-result-btn{
+    order:1!important;
+  }
+
+  #calendarTab .match-row .calendar-actions [data-result-game],
+  #calendarTab .match-row .calendar-actions [data-ko-calendar-bet-v259]{
+    order:2!important;
+  }
+
+  #calendarTab .match-row .calendar-actions [data-bets-game]{
+    order:3!important;
+    grid-column:1 / -1!important;
+  }
+
+  /* Remove qualquer altura antiga que venha da estabilidade v273 */
+  #calendarTab .match-row .group-pill,
+  #calendarTab .match-row .status-pill,
+  #calendarTab .match-row .score-pill,
+  #calendarTab .match-row .filter-count{
+    min-width:0!important;
+  }
+
+  #calendarTab .calendar-actions,
+  #calendarTab .match-row > :last-child{
+    min-width:0!important;
+  }
+}
+
+@media (max-width: 430px){
+  #calendarTab .match-row{
+    padding:10px!important;
+    gap:6px 8px!important;
+  }
+
+  #calendarTab .match-row .group-pill{
+    height:28px!important;
+    min-height:28px!important;
+    font-size:12px!important;
+    padding:0 10px!important;
+  }
+
+  #calendarTab .match-row .team,
+  #calendarTab .match-row .team strong{
+    font-size:17px!important;
+  }
+
+  #calendarTab .match-row .score-vs{
+    width:44px!important;
+    min-width:44px!important;
+    max-width:44px!important;
+    height:24px!important;
+    min-height:24px!important;
+    font-size:15px!important;
+  }
+
+  #calendarTab .match-row .time{
+    font-size:17px!important;
+    min-width:50px!important;
+  }
+
+  #calendarTab .match-row .state{
+    height:28px!important;
+    min-height:28px!important;
+    font-size:12px!important;
+  }
+
+  #calendarTab .match-row .bet-note{
+    font-size:13px!important;
+  }
+
+  #calendarTab .match-row .calendar-actions button,
+  #calendarTab .match-row .calendar-actions .small,
+  #calendarTab .match-row button.search-game-result-btn{
+    height:40px!important;
+    min-height:40px!important;
+    font-size:13px!important;
+    padding:6px 8px!important;
+  }
+}
+
+@media (max-width: 360px){
+  #calendarTab .match-row .calendar-actions{
+    grid-template-columns:1fr!important;
+  }
+
+  #calendarTab .match-row .calendar-actions [data-bets-game]{
+    grid-column:auto!important;
+  }
+}
+
+
+
+/* v279 — Fase Final: remover cabeçalho interno e esticar mapa */
+@media (min-width: 761px){
+  body.knockout-layout-active #knockoutTab .bracket-title-row{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-final-badge{
+    display:none!important;
+  }
+
+  /* Recupera espaço vertical: a área do esquema começa mais acima e vai até mais baixo. */
+  body.knockout-layout-active #knockoutTab .bracket-photo-shell{
+    height:calc(100dvh - 82px)!important;
+    max-height:calc(100dvh - 82px)!important;
+    min-height:0!important;
+    padding:6px 8px!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket{
+    height:calc(100dvh - 94px)!important;
+    max-height:calc(100dvh - 94px)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Volta a dar ao mapa dimensões mais próximas das anteriores, mas usando a altura nova. */
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    height:100%!important;
+    max-height:100%!important;
+    min-height:0!important;
+    overflow:hidden!important;
+
+    --ko-card:clamp(60px, 8.05vh, 78px)!important;
+    --ko-team:clamp(16px, 2.05vh, 22px)!important;
+    --ko-gap:clamp(4px, .72vh, 9px)!important;
+    --ko-team-text:clamp(9px, .84vw, 11px)!important;
+    --ko-title-text:clamp(7px, .64vw, 9px)!important;
+
+    --r16-top:clamp(34px, 6vh, 54px)!important;
+    --r16-gap:clamp(70px, 12vh, 108px)!important;
+    --qf-top:clamp(96px, 17vh, 152px)!important;
+    --qf-gap:clamp(178px, 31vh, 280px)!important;
+    --sf-top:clamp(220px, 38vh, 340px)!important;
+
+    --line-r32:clamp(46px, 7.3vh, 74px)!important;
+    --line-r16:clamp(94px, 15vh, 148px)!important;
+    --line-qf:clamp(190px, 30vh, 298px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round h3{
+    height:24px!important;
+    min-height:24px!important;
+    margin-bottom:6px!important;
+    font-size:9px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-matches{
+    height:calc(100% - 30px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match{
+    min-height:var(--ko-card)!important;
+    height:var(--ko-card)!important;
+    padding:5px 6px!important;
+    gap:2px!important;
+    border-radius:8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .ko-team{
+    min-height:var(--ko-team)!important;
+    height:var(--ko-team)!important;
+    padding:0 5px!important;
+    border-radius:5px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    padding-top:22px!important;
+    min-height:0!important;
+    height:100%!important;
+    align-content:center!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final{
+    margin-top:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final .knockout-match{
+    max-width:128px!important;
+    min-height:94px!important;
+    height:94px!important;
+  }
+}
+
+/* Em browser com pouca altura, compacta só o necessário, mas sem voltar ao mapa pequeno. */
+@media (min-width: 761px) and (max-height: 850px){
+  body.knockout-layout-active #knockoutTab .bracket-photo-shell{
+    height:calc(100dvh - 74px)!important;
+    max-height:calc(100dvh - 74px)!important;
+    padding:5px 8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket{
+    height:calc(100dvh - 84px)!important;
+    max-height:calc(100dvh - 84px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split{
+    --ko-card:clamp(54px, 7.35vh, 66px)!important;
+    --ko-team:clamp(14px, 1.8vh, 18px)!important;
+    --ko-gap:clamp(3px, .54vh, 7px)!important;
+    --ko-team-text:clamp(8px, .76vw, 10px)!important;
+    --ko-title-text:clamp(6px, .58vw, 8px)!important;
+
+    --r16-top:clamp(24px, 4.7vh, 40px)!important;
+    --r16-gap:clamp(54px, 9.8vh, 84px)!important;
+    --qf-top:clamp(78px, 14vh, 116px)!important;
+    --qf-gap:clamp(142px, 25.5vh, 218px)!important;
+    --sf-top:clamp(172px, 32vh, 260px)!important;
+
+    --line-r32:clamp(36px, 6.1vh, 58px)!important;
+    --line-r16:clamp(74px, 12.2vh, 116px)!important;
+    --line-qf:clamp(148px, 24.6vh, 232px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-round h3{
+    height:21px!important;
+    min-height:21px!important;
+    margin-bottom:4px!important;
+    font-size:8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-matches{
+    height:calc(100% - 25px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-photo-grid-split .knockout-match{
+    padding:4px 5px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-column{
+    padding-top:14px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .bracket-center-final .knockout-match{
+    min-height:78px!important;
+    height:78px!important;
+    max-width:122px!important;
+  }
+}
+
+
+
+/* v280 — Fase Final mobile abre sempre em lista */
+@media (max-width: 760px){
+  #knockoutTab .ko-view-toggle-v270{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+    padding:12px!important;
+    margin:10px 0!important;
+    border-radius:16px!important;
+  }
+
+  #knockoutTab .ko-view-toggle-v270 .ko-view-toggle-actions-v270{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+
+  #knockoutTab .ko-view-toggle-v270 [data-ko-view-mode-v270="roadmap"]{
+    display:none!important;
+  }
+
+  #knockoutTab .ko-view-toggle-v270 [data-ko-view-mode-v270="list"]{
+    width:100%!important;
+    min-height:44px!important;
+  }
+
+  #knockoutTab.ko-road-root-v270,
+  #knockoutBracket.ko-road-root-v270{
+    overflow-x:hidden!important;
+  }
+
+  /* segurança extra: se o mapa ficar no DOM em mobile, não aparece. */
+  #knockoutTab .ko-road-page-v270,
+  #knockoutTab .bracket-photo-shell{
+    display:none!important;
+  }
+
+  #knockoutTab .ko-list-page-v260,
+  #knockoutTab .ko-list-root-v260{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+}
+
+
+/* v281 — Fase Final web: remover hero do mapa e usar altura máxima */
+@media (min-width: 761px){
+  body.knockout-layout-active #knockoutBracket .ko-road-root-v270,
+  body.knockout-layout-active #knockoutBracket .ko-road-page-v270{
+    height:100%!important;
+    min-height:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-root-v270{
+    overflow:hidden!important;
+    padding-bottom:0!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-page-v270{
+    display:flex!important;
+    flex-direction:column!important;
+    min-width:1260px!important;
+    width:100%!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-hero-v270{
+    display:none!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-board-v270{
+    flex:1 1 auto!important;
+    height:100%!important;
+    min-height:0!important;
+    margin-top:0!important;
+    padding:18px 20px 22px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-path-label-v270.left{ left: 6px!important; }
+  body.knockout-layout-active #knockoutBracket .ko-road-path-label-v270.right{ right: 4px!important; }
+
+  body.knockout-layout-active #knockoutTab.active{
+    height:calc(100dvh - 86px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket.knockout-bracket{
+    height:100%!important;
+    padding:2px 2px 8px!important;
+    overflow:hidden!important;
+  }
+}
+
+@media (min-width: 761px) and (max-height: 900px){
+  body.knockout-layout-active #knockoutBracket .ko-road-board-v270{
+    padding:14px 16px 18px!important;
+  }
+}
+
+
+/* v282 — barra de navegação da Fase Final igual à barra das outras páginas */
+@media (min-width: 761px){
+  body.knockout-layout-active .app-shell,
+  body.knockout-layout-active .app-shell.knockout-screen-active{
+    padding-top:14px!important;
+    padding-left:18px!important;
+    padding-right:18px!important;
+    padding-bottom:8px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active .tabs{
+    width:100%!important;
+    max-width:100%!important;
+    min-height:58px!important;
+    height:58px!important;
+    margin:0 0 10px!important;
+    padding:10px 12px!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:10px!important;
+    border-radius:14px!important;
+    box-sizing:border-box!important;
+  }
+
+  body.knockout-layout-active .tabs .tab{
+    min-height:38px!important;
+    height:38px!important;
+    padding:0 16px!important;
+    border-radius:10px!important;
+    font-size:13px!important;
+    line-height:1!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+
+  body.knockout-layout-active #knockoutTab.active{
+    height:calc(100dvh - 94px)!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket.knockout-bracket{
+    height:100%!important;
+    padding:0 0 8px!important;
+  }
+
+  body.knockout-layout-active #knockoutBracket .ko-road-board-v270{
+    padding-top:16px!important;
+    padding-bottom:18px!important;
+  }
+}
+
+@media (min-width: 761px) and (max-height: 850px){
+  body.knockout-layout-active .app-shell,
+  body.knockout-layout-active .app-shell.knockout-screen-active{
+    padding-top:10px!important;
+  }
+
+  body.knockout-layout-active .tabs{
+    min-height:52px!important;
+    height:52px!important;
+    margin-bottom:8px!important;
+    padding:8px 10px!important;
+  }
+
+  body.knockout-layout-active .tabs .tab{
+    min-height:34px!important;
+    height:34px!important;
+    padding:0 14px!important;
+    font-size:12px!important;
+  }
+
+  body.knockout-layout-active #knockoutTab.active{
+    height:calc(100dvh - 78px)!important;
+  }
+}
+
+
+
+/* v283 — Fase Final: sem aposta obrigatória = 0 pontos */
+.player-game-row.ko-mandatory-zero-v283,
+.player-game-row.miss.ko-mandatory-zero-v283{
+  border-color:rgba(251,113,133,.24)!important;
+  background:linear-gradient(90deg,rgba(251,113,133,.10),rgba(15,23,42,.35))!important;
+}
+
+.player-game-row.ko-mandatory-zero-v283 em{
+  color:#fecdd3!important;
+}
+
+.knockout-calendar-row-v259 .ko-calendar-note-v259{
+  white-space:normal!important;
+}
+
+.knockout-calendar-row-v259 .calendar-actions button[disabled]{
+  opacity:.72!important;
+  cursor:not-allowed!important;
+}
+
+
+
+/* v284 — Central de Apostas Fase Final */
+.ko-bet-entry-mount-v284{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.ko-bet-entry-btn-v284{
+  border:1px solid rgba(34,184,207,.34);
+  background:linear-gradient(135deg,rgba(34,184,207,.18),rgba(59,130,246,.16));
+  color:#e0f7ff;
+  border-radius:12px;
+  min-height:38px;
+  padding:0 14px;
+  font-weight:1000;
+  cursor:pointer;
+  box-shadow:0 0 22px rgba(34,184,207,.08);
+}
+
+.ko-bet-entry-btn-v284.pending{
+  border-color:rgba(250,204,21,.55);
+  background:linear-gradient(135deg,#f97316,#ef4444);
+  color:#fff;
+  box-shadow:0 0 26px rgba(239,68,68,.20);
+}
+
+.ko-bet-entry-btn-v284.missed{
+  border-color:rgba(251,113,133,.45);
+  background:rgba(127,29,29,.35);
+  color:#fecdd3;
+}
+
+.ko-bet-calendar-banner-v284{
+  margin:12px 0;
+  padding:12px;
+  border:1px solid rgba(250,204,21,.20);
+  border-radius:16px;
+  background:linear-gradient(135deg,rgba(250,204,21,.10),rgba(34,184,207,.06));
+  justify-content:space-between;
+}
+
+.ko-bet-hub-v284{
+  z-index:99990!important;
+}
+
+.ko-bet-hub-card-v284{
+  width:min(980px,calc(100vw - 28px));
+  max-height:calc(100dvh - 28px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.ko-bet-hub-head-v284{
+  flex:0 0 auto;
+}
+
+.ko-bet-hub-body-v284{
+  overflow:auto;
+  padding-right:4px;
+  display:grid;
+  gap:14px;
+}
+
+.ko-bet-hub-summary-v284{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.ko-bet-hub-summary-v284 div{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(255,255,255,.04);
+}
+
+.ko-bet-hub-summary-v284 span{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+}
+
+.ko-bet-hub-summary-v284 strong{
+  display:block;
+  color:var(--gold);
+  font-size:26px;
+  line-height:1;
+  margin-top:4px;
+}
+
+.ko-bet-hub-list-v284{
+  display:grid;
+  gap:12px;
+}
+
+.ko-bet-card-v284{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  padding:14px;
+  background:linear-gradient(180deg,rgba(13,21,34,.96),rgba(7,11,19,.96));
+  display:grid;
+  gap:12px;
+}
+
+.ko-bet-card-v284 header{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+}
+
+.ko-bet-card-v284 header span,
+.ko-bet-card-v284 header small{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+
+.ko-bet-card-v284 header strong{
+  display:block;
+  color:#fff;
+  font-size:19px;
+  line-height:1.15;
+  margin:3px 0;
+}
+
+.ko-bet-card-v284 header b{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  border-radius:999px;
+  padding:0 11px;
+  color:#dff7ff;
+  background:rgba(34,184,207,.16);
+  border:1px solid rgba(34,184,207,.28);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.ko-bet-state-pending header b{
+  color:#fff;
+  background:linear-gradient(135deg,#f97316,#ef4444);
+  border-color:rgba(250,204,21,.28);
+}
+
+.ko-bet-state-missed header b{
+  color:#fecdd3;
+  background:rgba(127,29,29,.35);
+  border-color:rgba(251,113,133,.28);
+}
+
+.ko-bet-real-result-v284{
+  color:#dbeafe;
+  font-weight:900;
+  padding:8px 10px;
+  border-radius:12px;
+  background:rgba(59,130,246,.10);
+  border:1px solid rgba(59,130,246,.18);
+}
+
+.ko-bet-form-v284{
+  display:grid;
+  grid-template-columns:1fr 44px 1fr;
+  align-items:end;
+  gap:10px;
+}
+
+.ko-bet-form-v284 label,
+.ko-bet-qualified-v284{
+  display:grid;
+  gap:6px;
+}
+
+.ko-bet-form-v284 label span,
+.ko-bet-qualified-v284 span{
+  color:#cbd5e1;
+  font-size:12px;
+  font-weight:900;
+}
+
+.ko-bet-form-v284 input,
+.ko-bet-qualified-v284 select{
+  min-height:44px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  background:#07111d;
+  color:#fff;
+  font-weight:1000;
+  padding:8px 10px;
+  outline:none;
+}
+
+.ko-bet-form-v284 input{
+  text-align:center;
+  font-size:18px;
+}
+
+.ko-bet-form-v284 em{
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--gold);
+  font-style:normal;
+  font-weight:1000;
+}
+
+.ko-bet-card-v284 footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.ko-bet-saved-v284{
+  color:#cbd5e1;
+  font-weight:900;
+}
+
+.ko-bet-saved-v284.muted{
+  color:var(--muted);
+}
+
+.ko-bet-actions-v284{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.ko-bet-actions-v284 button{
+  min-height:40px;
+}
+
+.ko-bet-empty-v284{
+  border:1px dashed rgba(255,255,255,.16);
+  border-radius:18px;
+  padding:18px;
+  display:grid;
+  gap:6px;
+  color:#cbd5e1;
+}
+
+.ko-bet-empty-v284 strong{
+  color:#fff;
+  font-size:20px;
+}
+
+@media(max-width:760px){
+  .ko-bet-entry-topbar-v284{
+    width:100%;
+  }
+
+  .ko-bet-entry-btn-v284{
+    width:100%;
+    min-height:44px;
+  }
+
+  .ko-bet-hub-card-v284{
+    width:calc(100vw - 20px);
+    max-height:calc(100dvh - 20px);
+  }
+
+  .ko-bet-hub-summary-v284{
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+  }
+
+  .ko-bet-hub-summary-v284 div{
+    padding:10px 8px;
+  }
+
+  .ko-bet-hub-summary-v284 strong{
+    font-size:22px;
+  }
+
+  .ko-bet-card-v284{
+    padding:12px;
+    border-radius:16px;
+  }
+
+  .ko-bet-card-v284 header{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+
+  .ko-bet-card-v284 header strong{
+    font-size:17px;
+  }
+
+  .ko-bet-card-v284 header b{
+    justify-self:start;
+  }
+
+  .ko-bet-form-v284{
+    grid-template-columns:1fr 38px 1fr;
+    gap:8px;
+  }
+
+  .ko-bet-form-v284 input,
+  .ko-bet-qualified-v284 select{
+    font-size:16px;
+    min-height:44px;
+  }
+
+  .ko-bet-card-v284 footer{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .ko-bet-actions-v284{
+    display:grid;
+    grid-template-columns:1fr;
+    justify-content:stretch;
+  }
+
+  .ko-bet-actions-v284 button{
+    width:100%;
+  }
+}
+
+@media(max-width:420px){
+  .ko-bet-hub-summary-v284 span{
+    font-size:10px;
+  }
+
+  .ko-bet-form-v284{
+    grid-template-columns:1fr;
+  }
+
+  .ko-bet-form-v284 em{
+    height:26px;
+  }
+}
+
+
+
+/* v285 — Calendário: dia misto mantém barra normal, só o card da Fase Final fica colorido */
+.day-block.calendar-day-mixed-v285{
+  border-color:var(--line)!important;
+}
+
+.day-block.calendar-day-mixed-v285 h3{
+  background:linear-gradient(90deg, #ffcf3f, #ffe58a)!important;
+  color:#151000!important;
+  text-shadow:none!important;
+}
+
+
+
+/* v286 — Filtro Fase Final + jogos bloqueados até poder apostar */
+#calendarKnockoutGamesBtn{
+  border:1px solid rgba(34,184,207,.26);
+}
+
+#calendarKnockoutGamesBtn.calendar-filter-active-v221,
+#calendarKnockoutGamesBtn.active-filter{
+  background:linear-gradient(135deg,#0ea5e9,#22c55e)!important;
+  color:#fff!important;
+  box-shadow:0 0 24px rgba(34,184,207,.18)!important;
+}
+
+.knockout-calendar-row-v259.ko-bet-not-ready-v286{
+  border-color:rgba(248,113,113,.42)!important;
+  background:linear-gradient(135deg,rgba(127,29,29,.28),rgba(15,23,42,.92))!important;
+  opacity:.86;
+}
+
+.knockout-calendar-row-v259.ko-bet-not-ready-v286 .ko-calendar-pill-v259,
+.knockout-calendar-row-v259.ko-bet-not-ready-v286 .state{
+  border-color:rgba(248,113,113,.46)!important;
+  background:rgba(127,29,29,.36)!important;
+  color:#fecdd3!important;
+}
+
+.knockout-calendar-row-v259.ko-bet-not-ready-v286 .score-vs{
+  border-color:rgba(248,113,113,.34)!important;
+  color:#fecdd3!important;
+}
+
+.knockout-calendar-row-v259.ko-bet-ready-v286{
+  opacity:1;
+}
+
+.ko-bet-card-v284.ko-bet-state-not-ready{
+  border-color:rgba(248,113,113,.34)!important;
+  background:linear-gradient(180deg,rgba(127,29,29,.24),rgba(7,11,19,.96))!important;
+}
+
+.ko-bet-card-v284.ko-bet-state-not-ready header b{
+  background:rgba(127,29,29,.42)!important;
+  border-color:rgba(248,113,113,.35)!important;
+  color:#fecdd3!important;
+}
+
+.ko-bet-card-v284.ko-bet-state-not-ready input,
+.ko-bet-card-v284.ko-bet-state-not-ready select{
+  opacity:.65;
+  cursor:not-allowed;
+}
+
+@media(max-width:760px){
+  #calendarKnockoutGamesBtn{
+    min-height:44px!important;
+    white-space:nowrap!important;
+  }
+}
+
+
+
+/* v287 — remover banner Apostas FF no calendário */
+#calendarTab .ko-bet-calendar-banner-v284{
+  display:none!important;
+}
+
+/* v287 — botão Fase Final igual aos restantes botões do topo/filtros */
+#calendarKnockoutGamesBtn,
+#calendarKnockoutGamesBtn.top-stat-card-like-v287{
+  min-height:42px!important;
+  height:42px!important;
+  padding:0 16px!important;
+  border-radius:12px!important;
+  border:1px solid rgba(148,163,184,.16)!important;
+  background:rgba(15,23,42,.72)!important;
+  color:#e5edf8!important;
+  font-weight:1000!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  box-shadow:none!important;
+  white-space:nowrap!important;
+}
+
+#calendarKnockoutGamesBtn .filter-count{
+  min-width:28px!important;
+  min-height:24px!important;
+  padding:2px 8px!important;
+  border-radius:999px!important;
+  background:rgba(148,163,184,.18)!important;
+  color:#e5edf8!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:12px!important;
+  line-height:1!important;
+}
+
+#calendarKnockoutGamesBtn.calendar-filter-active-v221,
+#calendarKnockoutGamesBtn.active-filter{
+  background:linear-gradient(135deg,#4f46e5,#7c3aed)!important;
+  color:#fff!important;
+  border-color:rgba(124,58,237,.55)!important;
+  box-shadow:0 0 24px rgba(124,58,237,.18)!important;
+}
+
+#calendarKnockoutGamesBtn.calendar-filter-active-v221 .filter-count,
+#calendarKnockoutGamesBtn.active-filter .filter-count{
+  background:rgba(255,255,255,.18)!important;
+  color:#fff!important;
+}
+
+@media(max-width:760px){
+  #calendarKnockoutGamesBtn,
+  #calendarKnockoutGamesBtn.top-stat-card-like-v287{
+    min-height:44px!important;
+    height:44px!important;
+    width:auto!important;
+  }
+}
+
+
+
+/* v288 — remover bloco visível do topo do Calendário */
+.calendar-search-holder-v288{
+  display:block;
+  height:0;
+  overflow:hidden;
+  pointer-events:none;
+}
+
+.calendar-search-hidden-v288{
+  opacity:0!important;
+  width:1px!important;
+  min-width:1px!important;
+  height:1px!important;
+  min-height:1px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+}
+
+
+/* v289 — Fase Final mobile sem scroll lateral */
+@media (max-width: 760px){
+  html,
+  body{
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:hidden!important;
+  }
+
+  body.ko-mobile-no-x-v289,
+  body.ko-mobile-no-x-v289 #appShell,
+  body.ko-mobile-no-x-v289 main,
+  body.ko-mobile-no-x-v289 #knockoutTab{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  body.ko-mobile-no-x-v289 #appShell{
+    padding-left:max(10px, env(safe-area-inset-left, 0px))!important;
+    padding-right:max(10px, env(safe-area-inset-right, 0px))!important;
+  }
+
+  body.ko-mobile-no-x-v289 #knockoutTab{
+    position:relative!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    padding-left:0!important;
+    padding-right:0!important;
+  }
+
+  body.ko-mobile-no-x-v289 #knockoutBracket,
+  body.ko-mobile-no-x-v289 #knockoutBracket.knockout-bracket{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Elementos antigos do mapa/roadmap não podem criar largura no mobile. */
+  body.ko-mobile-no-x-v289 #knockoutTab .bracket-photo-shell,
+  body.ko-mobile-no-x-v289 #knockoutTab .bracket-photo-grid,
+  body.ko-mobile-no-x-v289 #knockoutTab .bracket-photo-grid-split,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-road-root-v270,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-road-page-v270,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-road-board-v270{
+    display:none!important;
+    width:0!important;
+    max-width:0!important;
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+
+  /* Lista mobile sempre presa ao ecrã. */
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-list-root-v260,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-list-page-v260,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-list-grid-v260,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-list-card-v260,
+  body.ko-mobile-no-x-v289 #knockoutTab .ko-mobile-card,
+  body.ko-mobile-no-x-v289 #knockoutTab .knockout-mobile-v121,
+  body.ko-mobile-no-x-v289 #knockoutTab [class*="ko-mobile"],
+  body.ko-mobile-no-x-v289 #knockoutTab [class*="knockout-list"]{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+  }
+
+  body.ko-mobile-no-x-v289 #knockoutTab *{
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  body.ko-mobile-no-x-v289 #knockoutTab button,
+  body.ko-mobile-no-x-v289 #knockoutTab input,
+  body.ko-mobile-no-x-v289 #knockoutTab select,
+  body.ko-mobile-no-x-v289 #knockoutTab textarea{
+    max-width:100%!important;
+  }
+}
+
+
+
+/* v290 — Users online: scroll próprio e sem mexer a página atrás */
+#onlineUsersList,
+.online-users-popup-v266,
+.online-users-content-v266{
+  overscroll-behavior:contain!important;
+}
+
+#onlineUsersList{
+  max-height:min(78dvh, 720px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+.online-users-content-v266{
+  max-height:calc(min(78dvh, 720px) - 58px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding-right:4px!important;
+}
+
+.online-user-meta-v266 span:nth-child(2){
+  color:#cbd5e1!important;
+}
+
+.online-user-meta-v266 span:nth-child(2):empty::after{
+  content:"Jogador por ligar";
+  color:#fca5a5;
+}
+
+
+/* v291 — Apostas Fase Final mobile em página fixa */
+@media(max-width:760px){
+  body.ko-bet-mobile-page-open-v291{
+    overflow:hidden!important;
+    width:100%!important;
+    max-width:100%!important;
+    touch-action:none!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291{
+    position:fixed!important;
+    inset:0!important;
+    z-index:100000!important;
+    width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    min-height:100dvh!important;
+    padding:
+      max(10px, env(safe-area-inset-top, 0px))
+      max(10px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-left, 0px))!important;
+    margin:0!important;
+    display:block!important;
+    overflow:hidden!important;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(34,184,207,.13), transparent 32%),
+      radial-gradient(circle at 80% 0%, rgba(124,58,237,.14), transparent 34%),
+      #050b14!important;
+    box-sizing:border-box!important;
+    transform:none!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291.hidden{
+    display:none!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-card-v284{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    height:100%!important;
+    max-height:100%!important;
+    min-height:0!important;
+    margin:0!important;
+    border-radius:18px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    transform:none!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-head-v284{
+    position:sticky!important;
+    top:0!important;
+    z-index:3!important;
+    flex:0 0 auto!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+    padding:14px!important;
+    border-bottom:1px solid rgba(255,255,255,.10)!important;
+    background:linear-gradient(180deg,rgba(10,16,28,.98),rgba(10,16,28,.92))!important;
+    backdrop-filter:blur(12px)!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-head-v284 h2{
+    font-size:22px!important;
+    line-height:1.05!important;
+    margin:0!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-head-v284 p{
+    font-size:12px!important;
+    line-height:1.25!important;
+    margin-top:4px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 #closeKnockoutBetHubV284{
+    width:auto!important;
+    min-width:82px!important;
+    height:40px!important;
+    min-height:40px!important;
+    border-radius:12px!important;
+    padding:0 14px!important;
+    font-size:14px!important;
+    font-weight:1000!important;
+    background:rgba(15,23,42,.90)!important;
+    border:1px solid rgba(148,163,184,.22)!important;
+    color:#e5edf8!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-body-v284{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:12px!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior:contain!important;
+    box-sizing:border-box!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-summary-v284{
+    width:100%!important;
+    max-width:100%!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-summary-v284 div{
+    min-width:0!important;
+    padding:10px 8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-list-v284,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284{
+    padding:12px!important;
+    border-radius:16px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 footer{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header strong{
+    font-size:17px!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header b{
+    justify-self:start!important;
+    max-width:100%!important;
+    white-space:normal!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284{
+    width:100%!important;
+    max-width:100%!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284 em{
+    height:24px!important;
+    min-height:24px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 input,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 select,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 button{
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    font-size:16px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-actions-v284{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    width:100%!important;
+    max-width:100%!important;
+    gap:8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-actions-v284 button{
+    width:100%!important;
+    min-height:44px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 *{
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}
+
+
+/* v292 — Apostas Fase Final mobile: cards sem sobreposição */
+@media(max-width:760px){
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-body-v284{
+    display:block!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:12px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-summary-v284{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+    margin:0 0 14px!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-hub-list-v284{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    padding:0 0 18px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284{
+    position:relative!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:10px!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:132px!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding:14px!important;
+    margin:0!important;
+    border-radius:16px!important;
+    transform:none!important;
+    box-sizing:border-box!important;
+    flex:0 0 auto!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header{
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    padding:0!important;
+    margin:0!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header > div{
+    width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header span,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header small{
+    display:block!important;
+    height:auto!important;
+    min-height:0!important;
+    line-height:1.25!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header strong{
+    display:block!important;
+    height:auto!important;
+    min-height:0!important;
+    font-size:17px!important;
+    line-height:1.18!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    margin:3px 0!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 header b{
+    position:relative!important;
+    justify-self:start!important;
+    width:auto!important;
+    max-width:100%!important;
+    min-height:30px!important;
+    height:auto!important;
+    white-space:normal!important;
+    line-height:1.15!important;
+    padding:7px 10px!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-real-result-v284,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-qualified-v284,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 footer{
+    position:relative!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    margin:0!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284 label,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-qualified-v284{
+    display:grid!important;
+    gap:6px!important;
+    height:auto!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-form-v284 em{
+    height:24px!important;
+    min-height:24px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284 footer{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-saved-v284{
+    height:auto!important;
+    min-height:0!important;
+    line-height:1.25!important;
+    white-space:normal!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-actions-v284{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+    width:100%!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 input,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 select{
+    width:100%!important;
+    min-height:44px!important;
+    height:44px!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 button{
+    max-width:100%!important;
+  }
+
+  /* Not ready: card vermelho legível, sem esmagar. */
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284.ko-bet-state-not-ready{
+    min-height:116px!important;
+    background:linear-gradient(180deg,rgba(127,29,29,.25),rgba(7,11,19,.96))!important;
+  }
+
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284.ko-bet-state-not-ready .ko-bet-form-v284,
+  #knockoutBetHubV284.ko-bet-mobile-page-v291 .ko-bet-card-v284.ko-bet-state-not-ready .ko-bet-qualified-v284{
+    display:none!important;
+  }
+}
+
+
+
+/* v293 — Configuração do bloqueio das apostas da Fase Final */
+.ko-lock-config-panel-v293{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 220px auto auto;
+  gap:12px;
+  align-items:end;
+  padding:14px;
+  margin:0 0 14px;
+  border:1px solid rgba(34,184,207,.24);
+  border-radius:16px;
+  background:linear-gradient(135deg,rgba(34,184,207,.10),rgba(124,58,237,.08));
+}
+
+.ko-lock-config-panel-v293 strong{
+  display:block;
+  color:#fff;
+  font-size:16px;
+  line-height:1.15;
+}
+
+.ko-lock-config-panel-v293 span{
+  display:block;
+  color:#b9c7dc;
+  font-size:12px;
+  line-height:1.25;
+  margin-top:4px;
+  font-weight:800;
+}
+
+.ko-lock-config-panel-v293 label{
+  display:grid;
+  gap:6px;
+  min-width:0;
+}
+
+.ko-lock-config-panel-v293 input{
+  min-height:40px;
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#07111d;
+  color:#fff;
+  font-weight:1000;
+  padding:8px 10px;
+}
+
+.ko-lock-config-panel-v293 em{
+  color:#ffd84d;
+  font-style:normal;
+  font-weight:1000;
+  font-size:12px;
+  line-height:1.2;
+  padding:10px 12px;
+  border-radius:12px;
+  background:rgba(250,204,21,.08);
+  border:1px solid rgba(250,204,21,.18);
+}
+
+.ko-lock-config-panel-v293 em.error{
+  color:#fecdd3;
+  background:rgba(127,29,29,.28);
+  border-color:rgba(248,113,113,.28);
+}
+
+@media(max-width:760px){
+  .ko-lock-config-panel-v293{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  .ko-lock-config-panel-v293 button{
+    width:100%;
+    min-height:44px;
+  }
+}
+
+
+
+/* v294 — aposta guardada fica bloqueada imediatamente */
+.ko-bet-card-v284.ko-bet-saved-locked-v294,
+.ko-bet-saved-locked-v294 .knockout-bet-card-v241{
+  border-color:rgba(34,197,94,.32)!important;
+  background:linear-gradient(180deg,rgba(22,101,52,.14),rgba(7,11,19,.96))!important;
+}
+
+.ko-bet-card-v284.ko-bet-saved-locked-v294 header b{
+  background:rgba(22,101,52,.30)!important;
+  border-color:rgba(34,197,94,.32)!important;
+  color:#bbf7d0!important;
+}
+
+.ko-bet-card-v284.ko-bet-saved-locked-v294 input,
+.ko-bet-card-v284.ko-bet-saved-locked-v294 select,
+.ko-bet-saved-locked-v294 input,
+.ko-bet-saved-locked-v294 select{
+  opacity:.72!important;
+  cursor:not-allowed!important;
+}
+
+.ko-bet-card-v284.ko-bet-saved-locked-v294 button[disabled],
+.ko-bet-saved-locked-v294 button[disabled]{
+  opacity:.82!important;
+  cursor:not-allowed!important;
+}
+
+
+
+/* v295 — Aviso obrigatório com confirmação */
+body.mandatory-notice-open-v295{
+  overflow:hidden!important;
+}
+
+.mandatory-notice-modal-v295{
+  z-index:100500!important;
+  backdrop-filter:blur(10px);
+}
+
+.mandatory-notice-card-v295{
+  width:min(720px,calc(100vw - 28px));
+  max-height:calc(100dvh - 28px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid rgba(250,204,21,.28)!important;
+  box-shadow:0 24px 80px rgba(0,0,0,.50),0 0 40px rgba(250,204,21,.08)!important;
+}
+
+.mandatory-notice-head-v295{
+  padding:18px 18px 12px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+
+.mandatory-notice-head-v295 span{
+  display:block;
+  color:#facc15;
+  font-size:11px;
+  font-weight:1000;
+  letter-spacing:.08em;
+}
+
+.mandatory-notice-head-v295 h2{
+  margin:6px 0 0;
+  font-size:28px;
+  line-height:1.1;
+}
+
+.mandatory-notice-body-v295{
+  padding:18px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+
+.mandatory-notice-text-v295{
+  color:#eef4ff;
+  font-size:17px;
+  line-height:1.55;
+  white-space:normal;
+  padding:16px;
+  border-radius:16px;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.10);
+}
+
+.mandatory-notice-meta-v295{
+  margin-top:12px;
+  color:#93a4bd;
+  font-size:12px;
+  font-weight:800;
+}
+
+.mandatory-notice-footer-v295{
+  flex:0 0 auto;
+  display:grid;
+  gap:12px;
+  padding:14px 18px 18px;
+  border-top:1px solid rgba(255,255,255,.10);
+  background:rgba(3,7,18,.72);
+}
+
+.mandatory-notice-check-v295{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  color:#dbeafe;
+  font-weight:900;
+  line-height:1.3;
+}
+
+.mandatory-notice-check-v295 input{
+  width:20px;
+  height:20px;
+  flex:0 0 auto;
+  margin-top:1px;
+}
+
+.mandatory-notice-footer-v295 button{
+  min-height:46px;
+}
+
+.mandatory-notice-admin-v295{
+  display:grid;
+  gap:14px;
+  border-color:rgba(250,204,21,.22)!important;
+  background:linear-gradient(135deg,rgba(250,204,21,.07),rgba(15,23,42,.72))!important;
+}
+
+.mandatory-notice-admin-head-v295{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+}
+
+.mandatory-notice-admin-head-v295 h2{
+  margin:0;
+}
+
+.mandatory-notice-admin-head-v295 p{
+  margin:4px 0 0;
+  color:#b9c7dc;
+}
+
+.mandatory-notice-admin-stats-v295{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.mandatory-notice-admin-stats-v295 span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:34px;
+  padding:0 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color:#dbeafe;
+  font-weight:900;
+}
+
+.mandatory-notice-admin-stats-v295 b{
+  color:#facc15;
+}
+
+.mandatory-notice-admin-form-v295{
+  display:grid;
+  gap:10px;
+}
+
+.mandatory-notice-admin-form-v295 label{
+  display:grid;
+  gap:6px;
+}
+
+.mandatory-notice-admin-form-v295 label span{
+  color:#cbd5e1;
+  font-size:12px;
+  font-weight:1000;
+}
+
+.mandatory-notice-admin-form-v295 input,
+.mandatory-notice-admin-form-v295 textarea{
+  width:100%;
+  min-height:42px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.13);
+  background:#07111d;
+  color:#fff;
+  padding:10px 12px;
+  font-weight:900;
+  box-sizing:border-box;
+}
+
+.mandatory-notice-admin-form-v295 textarea{
+  min-height:130px;
+  resize:vertical;
+  line-height:1.4;
+}
+
+.mandatory-notice-admin-actions-v295{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.mandatory-notice-read-list-v295{
+  display:grid;
+  gap:8px;
+}
+
+.mandatory-notice-read-list-v295 h3{
+  margin:0;
+}
+
+.mandatory-notice-read-list-v295 article{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  padding:10px 12px;
+  border-radius:13px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.035);
+}
+
+.mandatory-notice-read-list-v295 article.unread{
+  border-color:rgba(248,113,113,.22);
+  background:rgba(127,29,29,.12);
+}
+
+.mandatory-notice-read-list-v295 strong,
+.mandatory-notice-read-list-v295 span{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.mandatory-notice-read-list-v295 span{
+  color:#93a4bd;
+  font-size:12px;
+  margin-top:2px;
+}
+
+.mandatory-notice-read-list-v295 b{
+  color:#bbf7d0;
+}
+
+.mandatory-notice-read-list-v295 article.unread b{
+  color:#fecdd3;
+}
+
+.mandatory-notice-read-list-v295 em{
+  color:#cbd5e1;
+  font-style:normal;
+  font-size:12px;
+  text-align:right;
+}
+
+@media(max-width:760px){
+  .mandatory-notice-card-v295{
+    width:calc(100vw - 20px);
+    max-height:calc(100dvh - 20px);
+    border-radius:18px;
+  }
+
+  .mandatory-notice-head-v295 h2{
+    font-size:24px;
+  }
+
+  .mandatory-notice-text-v295{
+    font-size:16px;
+  }
+
+  .mandatory-notice-admin-head-v295{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .mandatory-notice-admin-actions-v295{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .mandatory-notice-admin-actions-v295 button{
+    width:100%;
+    min-height:44px;
+  }
+
+  .mandatory-notice-read-list-v295 article{
+    grid-template-columns:1fr;
+  }
+
+  .mandatory-notice-read-list-v295 em{
+    text-align:left;
+  }
+}
+
+
+
+/* v296 — checkbox do aviso obrigatório clicável */
+.mandatory-notice-check-v295,
+.mandatory-notice-check-v295 *,
+#mandatoryNoticeReadCheckV295,
+#mandatoryNoticeConfirmBtnV295{
+  pointer-events:auto!important;
+}
+
+.mandatory-notice-check-v295{
+  cursor:pointer!important;
+  user-select:none;
+}
+
+#mandatoryNoticeReadCheckV295{
+  cursor:pointer!important;
+  accent-color:#facc15;
+}
+
+
+/* v298 — Toggle de notificações por user */
+.user-notifications-toggle-v298{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  padding:13px 14px;
+  margin:0 0 14px;
+  border-radius:16px;
+  border:1px solid rgba(34,197,94,.20);
+  background:linear-gradient(135deg,rgba(34,197,94,.10),rgba(15,23,42,.78));
+}
+
+.user-notifications-toggle-v298 strong{
+  display:block;
+  color:#fff;
+  font-size:15px;
+  line-height:1.15;
+}
+
+.user-notifications-toggle-v298 span{
+  display:block;
+  color:#b9c7dc;
+  font-size:12px;
+  font-weight:800;
+  margin-top:4px;
+}
+
+.user-notifications-toggle-v298 em{
+  color:#bbf7d0;
+  font-style:normal;
+  font-size:12px;
+  font-weight:1000;
+  padding:8px 10px;
+  border-radius:999px;
+  background:rgba(34,197,94,.10);
+  border:1px solid rgba(34,197,94,.18);
+  white-space:nowrap;
+}
+
+@media(max-width:760px){
+  .user-notifications-toggle-v298{
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+
+  .user-notifications-toggle-v298 button{
+    width:100%;
+    min-height:44px;
+  }
+
+  .user-notifications-toggle-v298 em{
+    text-align:center;
+  }
+}
+
+
+/* v299 — Página Minha Conta / Configurações do User */
+.user-settings-panel-v299{
+  display:grid;
+  gap:14px;
+}
+
+.user-settings-card-v299{
+  border:1px solid rgba(148,163,184,.16);
+  background:linear-gradient(135deg,rgba(15,23,42,.84),rgba(7,17,29,.90));
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 14px 34px rgba(0,0,0,.18);
+}
+
+.user-profile-card-v299{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.user-settings-icon-v299{
+  width:52px;
+  height:52px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  font-size:25px;
+  background:rgba(34,184,207,.12);
+  border:1px solid rgba(34,184,207,.18);
+}
+
+.user-profile-card-v299 strong{
+  display:block;
+  color:#fff;
+  font-size:20px;
+  line-height:1.15;
+}
+
+.user-profile-card-v299 span{
+  display:block;
+  color:#aab8ce;
+  font-size:13px;
+  margin-top:3px;
+}
+
+.user-profile-card-v299 em{
+  display:inline-flex;
+  margin-top:8px;
+  padding:5px 9px;
+  border-radius:999px;
+  font-style:normal;
+  font-size:12px;
+  font-weight:1000;
+  color:#dbeafe;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.10);
+}
+
+.user-settings-card-head-v299{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  margin-bottom:14px;
+}
+
+.user-settings-card-head-v299 h3{
+  margin:0;
+  color:#fff;
+  font-size:21px;
+}
+
+.user-settings-card-head-v299 p{
+  margin:4px 0 0;
+  color:#aab8ce;
+  font-size:13px;
+}
+
+.user-settings-card-head-v299 b{
+  flex:0 0 auto;
+  padding:8px 11px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:1000;
+  border:1px solid rgba(255,255,255,.12);
+}
+
+.user-settings-card-head-v299 b.is-on{
+  color:#bbf7d0;
+  background:rgba(34,197,94,.12);
+  border-color:rgba(34,197,94,.20);
+}
+
+.user-settings-card-head-v299 b.is-off{
+  color:#fecdd3;
+  background:rgba(127,29,29,.18);
+  border-color:rgba(248,113,113,.20);
+}
+
+.user-notification-state-v299{
+  display:grid;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.user-notification-state-v299 span{
+  color:#cbd5e1;
+  font-size:13px;
+  font-weight:800;
+}
+
+.user-notification-state-v299 strong{
+  color:#fff;
+}
+
+.user-notification-card-v299 button{
+  min-height:46px;
+  border-radius:14px;
+  font-weight:1000;
+}
+
+.user-notification-card-v299 small{
+  display:block;
+  margin-top:10px;
+  color:#8fa3bc;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.danger-soft-v299{
+  color:#fecdd3!important;
+  border-color:rgba(248,113,113,.24)!important;
+  background:rgba(127,29,29,.16)!important;
+}
+
+@media(max-width:760px){
+  .user-settings-card-head-v299{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+
+  .user-settings-card-head-v299 b{
+    justify-self:start;
+  }
+
+  .user-notification-card-v299 button{
+    width:100%;
+  }
+}
+
+
+/* v301 — páginas escondidas não aparecem na barra */
+.page-hidden-v301,
+.tabs .tab.page-hidden-v301,
+#knockoutTab [data-tab].page-hidden-v301{
+  display:none!important;
+}
