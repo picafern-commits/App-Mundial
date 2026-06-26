@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v305";
+const APP_VERSION_LABEL = "v306";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -23250,5 +23250,133 @@ window.debugAvisosAdminV305 = function debugAvisosAdminV305() {
     hidden: Boolean(panel?.hidden),
     display: panel?.style?.display || "",
     activeTab: document.querySelector(".tab-panel.active")?.id || ""
+  };
+};
+
+
+/* v306 — Aviso obrigatório em aba/card colapsável no Admin */
+const APP_VERSION_V306_NOTICE_ADMIN_COLLAPSIBLE = "306.0";
+
+function makeMandatoryNoticeAdminCollapsibleV306() {
+  const panel = document.getElementById("mandatoryNoticeAdminPanelV295");
+  if (!panel) return;
+
+  panel.classList.add("mandatory-notice-collapsible-v306");
+
+  // Se já estiver embrulhado no details certo, só atualiza o contador.
+  let details = document.getElementById("mandatoryNoticeCollapseV306");
+  if (!details) {
+    details = document.createElement("details");
+    details.id = "mandatoryNoticeCollapseV306";
+    details.className = "admin-card admin-collapse mandatory-notice-collapse-v306";
+    details.dataset.adminSectionV187 = "users";
+  }
+
+  let summary = details.querySelector(":scope > summary");
+  if (!summary) {
+    summary = document.createElement("summary");
+    summary.innerHTML = `
+      <div>
+        <h2>Aviso obrigatório</h2>
+        <p data-notice-summary-v306>Enviar aviso que todos os users têm de confirmar.</p>
+      </div>
+      <span class="collapse-icon">+</span>
+    `;
+    details.prepend(summary);
+  }
+
+  const stats = (() => {
+    try { return mandatoryNoticeAdminStatsV295?.() || { read: 0, unread: 0, total: 0 }; }
+    catch { return { read: 0, unread: 0, total: 0 }; }
+  })();
+
+  const p = summary.querySelector("[data-notice-summary-v306]");
+  if (p) {
+    p.textContent = `${stats.read || 0} leram · ${stats.unread || 0} por ler`;
+  }
+
+  // Começa fechado por defeito; mantém aberto só se o admin já abriu nesta sessão.
+  const keepOpen = sessionStorage.getItem("mandatory_notice_admin_open_v306") === "1";
+  details.open = keepOpen;
+
+  if (panel.parentElement !== details) {
+    details.appendChild(panel);
+  }
+
+  const host = document.getElementById("adminUnlocked");
+  const tabs = document.getElementById("adminSectionTabsV187");
+  if (host && details.parentElement !== host) {
+    if (tabs && tabs.parentNode === host) host.insertBefore(details, tabs.nextSibling);
+    else host.prepend(details);
+  } else if (host && tabs && tabs.parentNode === host && tabs.nextSibling !== details) {
+    host.insertBefore(details, tabs.nextSibling);
+  }
+
+  if (!details.__noticeToggleV306) {
+    details.__noticeToggleV306 = true;
+    details.addEventListener("toggle", () => {
+      sessionStorage.setItem("mandatory_notice_admin_open_v306", details.open ? "1" : "0");
+    });
+  }
+}
+
+(function installMandatoryNoticeCollapsibleV306() {
+  if (window.__mandatoryNoticeCollapsibleV306) return;
+  window.__mandatoryNoticeCollapsibleV306 = true;
+
+  const originalMove = typeof moveMandatoryNoticePanelToAdminV305 === "function" ? moveMandatoryNoticePanelToAdminV305 : null;
+  if (originalMove && !originalMove.__v306) {
+    moveMandatoryNoticePanelToAdminV305 = function moveMandatoryNoticePanelToAdminCollapsibleV306() {
+      const result = originalMove.apply(this, arguments);
+      makeMandatoryNoticeAdminCollapsibleV306();
+      return result;
+    };
+    moveMandatoryNoticePanelToAdminV305.__v306 = true;
+    window.moveMandatoryNoticePanelToAdminV305 = moveMandatoryNoticePanelToAdminV305;
+  }
+
+  const originalRender = typeof renderMandatoryNoticeAdminPanelV295 === "function" ? renderMandatoryNoticeAdminPanelV295 : null;
+  if (originalRender && !originalRender.__v306) {
+    renderMandatoryNoticeAdminPanelV295 = function renderMandatoryNoticeAdminPanelCollapsibleV306() {
+      const result = originalRender.apply(this, arguments);
+      setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 0);
+      setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 160);
+      return result;
+    };
+    renderMandatoryNoticeAdminPanelV295.__v306 = true;
+    window.renderMandatoryNoticeAdminPanelV295 = renderMandatoryNoticeAdminPanelV295;
+  }
+
+  const originalApplyClean = typeof applyAdminCleanOwnerConfigV303 === "function" ? applyAdminCleanOwnerConfigV303 : null;
+  if (originalApplyClean && !originalApplyClean.__noticeCollapseV306) {
+    applyAdminCleanOwnerConfigV303 = function applyAdminCleanOwnerConfigNoticeCollapseV306() {
+      const result = originalApplyClean.apply(this, arguments);
+      setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 0);
+      return result;
+    };
+    applyAdminCleanOwnerConfigV303.__noticeCollapseV306 = true;
+    window.applyAdminCleanOwnerConfigV303 = applyAdminCleanOwnerConfigV303;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.('[data-tab="adminTab"],[data-admin-section-v187]')) {
+      setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 180);
+    }
+  }, true);
+
+  setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 900);
+  setTimeout(makeMandatoryNoticeAdminCollapsibleV306, 1800);
+})();
+
+window.debugAvisoColapsavelV306 = function debugAvisoColapsavelV306() {
+  const details = document.getElementById("mandatoryNoticeCollapseV306");
+  const panel = document.getElementById("mandatoryNoticeAdminPanelV295");
+  return {
+    version: APP_VERSION_V306_NOTICE_ADMIN_COLLAPSIBLE,
+    detailsExists: Boolean(details),
+    detailsOpen: Boolean(details?.open),
+    detailsParent: details?.parentElement?.id || "",
+    panelParent: panel?.parentElement?.id || "",
+    panelExists: Boolean(panel)
   };
 };

@@ -16380,3 +16380,47 @@ body.mandatory-notice-open-v295{
 #settingsTab #mandatoryNoticeAdminPanelV295.mandatory-notice-admin-fixed-v305{
   display:none!important;
 }
+
+
+/* v306 — Aviso obrigatório colapsável no Admin */
+#mandatoryNoticeCollapseV306.mandatory-notice-collapse-v306{
+  order:-5;
+  margin:0 0 14px!important;
+  border-color:rgba(250,204,21,.24)!important;
+  background:linear-gradient(135deg,rgba(250,204,21,.08),rgba(15,23,42,.82))!important;
+}
+
+#mandatoryNoticeCollapseV306 > summary{
+  cursor:pointer;
+}
+
+#mandatoryNoticeCollapseV306 > summary h2{
+  margin:0;
+}
+
+#mandatoryNoticeCollapseV306 > summary p{
+  margin:4px 0 0;
+  color:#b9c7dc;
+}
+
+#mandatoryNoticeCollapseV306[open] > summary{
+  border-bottom:1px solid rgba(255,255,255,.10);
+  margin-bottom:12px;
+  padding-bottom:12px;
+}
+
+#mandatoryNoticeCollapseV306[open] .collapse-icon{
+  transform:rotate(45deg);
+}
+
+#mandatoryNoticeCollapseV306 #mandatoryNoticeAdminPanelV295{
+  margin:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  padding:0!important;
+}
+
+#mandatoryNoticeAdminPanelV295.mandatory-notice-collapsible-v306 .mandatory-notice-admin-head-v295{
+  display:none!important;
+}
