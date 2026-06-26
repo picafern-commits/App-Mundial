@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v311";
+const APP_VERSION_LABEL = "v312";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -24346,6 +24346,245 @@ window.debugAdminAbasV311 = function debugAdminAbasV311() {
       saved: el ? localStorage.getItem(adminCollapseStateKeyV311(id)) : null,
       classes: el?.className || "",
       parent: el?.parentElement?.id || ""
+    };
+  });
+};
+
+
+/* v312 — Admin: acordeão próprio, sem <details>, para não bugar/fechar sozinho */
+const APP_VERSION_V312_ADMIN_CUSTOM_ACCORDION = "312.0";
+
+function adminAccordionStateKeyV312(id) {
+  return `${STORAGE_KEY || "mundial"}_admin_custom_accordion_${id}_v312`;
+}
+
+function adminAccordionIsOpenV312(id) {
+  return localStorage.getItem(adminAccordionStateKeyV312(id)) === "1";
+}
+
+function setAdminAccordionOpenV312(card, open) {
+  if (!card) return;
+  const isOpen = Boolean(open);
+  card.classList.toggle("is-open-v312", isOpen);
+  card.classList.toggle("is-closed-v312", !isOpen);
+  card.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  localStorage.setItem(adminAccordionStateKeyV312(card.id), isOpen ? "1" : "0");
+
+  const body = card.querySelector(":scope > .admin-custom-accordion-body-v312");
+  if (body) {
+    body.hidden = !isOpen;
+    body.style.display = isOpen ? "" : "none";
+  }
+
+  const icon = card.querySelector(":scope > .admin-custom-accordion-head-v312 .collapse-icon");
+  if (icon) icon.textContent = isOpen ? "−" : "+";
+}
+
+function makeAdminCustomAccordionV312({ oldId, title, summary, contentSelector, order = 0 }) {
+  const content = document.querySelector(contentSelector);
+  const host = document.getElementById("adminUnlocked");
+  if (!content || !host) return null;
+
+  let old = document.getElementById(oldId);
+  let card = old;
+
+  // Se ainda for <details>, substitui por <section> para matar os handlers nativos/antigos.
+  if (!card || card.tagName?.toLowerCase() === "details") {
+    const section = document.createElement("section");
+    section.id = oldId;
+    section.className = "admin-card admin-custom-accordion-v312 is-closed-v312";
+    section.dataset.adminSectionV187 = "users";
+    section.style.order = String(order);
+
+    section.innerHTML = `
+      <button class="admin-custom-accordion-head-v312" type="button" data-admin-custom-accordion-toggle-v312="${escapeHtml(oldId)}" aria-expanded="false">
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <p>${escapeHtml(summary)}</p>
+        </div>
+        <span class="collapse-icon">+</span>
+      </button>
+      <div class="admin-custom-accordion-body-v312" hidden></div>
+    `;
+
+    if (old?.parentNode) old.replaceWith(section);
+    else {
+      const tabs = document.getElementById("adminSectionTabsV187");
+      if (tabs?.parentNode === host) host.insertBefore(section, tabs.nextSibling);
+      else host.prepend(section);
+    }
+    card = section;
+  }
+
+  card.classList.add("admin-card", "admin-custom-accordion-v312");
+  card.classList.remove(
+    "mandatory-notice-collapse-v306",
+    "mandatory-notice-collapse-open-fix-v307",
+    "admin-collapse-normal-v311",
+    "owner-bet-manager-v310"
+  );
+
+  let head = card.querySelector(":scope > .admin-custom-accordion-head-v312");
+  if (!head) {
+    const oldSummary = card.querySelector(":scope > summary");
+    if (oldSummary) oldSummary.remove();
+
+    head = document.createElement("button");
+    head.className = "admin-custom-accordion-head-v312";
+    head.type = "button";
+    head.dataset.adminCustomAccordionToggleV312 = oldId;
+    head.innerHTML = `
+      <div>
+        <h2>${escapeHtml(title)}</h2>
+        <p>${escapeHtml(summary)}</p>
+      </div>
+      <span class="collapse-icon">+</span>
+    `;
+    card.prepend(head);
+  }
+
+  let body = card.querySelector(":scope > .admin-custom-accordion-body-v312");
+  if (!body) {
+    body = document.createElement("div");
+    body.className = "admin-custom-accordion-body-v312";
+    card.appendChild(body);
+  }
+
+  if (content.parentElement !== body) {
+    body.appendChild(content);
+  }
+
+  card.hidden = false;
+  card.style.display = "";
+  card.style.order = String(order);
+
+  setAdminAccordionOpenV312(card, adminAccordionIsOpenV312(oldId));
+  return card;
+}
+
+function rebuildAdminAccordionsV312() {
+  // Garante que os painéis existem primeiro.
+  try { renderMandatoryNoticeAdminPanelV295?.(); } catch {}
+  try { renderOwnerBetManagerV310?.(); } catch {}
+
+  const noticeStats = (() => {
+    try {
+      const stats = mandatoryNoticeAdminStatsV295?.() || {};
+      return `${stats.read || 0} leram · ${stats.unread || 0} por ler`;
+    } catch {
+      return "Aviso obrigatório";
+    }
+  })();
+
+  makeAdminCustomAccordionV312({
+    oldId: "mandatoryNoticeCollapseV306",
+    title: "Aviso obrigatório",
+    summary: noticeStats,
+    contentSelector: "#mandatoryNoticeAdminPanelV295",
+    order: -20
+  });
+
+  const betsCount = (() => {
+    try {
+      const gameId = ownerBetManagerGameIdV310 || ownerSelectedGameV310?.()?.id || "";
+      const gameBets = gameId ? betsForGame(gameId).length : 0;
+      return `${bets.length} apostas guardadas · ${gameBets} neste jogo`;
+    } catch {
+      return "Gestão total das apostas pelo Dono.";
+    }
+  })();
+
+  makeAdminCustomAccordionV312({
+    oldId: "ownerBetManagerPanelV310",
+    title: "Editar / limpar apostas",
+    summary: betsCount,
+    contentSelector: "#ownerBetManagerBodyV310",
+    order: -19
+  });
+}
+
+(function installAdminCustomAccordionV312() {
+  if (window.__adminCustomAccordionV312) return;
+  window.__adminCustomAccordionV312 = true;
+
+  const originalRenderNotice = typeof renderMandatoryNoticeAdminPanelV295 === "function" ? renderMandatoryNoticeAdminPanelV295 : null;
+  if (originalRenderNotice && !originalRenderNotice.__customAccordionV312) {
+    renderMandatoryNoticeAdminPanelV295 = function renderMandatoryNoticeAdminCustomAccordionV312() {
+      const result = originalRenderNotice.apply(this, arguments);
+      setTimeout(rebuildAdminAccordionsV312, 0);
+      return result;
+    };
+    renderMandatoryNoticeAdminPanelV295.__customAccordionV312 = true;
+    window.renderMandatoryNoticeAdminPanelV295 = renderMandatoryNoticeAdminPanelV295;
+  }
+
+  const originalRenderOwner = typeof renderOwnerBetManagerV310 === "function" ? renderOwnerBetManagerV310 : null;
+  if (originalRenderOwner && !originalRenderOwner.__customAccordionV312) {
+    renderOwnerBetManagerV310 = function renderOwnerBetManagerCustomAccordionV312() {
+      const result = originalRenderOwner.apply(this, arguments);
+      setTimeout(rebuildAdminAccordionsV312, 0);
+      return result;
+    };
+    renderOwnerBetManagerV310.__customAccordionV312 = true;
+    window.renderOwnerBetManagerV310 = renderOwnerBetManagerV310;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__customAccordionV312) {
+    renderActivePageV187 = function renderActivePageCustomAccordionV312() {
+      const result = originalRenderActive.apply(this, arguments);
+      if (document.querySelector(".tab-panel.active")?.id === "adminTab") {
+        setTimeout(rebuildAdminAccordionsV312, 180);
+        setTimeout(rebuildAdminAccordionsV312, 500);
+      }
+      return result;
+    };
+    renderActivePageV187.__customAccordionV312 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  document.addEventListener("click", event => {
+    const toggle = event.target.closest?.("[data-admin-custom-accordion-toggle-v312]");
+    if (!toggle) return;
+
+    const id = toggle.dataset.adminCustomAccordionToggleV312 || "";
+    const card = document.getElementById(id);
+    if (!card) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const isOpen = card.classList.contains("is-open-v312");
+    setAdminAccordionOpenV312(card, !isOpen);
+  }, true);
+
+  // Bloqueia os cliques antigos em summary dos details antigos, caso algum seja recriado por render.
+  document.addEventListener("click", event => {
+    const oldSummary = event.target.closest?.("#mandatoryNoticeCollapseV306 > summary, #ownerBetManagerPanelV310 > summary");
+    if (!oldSummary) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setTimeout(rebuildAdminAccordionsV312, 0);
+  }, true);
+
+  setTimeout(rebuildAdminAccordionsV312, 900);
+  setTimeout(rebuildAdminAccordionsV312, 1800);
+})();
+
+window.debugAdminAcordeaoV312 = function debugAdminAcordeaoV312() {
+  return ["mandatoryNoticeCollapseV306", "ownerBetManagerPanelV310"].map(id => {
+    const card = document.getElementById(id);
+    return {
+      version: APP_VERSION_V312_ADMIN_CUSTOM_ACCORDION,
+      id,
+      exists: Boolean(card),
+      tag: card?.tagName || "",
+      open: card?.classList.contains("is-open-v312"),
+      bodyHidden: card?.querySelector(":scope > .admin-custom-accordion-body-v312")?.hidden,
+      parent: card?.parentElement?.id || "",
+      content: id === "mandatoryNoticeCollapseV306"
+        ? document.getElementById("mandatoryNoticeAdminPanelV295")?.parentElement?.className || ""
+        : document.getElementById("ownerBetManagerBodyV310")?.parentElement?.className || ""
     };
   });
 };
