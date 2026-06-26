@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v306";
+const APP_VERSION_LABEL = "v307";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -23378,5 +23378,141 @@ window.debugAvisoColapsavelV306 = function debugAvisoColapsavelV306() {
     detailsParent: details?.parentElement?.id || "",
     panelParent: panel?.parentElement?.id || "",
     panelExists: Boolean(panel)
+  };
+};
+
+
+/* v307 — Fix: aba colapsável do Aviso obrigatório abre/fecha corretamente */
+const APP_VERSION_V307_NOTICE_COLLAPSE_OPEN_FIX = "307.0";
+
+function bindMandatoryNoticeCollapseOpenV307() {
+  const details = document.getElementById("mandatoryNoticeCollapseV306");
+  if (!details) return;
+
+  const summary = details.querySelector(":scope > summary");
+  if (!summary) return;
+
+  details.classList.add("mandatory-notice-collapse-open-fix-v307");
+  summary.setAttribute("role", "button");
+  summary.setAttribute("tabindex", "0");
+  summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+
+  const setOpen = open => {
+    details.open = Boolean(open);
+    summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+    sessionStorage.setItem("mandatory_notice_admin_open_v306", details.open ? "1" : "0");
+    const icon = summary.querySelector(".collapse-icon");
+    if (icon) icon.textContent = details.open ? "−" : "+";
+  };
+
+  const currentSaved = sessionStorage.getItem("mandatory_notice_admin_open_v306");
+  if (currentSaved === "1") setOpen(true);
+  if (currentSaved === "0") setOpen(false);
+
+  if (!summary.__noticeOpenFixV307) {
+    summary.__noticeOpenFixV307 = true;
+
+    summary.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!details.open);
+    }, true);
+
+    summary.addEventListener("touchend", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!details.open);
+    }, { capture: true, passive: false });
+
+    summary.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!details.open);
+    }, true);
+  }
+
+  if (!details.__noticeToggleFixV307) {
+    details.__noticeToggleFixV307 = true;
+    details.addEventListener("toggle", () => {
+      summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+      const icon = summary.querySelector(".collapse-icon");
+      if (icon) icon.textContent = details.open ? "−" : "+";
+    });
+  }
+}
+
+(function installMandatoryNoticeCollapseOpenFixV307() {
+  if (window.__noticeCollapseOpenFixV307) return;
+  window.__noticeCollapseOpenFixV307 = true;
+
+  const originalMake = typeof makeMandatoryNoticeAdminCollapsibleV306 === "function" ? makeMandatoryNoticeAdminCollapsibleV306 : null;
+  if (originalMake && !originalMake.__v307) {
+    makeMandatoryNoticeAdminCollapsibleV306 = function makeMandatoryNoticeAdminCollapsibleOpenFixV307() {
+      const result = originalMake.apply(this, arguments);
+      bindMandatoryNoticeCollapseOpenV307();
+      setTimeout(bindMandatoryNoticeCollapseOpenV307, 0);
+      return result;
+    };
+    makeMandatoryNoticeAdminCollapsibleV306.__v307 = true;
+    window.makeMandatoryNoticeAdminCollapsibleV306 = makeMandatoryNoticeAdminCollapsibleV306;
+  }
+
+  const originalMove = typeof moveMandatoryNoticePanelToAdminV305 === "function" ? moveMandatoryNoticePanelToAdminV305 : null;
+  if (originalMove && !originalMove.__openFixV307) {
+    moveMandatoryNoticePanelToAdminV305 = function moveMandatoryNoticePanelOpenFixV307() {
+      const result = originalMove.apply(this, arguments);
+      setTimeout(bindMandatoryNoticeCollapseOpenV307, 0);
+      setTimeout(bindMandatoryNoticeCollapseOpenV307, 120);
+      return result;
+    };
+    moveMandatoryNoticePanelToAdminV305.__openFixV307 = true;
+    window.moveMandatoryNoticePanelToAdminV305 = moveMandatoryNoticePanelToAdminV305;
+  }
+
+  const originalRender = typeof renderMandatoryNoticeAdminPanelV295 === "function" ? renderMandatoryNoticeAdminPanelV295 : null;
+  if (originalRender && !originalRender.__openFixV307) {
+    renderMandatoryNoticeAdminPanelV295 = function renderMandatoryNoticeAdminPanelOpenFixV307() {
+      const result = originalRender.apply(this, arguments);
+      setTimeout(bindMandatoryNoticeCollapseOpenV307, 0);
+      setTimeout(bindMandatoryNoticeCollapseOpenV307, 160);
+      return result;
+    };
+    renderMandatoryNoticeAdminPanelV295.__openFixV307 = true;
+    window.renderMandatoryNoticeAdminPanelV295 = renderMandatoryNoticeAdminPanelV295;
+  }
+
+  document.addEventListener("click", event => {
+    const summary = event.target.closest?.("#mandatoryNoticeCollapseV306 > summary");
+    if (!summary) return;
+    const details = document.getElementById("mandatoryNoticeCollapseV306");
+    if (!details) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const open = !details.open;
+    details.open = open;
+    summary.setAttribute("aria-expanded", open ? "true" : "false");
+    sessionStorage.setItem("mandatory_notice_admin_open_v306", open ? "1" : "0");
+    const icon = summary.querySelector(".collapse-icon");
+    if (icon) icon.textContent = open ? "−" : "+";
+  }, true);
+
+  setTimeout(bindMandatoryNoticeCollapseOpenV307, 700);
+  setTimeout(bindMandatoryNoticeCollapseOpenV307, 1500);
+  setTimeout(bindMandatoryNoticeCollapseOpenV307, 2600);
+})();
+
+window.debugAvisoColapsavelV307 = function debugAvisoColapsavelV307() {
+  const details = document.getElementById("mandatoryNoticeCollapseV306");
+  const summary = details?.querySelector(":scope > summary");
+  return {
+    version: APP_VERSION_V307_NOTICE_COLLAPSE_OPEN_FIX,
+    detailsExists: Boolean(details),
+    open: Boolean(details?.open),
+    summaryExists: Boolean(summary),
+    ariaExpanded: summary?.getAttribute("aria-expanded") || "",
+    parent: details?.parentElement?.id || "",
+    panelParent: document.getElementById("mandatoryNoticeAdminPanelV295")?.parentElement?.id || "",
+    saved: sessionStorage.getItem("mandatory_notice_admin_open_v306")
   };
 };
