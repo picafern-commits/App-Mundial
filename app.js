@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v302";
+const APP_VERSION_LABEL = "v309";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -17149,17 +17149,72 @@ if (showGameBetsOriginalV259 && !showGameBetsOriginalV259.__koCalendarV259) {
     const summary = $("betsGameSummary");
     const body = $("betsModalBody");
     if (!modal || !title || !subtitle || !summary || !body) return showGameBetsOriginalV259.apply(this, arguments);
-    const rows = betsForGame(game.id).sort((a, b) => String(a.playerName || "").localeCompare(String(b.playerName || ""), "pt"));
-    title.textContent = "Apostas da Fase Final";
-    subtitle.textContent = `${game.homeTeam} vs ${game.awayTeam} · ${game.group || "Fase Final"}`;
-    summary.innerHTML = `<div class="bets-summary-card main"><strong>${escapeHtml(game.homeTeam)} ${hasFinalResult(game) ? `${game.homeScore}-${game.awayScore}` : "vs"} ${escapeHtml(game.awayTeam)}</strong><span>${escapeHtml(dateHeader(game.matchDate))} · ${escapeHtml(timePortugal(game.matchDate))}${game.qualified || game.qualifiedTeam ? ` · Qualificada: ${escapeHtml(game.qualified || game.qualifiedTeam)}` : ""}</span></div>`;
-    if (!rows.length) body.innerHTML = `<div class="empty">Ainda não existem apostas para este jogo.</div>`;
-    else {
-      body.innerHTML = `<div class="bets-list">${rows.map(bet => {
-        const points = knockoutMatchHasResult(match) ? pointsForKnockoutBet(bet, match) : "-";
-        const label = knockoutMatchHasResult(match) ? knockoutBetResultLabel(bet, match) : "Por jogar";
-        return `<article class="bet-row"><strong>${escapeHtml(bet.playerName || bet.playerId || "Jogador")}</strong><div class="bet-score-pill">${escapeHtml(knockoutBetDisplay(bet))}</div><div class="bet-type-pill">${escapeHtml(label)}</div><b>${points}</b></article>`;
-      }).join("")}</div>`;
+
+    const rows = betsForGame(game.id).sort((a, b) =>
+      pointsForKnockoutBet(b, match) - pointsForKnockoutBet(a, match) ||
+      String(a.playerName || "").localeCompare(String(b.playerName || ""), "pt")
+    );
+
+    const exactCount = rows.filter(bet => typeof isExactKnockoutBet === "function" && isExactKnockoutBet(bet, match)).length;
+    const winnerCount = rows.filter(bet => !(typeof isExactKnockoutBet === "function" && isExactKnockoutBet(bet, match)) && typeof isWinnerKnockoutBet === "function" && isWinnerKnockoutBet(bet, match)).length;
+    const totalPoints = rows.reduce((sum, bet) => sum + pointsForKnockoutBet(bet, match), 0);
+    const qualified = game.qualified || game.qualifiedTeam || match.qualified || match.winnerTeam || match.winner || "";
+
+    title.textContent = `${game.homeTeam} - ${game.awayTeam}`;
+    subtitle.textContent = `${game.group || "Fase Final"} · ${dateHeader(game.matchDate)} · ${timePortugal(game.matchDate)}`;
+
+    summary.innerHTML = `
+      <div class="bets-summary-card main">
+        <span>Resultado</span>
+        <strong>${hasFinalResult(game) ? `${game.homeScore}-${game.awayScore}` : "Por colocar"}</strong>
+      </div>
+      <div class="bets-summary-card">
+        <span>Apostas</span>
+        <strong>${rows.length}</strong>
+      </div>
+      <div class="bets-summary-card">
+        <span>Exatos</span>
+        <strong>${knockoutMatchHasResult(match) ? exactCount : "-"}</strong>
+      </div>
+      <div class="bets-summary-card">
+        <span>Vencedor/empate</span>
+        <strong>${knockoutMatchHasResult(match) ? winnerCount : "-"}</strong>
+      </div>
+      <div class="bets-summary-card">
+        <span>Pontos</span>
+        <strong>${knockoutMatchHasResult(match) ? totalPoints : "-"}</strong>
+      </div>
+      ${qualified ? `<div class="bets-summary-card"><span>Qualificada</span><strong>${escapeHtml(qualified)}</strong></div>` : ""}
+    `;
+
+    if (!rows.length) {
+      body.innerHTML = `<div class="empty">Ainda não existem apostas para este jogo.</div>`;
+    } else {
+      body.innerHTML = `
+        <div class="bets-list-head">
+          <span>Jogador</span>
+          <span>Aposta</span>
+          <span>Tipo</span>
+          <span>Pontos</span>
+        </div>
+        <div class="bets-list">
+          ${rows.map((bet, index) => {
+            const points = pointsForKnockoutBet(bet, match);
+            const typeLabel = knockoutMatchHasResult(match) ? knockoutBetResultLabel(bet, match) : "Por jogar";
+            const typeClass = knockoutMatchHasResult(match) ? knockoutBetResultClass(bet, match) : "pending";
+            return `
+              <article class="bet-user-row ${typeClass}">
+                <div class="bet-user-main" data-label="Jogador">
+                  <span class="bet-position">${index + 1}</span>
+                  <strong title="${escapeHtml(bet.playerName || bet.playerId || "Jogador")}">${escapeHtml(bet.playerName || bet.playerId || "Jogador")}</strong>
+                </div>
+                <div class="bet-score-pill" data-label="Aposta">${escapeHtml(knockoutBetDisplay(bet))}</div>
+                <div class="bet-type-pill" data-label="Tipo">${escapeHtml(typeLabel)}</div>
+                <b data-label="Pontos">${knockoutMatchHasResult(match) ? points : "-"}</b>
+              </article>
+            `;
+          }).join("")}
+        </div>`;
     }
     modal.classList.remove("hidden");
   };
@@ -22737,5 +22792,1431 @@ window.debugCalendarioEstavelV302 = function debugCalendarioEstavelV302() {
     })),
     lastRenderAt: calendarLastRenderAtV302,
     now: Date.now()
+  };
+};
+
+
+/* v303 — Corrige users com nome/jogador atribuído a aparecer como "Jogador por ligar" */
+const APP_VERSION_V303_USER_PLAYER_LINK_FIX = "303.0";
+
+function normalizePlayerCompareV303(value = "") {
+  try { return normalizeComparable(value); } catch {}
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s.-]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function playerObjectV303(player, fallbackProfile = null) {
+  if (!player) return null;
+  const name = String(player.name || player.playerName || player.linkedPlayerName || player.nome || fallbackProfile?.linkedPlayerName || fallbackProfile?.name || "").trim();
+  const id = String(player.id || player.playerId || player.linkedPlayerId || (name ? playerIdFromName(name) : "")).trim();
+  if (!id || !name) return null;
+
+  return {
+    ...player,
+    id,
+    playerId: id,
+    name,
+    playerName: name,
+    normalizedName: normalizePlayerCompareV303(name),
+    email: normalizeEmail(player.email || fallbackProfile?.email || ""),
+    linkedEmail: normalizeEmail(player.linkedEmail || player.email || fallbackProfile?.email || ""),
+    linkedUid: player.linkedUid || fallbackProfile?.uid || "",
+    active: player.active !== false
+  };
+}
+
+function playerCandidatesV303() {
+  const map = new Map();
+
+  function add(player, profile = null) {
+    const normalized = playerObjectV303(player, profile);
+    if (!normalized || normalized.active === false) return;
+    const existing = map.get(normalized.id) || {};
+    map.set(normalized.id, { ...existing, ...normalized });
+  }
+
+  try { (playersCatalogV241?.() || []).forEach(add); } catch {}
+  try { (appSettings?.players || []).forEach(add); } catch {}
+  try { (appSettings?.users || []).forEach(name => add({ id: playerIdFromName(name), name })); } catch {}
+  try {
+    (bets || []).forEach(bet => {
+      const name = String(bet.playerName || "").trim();
+      if (name) add({ id: bet.playerId || playerIdFromName(name), name, playerName: name });
+    });
+  } catch {}
+  try { Object.keys(appSettings?.extraPredictions || {}).forEach(name => add({ id: playerIdFromName(name), name })); } catch {}
+  try { Object.keys(appSettings?.importedPoints || {}).forEach(name => add({ id: playerIdFromName(name), name })); } catch {}
+
+  return [...map.values()];
+}
+
+function permissionProfileForEmailV303(email = "") {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  try {
+    return (permissionsCache || []).find(profile => normalizeEmail(profile.email || profile.id || "") === normalized) || null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveLinkedPlayerForProfileV303(profile = currentProfile) {
+  if (!profile) return null;
+
+  const email = normalizeEmail(profile.email || profile.id || currentUser?.email || "");
+  const uid = String(profile.uid || currentUser?.uid || "").trim();
+  const permissionProfile = permissionProfileForEmailV303(email);
+
+  const mergedProfile = {
+    ...(permissionProfile || {}),
+    ...(profile || {}),
+    email,
+    uid,
+    linkedPlayerId: profile.linkedPlayerId || permissionProfile?.linkedPlayerId || "",
+    linkedPlayerName: profile.linkedPlayerName || permissionProfile?.linkedPlayerName || ""
+  };
+
+  const players = playerCandidatesV303();
+
+  const directId = String(mergedProfile.linkedPlayerId || "").trim();
+  if (directId) {
+    const byId = players.find(player => String(player.id || player.playerId || "") === directId);
+    if (byId) return playerObjectV303(byId, mergedProfile);
+
+    // Mesmo que o catálogo ainda não tenha este jogador, se o perfil tem nome atribuído, cria uma ligação válida.
+    if (mergedProfile.linkedPlayerName) {
+      return playerObjectV303({ id: directId, name: mergedProfile.linkedPlayerName }, mergedProfile);
+    }
+  }
+
+  const linkedName = String(mergedProfile.linkedPlayerName || "").trim();
+  if (linkedName) {
+    const linkedNameNorm = normalizePlayerCompareV303(linkedName);
+    const byLinkedName = players.find(player => normalizePlayerCompareV303(player.name || player.playerName) === linkedNameNorm);
+    if (byLinkedName) return playerObjectV303(byLinkedName, mergedProfile);
+
+    return playerObjectV303({ id: playerIdFromName(linkedName), name: linkedName }, mergedProfile);
+  }
+
+  if (uid) {
+    const byUid = players.find(player => String(player.linkedUid || "") === uid);
+    if (byUid) return playerObjectV303(byUid, mergedProfile);
+  }
+
+  if (email) {
+    const byEmail = players.find(player => normalizeEmail(player.linkedEmail || player.email || "") === email);
+    if (byEmail) return playerObjectV303(byEmail, mergedProfile);
+  }
+
+  // Muitos users antigos tinham apenas o "Nome visível" igual ao jogador.
+  const visibleName = String(mergedProfile.name || displayNameFromEmail(email) || "").trim();
+  if (visibleName) {
+    const visibleNorm = normalizePlayerCompareV303(visibleName);
+    const byExactName = players.find(player => normalizePlayerCompareV303(player.name || player.playerName) === visibleNorm);
+    if (byExactName) return playerObjectV303(byExactName, mergedProfile);
+  }
+
+  return null;
+}
+
+function enrichProfileWithLinkedPlayerV303(profile, user = currentUser) {
+  if (!profile) return profile;
+
+  const email = normalizeEmail(profile.email || user?.email || "");
+  const permissionProfile = permissionProfileForEmailV303(email);
+
+  const merged = {
+    ...(permissionProfile || {}),
+    ...(profile || {}),
+    uid: profile.uid || user?.uid || permissionProfile?.uid || "",
+    email,
+    name: String(profile.name || permissionProfile?.name || displayNameFromEmail(email) || "").trim(),
+    linkedPlayerId: profile.linkedPlayerId || permissionProfile?.linkedPlayerId || "",
+    linkedPlayerName: profile.linkedPlayerName || permissionProfile?.linkedPlayerName || ""
+  };
+
+  const player = resolveLinkedPlayerForProfileV303(merged);
+  if (player) {
+    merged.linkedPlayerId = player.id || player.playerId || merged.linkedPlayerId;
+    merged.linkedPlayerName = player.name || player.playerName || merged.linkedPlayerName;
+
+    // Não força o nome visível se o Admin definiu outro nome, mas garante que não fica vazio.
+    if (!String(merged.name || "").trim()) merged.name = merged.linkedPlayerName;
+  }
+
+  return merged;
+}
+
+(function installUserPlayerLinkFixV303() {
+  if (window.__userPlayerLinkFixV303) return;
+  window.__userPlayerLinkFixV303 = true;
+
+  const originalLinkedProfile = typeof linkedPlayerForProfileV241 === "function" ? linkedPlayerForProfileV241 : null;
+  if (originalLinkedProfile && !originalLinkedProfile.__v303) {
+    linkedPlayerForProfileV241 = function linkedPlayerForProfileFixedV303(profile = currentProfile) {
+      // Primeiro usa a lógica antiga. Se falhar, usa a nova mais tolerante.
+      const original = originalLinkedProfile.apply(this, arguments);
+      if (original) return original;
+      return resolveLinkedPlayerForProfileV303(profile);
+    };
+    linkedPlayerForProfileV241.__v303 = true;
+    window.linkedPlayerForProfileV241 = linkedPlayerForProfileV241;
+  }
+
+  linkedPlayerForCurrentUserV241 = function linkedPlayerForCurrentUserFixedV303() {
+    return resolveLinkedPlayerForProfileV303(currentProfile);
+  };
+  window.linkedPlayerForCurrentUserV241 = linkedPlayerForCurrentUserV241;
+
+  const originalReadProfile = typeof readUserProfile === "function" ? readUserProfile : null;
+  if (originalReadProfile && !originalReadProfile.__v303) {
+    readUserProfile = async function readUserProfileLinkedFixedV303(user) {
+      const profile = await originalReadProfile.apply(this, arguments);
+      return enrichProfileWithLinkedPlayerV303(profile, user);
+    };
+    readUserProfile.__v303 = true;
+    window.readUserProfile = readUserProfile;
+  }
+
+  const originalUpdateSession = typeof updateSessionBox === "function" ? updateSessionBox : null;
+  if (originalUpdateSession && !originalUpdateSession.__v303) {
+    updateSessionBox = function updateSessionBoxLinkedFixedV303() {
+      if (currentProfile) currentProfile = enrichProfileWithLinkedPlayerV303(currentProfile, currentUser);
+      const result = originalUpdateSession.apply(this, arguments);
+
+      const label = document.getElementById("sessionUserLabel");
+      if (label && currentUser) {
+        const player = resolveLinkedPlayerForProfileV303(currentProfile);
+        const old = document.getElementById("sessionPlayerLinkV241");
+        if (old) {
+          old.className = `session-player-link-v241 ${player ? "linked" : "missing"}`;
+          old.textContent = player ? `Jogador: ${player.name}` : "Jogador por ligar";
+        }
+      }
+      return result;
+    };
+    updateSessionBox.__v303 = true;
+    window.updateSessionBox = updateSessionBox;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__userLinkV303) {
+    renderAll = function renderAllUserLinkFixedV303() {
+      if (currentProfile) currentProfile = enrichProfileWithLinkedPlayerV303(currentProfile, currentUser);
+      const result = originalRenderAll.apply(this, arguments);
+      setTimeout(() => {
+        try { updateSessionBox?.(); } catch {}
+        try { koV284RenderEntryPoints?.(); } catch {}
+      }, 80);
+      return result;
+    };
+    renderAll.__userLinkV303 = true;
+    window.renderAll = renderAll;
+  }
+
+  // Quando o Admin renderiza a lista, também recalcula os badges com a nova ligação.
+  const originalRenderPermissions = typeof renderPermissionsUsers === "function" ? renderPermissionsUsers : null;
+  if (originalRenderPermissions && !originalRenderPermissions.__userLinkV303) {
+    renderPermissionsUsers = function renderPermissionsUsersLinkFixedV303() {
+      try { (permissionsCache || []).forEach(profile => enrichProfileWithLinkedPlayerV303(profile)); } catch {}
+      return originalRenderPermissions.apply(this, arguments);
+    };
+    renderPermissionsUsers.__userLinkV303 = true;
+    window.renderPermissionsUsers = renderPermissionsUsers;
+  }
+
+  setTimeout(() => {
+    if (currentProfile) currentProfile = enrichProfileWithLinkedPlayerV303(currentProfile, currentUser);
+    try { updateSessionBox?.(); } catch {}
+    try { renderAll?.(); } catch {}
+  }, 1200);
+})();
+
+window.debugUserJogadorV303 = function debugUserJogadorV303(email = "") {
+  const profile = email
+    ? (permissionProfileForEmailV303(email) || { email: normalizeEmail(email), name: displayNameFromEmail(email) })
+    : currentProfile;
+  const enriched = enrichProfileWithLinkedPlayerV303(profile, currentUser);
+  const player = resolveLinkedPlayerForProfileV303(enriched);
+  return {
+    version: APP_VERSION_V303_USER_PLAYER_LINK_FIX,
+    email: enriched?.email || "",
+    uid: enriched?.uid || "",
+    name: enriched?.name || "",
+    linkedPlayerId: enriched?.linkedPlayerId || "",
+    linkedPlayerName: enriched?.linkedPlayerName || "",
+    resolvedPlayer: player ? { id: player.id, name: player.name, linkedEmail: player.linkedEmail || "", linkedUid: player.linkedUid || "" } : null,
+    candidates: playerCandidatesV303().map(p => ({ id: p.id, name: p.name, linkedEmail: p.linkedEmail || "", linkedUid: p.linkedUid || "" })).slice(0, 80)
+  };
+};
+
+
+/* v305 — Calendário > filtro Fase Final sem flash amarelo */
+const APP_VERSION_V305_CALENDAR_KO_FILTER_NO_FLASH = "305.0";
+
+function calendarKoFilterActiveV305() {
+  try { return calendarViewMode === "knockout"; } catch { return false; }
+}
+
+function calendarKoRoundKeyV305(game) {
+  if (!game) return "ko";
+  try {
+    if (typeof koV262CalendarGameRoundKey === "function") return koV262CalendarGameRoundKey(game.id) || "ko";
+  } catch {}
+  try {
+    const match = typeof knockoutMatchById === "function" ? knockoutMatchById(game.id) : null;
+    const source = { ...(game || {}), ...(match || {}) };
+    if (typeof koV261RoundKeyFromMatchOrGame === "function") return koV261RoundKeyFromMatchOrGame(source) || "ko";
+  } catch {}
+  const text = `${game.round || ""} ${game.roundLabel || ""} ${game.group || ""} ${game.phase || ""}`.toLowerCase();
+  if (text.includes("final")) return "final";
+  if (text.includes("meia")) return "sf";
+  if (text.includes("quarto")) return "qf";
+  if (text.includes("oitavo") || text.includes("16 avos")) return "r16";
+  if (text.includes("32")) return "r32";
+  return "ko";
+}
+
+function calendarKoDayClassV305(dayBlock) {
+  if (!dayBlock) return "";
+  const row = dayBlock.querySelector("[data-ko-calendar-game-v259], .knockout-calendar-row-v259");
+  const gameId = row?.dataset?.koCalendarGameV259 || row?.getAttribute?.("data-ko-calendar-game-v259") || "";
+  let game = null;
+  try { game = (games || []).find(item => String(item.id || "") === String(gameId)); } catch {}
+  const key = calendarKoRoundKeyV305(game);
+  return `ko-calendar-day-v262 ko-calendar-day-round-${key}-v262 calendar-ko-filter-day-v305`;
+}
+
+function applyCalendarKoFilterColorsImmediatelyV305() {
+  const list = document.getElementById("gamesList");
+  if (!list) return;
+
+  const active = calendarKoFilterActiveV305();
+  list.classList.toggle("calendar-ko-filter-active-v305", active);
+
+  if (!active) return;
+
+  list.querySelectorAll(".day-block").forEach(day => {
+    const hasKo = Boolean(day.querySelector("[data-ko-calendar-game-v259], .knockout-calendar-row-v259"));
+    if (!hasKo) return;
+
+    // Tira classes que puxavam o amarelo dos grupos e mete logo classe azul.
+    day.classList.remove("calendar-day-mixed-v285");
+    day.className = `${day.className} ${calendarKoDayClassV305(day)}`.replace(/\s+/g, " ").trim();
+  });
+}
+
+(function installCalendarKoFilterNoFlashV305() {
+  if (window.__calendarKoFilterNoFlashV305) return;
+  window.__calendarKoFilterNoFlashV305 = true;
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__koNoFlashV305) {
+    renderCalendar = function renderCalendarKoNoFlashV305() {
+      const result = originalRenderCalendar.apply(this, arguments);
+
+      // Síncrono: acontece no mesmo render, antes do browser pintar amarelo.
+      applyCalendarKoFilterColorsImmediatelyV305();
+
+      // Segurança para renders antigos que aplicam classes depois.
+      requestAnimationFrame(() => applyCalendarKoFilterColorsImmediatelyV305());
+      return result;
+    };
+    renderCalendar.__koNoFlashV305 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#calendarKnockoutGamesBtn")) {
+      requestAnimationFrame(() => applyCalendarKoFilterColorsImmediatelyV305());
+    }
+  }, true);
+
+  requestAnimationFrame(() => applyCalendarKoFilterColorsImmediatelyV305());
+})();
+
+window.debugCalendarioFaseFinalSemFlashV305 = function debugCalendarioFaseFinalSemFlashV305() {
+  return {
+    version: APP_VERSION_V305_CALENDAR_KO_FILTER_NO_FLASH,
+    calendarViewMode: typeof calendarViewMode !== "undefined" ? calendarViewMode : "",
+    active: calendarKoFilterActiveV305(),
+    gamesListClass: document.getElementById("gamesList")?.className || "",
+    days: [...document.querySelectorAll("#gamesList .day-block")].map(day => ({
+      title: day.querySelector("h3")?.textContent?.trim() || "",
+      className: day.className
+    }))
+  };
+};
+
+
+/* v306 — Dono pode desbloquear, editar e limpar apostas da Fase Final */
+const APP_VERSION_V306_OWNER_UNLOCK_KO_BETS = "306.0";
+let ownerKoBetGameIdV306 = "";
+let ownerKoBetPlayerIdV306 = "";
+
+function ownerKoCanManageV306() {
+  try {
+    const role = normalizeRole(currentProfile?.role || "");
+    return role === "owner" || Boolean(isOwnerProfileV264?.());
+  } catch {
+    return Boolean(isOwner);
+  }
+}
+
+function ownerKoSettingsV306() {
+  ensureKnockoutSettings?.();
+  appSettings.knockout = appSettings.knockout || {};
+  appSettings.knockout.ownerBetUnlock = appSettings.knockout.ownerBetUnlock || {};
+  return appSettings.knockout.ownerBetUnlock;
+}
+
+function ownerKoUnlockedV306() {
+  if (!ownerKoCanManageV306()) return false;
+  return ownerKoSettingsV306().enabled === true;
+}
+
+function ownerKoMatchListV306() {
+  try {
+    return (appSettings?.knockout?.matches || [])
+      .filter(match => match && match.id && (match.homeTeam || match.awayTeam))
+      .map(match => ({
+        id: match.id,
+        label: `${match.homeTeam || "Equipa A"} - ${match.awayTeam || "Equipa B"}`,
+        sub: `${match.roundLabel || knockoutRoundLabel?.(match.round) || "Fase Final"}${match.matchDate || match.date ? ` · ${dateHeader(match.matchDate || match.date)} ${timePortugal(match.matchDate || match.date)}` : ""}`,
+        match
+      }))
+      .sort((a, b) => String(a.sub || "").localeCompare(String(b.sub || ""), "pt") || String(a.label || "").localeCompare(String(b.label || ""), "pt"));
+  } catch {
+    return [];
+  }
+}
+
+function ownerKoPlayerListV306() {
+  const map = new Map();
+
+  function add(id, name) {
+    id = String(id || "").trim();
+    name = String(name || id || "").trim();
+    if (!id && name) id = playerIdFromName(name);
+    if (!id) return;
+    if (!map.has(id)) map.set(id, { id, name: name || id });
+  }
+
+  try { (playersCatalogV241?.() || []).forEach(player => add(player.id || player.playerId, player.name || player.playerName)); } catch {}
+  try { (appSettings?.users || []).forEach(name => add(playerIdFromName(name), name)); } catch {}
+  try { (bets || []).forEach(bet => add(bet.playerId, bet.playerName)); } catch {}
+
+  return [...map.values()].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt"));
+}
+
+function ownerKoSelectedGameV306() {
+  const list = ownerKoMatchListV306();
+  if (!ownerKoBetGameIdV306 || !list.some(item => String(item.id) === String(ownerKoBetGameIdV306))) ownerKoBetGameIdV306 = list[0]?.id || "";
+  return list.find(item => String(item.id) === String(ownerKoBetGameIdV306)) || null;
+}
+
+function ownerKoSelectedPlayerV306() {
+  const list = ownerKoPlayerListV306();
+  if (!ownerKoBetPlayerIdV306 || !list.some(item => String(item.id) === String(ownerKoBetPlayerIdV306))) ownerKoBetPlayerIdV306 = list[0]?.id || "";
+  return list.find(item => String(item.id) === String(ownerKoBetPlayerIdV306)) || null;
+}
+
+function ownerKoBetForV306(playerId, gameId) {
+  return (bets || []).find(bet =>
+    String(bet.playerId || "") === String(playerId || "") &&
+    String(bet.gameId || "") === String(gameId || "")
+  ) || null;
+}
+
+function ownerKoTeamsOptionsV306(match, selected = "") {
+  const teams = [match?.homeTeam, match?.awayTeam].filter(Boolean);
+  return `<option value="">Escolher equipa qualificada</option>` + teams.map(team =>
+    `<option value="${escapeHtml(team)}" ${normalizeComparable(team) === normalizeComparable(selected) ? "selected" : ""}>${escapeHtml(team)}</option>`
+  ).join("");
+}
+
+function ownerKoPanelHostV306() {
+  const adminPanel = document.getElementById("knockoutAdminPanel");
+  if (adminPanel) return adminPanel;
+
+  const adminUnlocked = document.getElementById("adminUnlocked");
+  return adminUnlocked;
+}
+
+function renderOwnerKoBetUnlockPanelV306() {
+  if (!ownerKoCanManageV306()) {
+    document.getElementById("ownerKoBetUnlockPanelV306")?.remove();
+    return;
+  }
+
+  const host = ownerKoPanelHostV306();
+  if (!host) return;
+
+  let panel = document.getElementById("ownerKoBetUnlockPanelV306");
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "ownerKoBetUnlockPanelV306";
+    panel.className = "owner-ko-unlock-panel-v306";
+  }
+
+  const unlocked = ownerKoUnlockedV306();
+  const selectedGame = ownerKoSelectedGameV306();
+  const selectedPlayer = ownerKoSelectedPlayerV306();
+  const existing = selectedGame && selectedPlayer ? ownerKoBetForV306(selectedPlayer.id, selectedGame.id) : null;
+  const gameBets = selectedGame ? betsForGame(selectedGame.id) : [];
+
+  const homeGuess = existing?.homeGuess ?? existing?.homeScore ?? existing?.home ?? "";
+  const awayGuess = existing?.awayGuess ?? existing?.awayScore ?? existing?.away ?? "";
+  const qualified = existing?.qualifiedTeam || existing?.qualified || existing?.winner || "";
+
+  panel.innerHTML = `
+    <div class="owner-ko-head-v306">
+      <div>
+        <strong>Gestão de apostas eliminatórias</strong>
+        <span>${unlocked ? "Modo Dono desbloqueado — só tu podes editar/limpar." : "Bloqueado normal — users continuam protegidos."}</span>
+      </div>
+      <button id="ownerKoToggleUnlockV306" class="${unlocked ? "secondary danger-soft" : "primary"}" type="button">
+        ${unlocked ? "Voltar a bloquear" : "Desbloquear para o Dono"}
+      </button>
+    </div>
+
+    ${unlocked ? `
+      <div class="owner-ko-form-v306">
+        <label>Jogo
+          <select id="ownerKoGameSelectV306">
+            ${ownerKoMatchListV306().map(item => `<option value="${escapeHtml(item.id)}" ${String(item.id) === String(ownerKoBetGameIdV306) ? "selected" : ""}>${escapeHtml(item.label)} · ${escapeHtml(item.sub)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Jogador
+          <select id="ownerKoPlayerSelectV306">
+            ${ownerKoPlayerListV306().map(player => `<option value="${escapeHtml(player.id)}" ${String(player.id) === String(ownerKoBetPlayerIdV306) ? "selected" : ""}>${escapeHtml(player.name || player.id)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      ${selectedGame && selectedPlayer ? `
+        <div class="owner-ko-edit-v306">
+          <div>
+            <strong>${escapeHtml(selectedPlayer.name || selectedPlayer.id)}</strong>
+            <span>${escapeHtml(selectedGame.label)} · ${escapeHtml(selectedGame.sub)}</span>
+            <small>${existing ? `Aposta atual: ${escapeHtml(knockoutBetDisplay?.(existing) || `${homeGuess}-${awayGuess}`)}` : "Sem aposta guardada para este jogador neste jogo."}</small>
+          </div>
+
+          <div class="owner-ko-score-v306">
+            <label>Casa
+              <input id="ownerKoHomeV306" type="number" inputmode="numeric" min="0" value="${escapeHtml(homeGuess)}" />
+            </label>
+            <label>Fora
+              <input id="ownerKoAwayV306" type="number" inputmode="numeric" min="0" value="${escapeHtml(awayGuess)}" />
+            </label>
+            <label>Qualificada
+              <select id="ownerKoQualifiedV306">${ownerKoTeamsOptionsV306(selectedGame.match, qualified)}</select>
+            </label>
+          </div>
+
+          <div class="owner-ko-actions-v306">
+            <button id="ownerKoSaveBetV306" class="primary" type="button">${existing ? "Guardar alteração" : "Criar aposta"}</button>
+            <button id="ownerKoClearBetV306" class="secondary danger-soft" type="button" ${existing ? "" : "disabled"}>Limpar esta aposta</button>
+            <button id="ownerKoClearGameV306" class="secondary danger-soft" type="button" ${gameBets.length ? "" : "disabled"}>Limpar apostas deste jogo (${gameBets.length})</button>
+          </div>
+        </div>
+      ` : `<div class="empty small-empty">Escolhe um jogo e um jogador.</div>`}
+    ` : ""}
+  `;
+
+  if (host.firstElementChild !== panel) host.prepend(panel);
+  bindOwnerKoBetUnlockPanelV306();
+}
+
+function bindOwnerKoBetUnlockPanelV306() {
+  const toggle = document.getElementById("ownerKoToggleUnlockV306");
+  if (toggle && !toggle.__v306) {
+    toggle.__v306 = true;
+    toggle.addEventListener("click", toggleOwnerKoUnlockV306);
+  }
+
+  const gameSelect = document.getElementById("ownerKoGameSelectV306");
+  if (gameSelect && !gameSelect.__v306) {
+    gameSelect.__v306 = true;
+    gameSelect.addEventListener("change", () => {
+      ownerKoBetGameIdV306 = gameSelect.value;
+      renderOwnerKoBetUnlockPanelV306();
+    });
+  }
+
+  const playerSelect = document.getElementById("ownerKoPlayerSelectV306");
+  if (playerSelect && !playerSelect.__v306) {
+    playerSelect.__v306 = true;
+    playerSelect.addEventListener("change", () => {
+      ownerKoBetPlayerIdV306 = playerSelect.value;
+      renderOwnerKoBetUnlockPanelV306();
+    });
+  }
+
+  document.getElementById("ownerKoSaveBetV306")?.addEventListener("click", saveOwnerKoBetV306, { once: true });
+  document.getElementById("ownerKoClearBetV306")?.addEventListener("click", clearOwnerKoBetV306, { once: true });
+  document.getElementById("ownerKoClearGameV306")?.addEventListener("click", clearOwnerKoGameBetsV306, { once: true });
+}
+
+async function saveOwnerKoSettingsV306(reason) {
+  try {
+    saveLocalData?.(reason);
+    if (typeof saveSettingsFastToFirebase === "function") {
+      await saveSettingsFastToFirebase(reason);
+    } else {
+      scheduleFullSync?.(reason, 300);
+    }
+  } catch (error) {
+    console.warn("v306 owner ko settings sync", error);
+    try { scheduleFullSync?.(reason, 500); } catch {}
+  }
+}
+
+async function toggleOwnerKoUnlockV306() {
+  if (!ownerKoCanManageV306()) return toast?.("Só o Dono pode desbloquear estas apostas.");
+  const settings = ownerKoSettingsV306();
+  settings.enabled = settings.enabled !== true;
+  settings.updatedAt = new Date().toISOString();
+  settings.updatedBy = currentUser?.email || currentProfile?.email || "";
+  await saveOwnerKoSettingsV306(settings.enabled ? "dono desbloqueou apostas eliminatórias" : "dono bloqueou apostas eliminatórias");
+  renderOwnerKoBetUnlockPanelV306();
+  toast?.(settings.enabled ? "Modo Dono desbloqueado." : "Apostas eliminatórias bloqueadas novamente.");
+}
+
+async function persistOwnerKoBetChangeV306(reason, deletedIds = [], savedIds = []) {
+  try {
+    if (deletedIds.length) markBetsForDelete(deletedIds);
+    if (savedIds.length) markBetsPending(savedIds);
+    saveLocalData?.(reason);
+    scheduleFullSync?.(reason, 250);
+    addSystemLog?.("Gestão apostas eliminatórias", reason, { deleted: deletedIds.length, saved: savedIds.length }, { sync: true });
+  } catch (error) {
+    console.warn("v306 owner ko bet sync", error);
+  }
+
+  try { renderCalendar?.(); } catch {}
+  try { renderScore?.(); } catch {}
+  try { koV284RenderHub?.(); } catch {}
+  renderOwnerKoBetUnlockPanelV306();
+}
+
+async function saveOwnerKoBetV306() {
+  if (!ownerKoUnlockedV306()) return toast?.("Ativa primeiro o modo Dono desbloqueado.");
+
+  const selectedGame = ownerKoSelectedGameV306();
+  const selectedPlayer = ownerKoSelectedPlayerV306();
+  if (!selectedGame || !selectedPlayer) return toast?.("Escolhe jogo e jogador.");
+
+  const home = document.getElementById("ownerKoHomeV306")?.value ?? "";
+  const away = document.getElementById("ownerKoAwayV306")?.value ?? "";
+  const qualified = document.getElementById("ownerKoQualifiedV306")?.value || "";
+
+  if (home === "" || away === "") return toast?.("Preenche o resultado da aposta.");
+  if (!qualified) return toast?.("Escolhe a equipa qualificada.");
+
+  const h = Number(home);
+  const a = Number(away);
+  if (!Number.isFinite(h) || !Number.isFinite(a) || h < 0 || a < 0) return toast?.("Resultado inválido.");
+
+  const match = selectedGame.match;
+  if (![normalizeComparable(match.homeTeam), normalizeComparable(match.awayTeam)].includes(normalizeComparable(qualified))) {
+    return toast?.("A qualificada tem de ser uma das equipas do jogo.");
+  }
+  if (h > a && normalizeComparable(qualified) !== normalizeComparable(match.homeTeam)) return toast?.("A qualificada não bate certo com o resultado.");
+  if (a > h && normalizeComparable(qualified) !== normalizeComparable(match.awayTeam)) return toast?.("A qualificada não bate certo com o resultado.");
+
+  const existing = ownerKoBetForV306(selectedPlayer.id, selectedGame.id);
+  const bet = {
+    ...(existing || {}),
+    id: existing?.id || `${selectedPlayer.id}_${selectedGame.id}`,
+    playerId: selectedPlayer.id,
+    playerName: selectedPlayer.name || selectedPlayer.id,
+    gameId: selectedGame.id,
+    homeGuess: h,
+    awayGuess: a,
+    winner: qualified,
+    qualifiedTeam: qualified,
+    phase: "knockout",
+    source: existing?.source || "Editado pelo Dono",
+    editedByOwner: true,
+    editedBy: currentUser?.email || currentProfile?.email || "",
+    updatedAt: new Date().toISOString()
+  };
+
+  bets = bets.filter(item => !(String(item.gameId || "") === String(bet.gameId) && String(item.playerId || "") === String(bet.playerId)));
+  bets.push(bet);
+
+  await persistOwnerKoBetChangeV306("dono editou aposta eliminatória", [], [bet.id]);
+  toast?.("Aposta eliminatória guardada.");
+}
+
+async function clearOwnerKoBetV306() {
+  if (!ownerKoUnlockedV306()) return toast?.("Ativa primeiro o modo Dono desbloqueado.");
+  const selectedGame = ownerKoSelectedGameV306();
+  const selectedPlayer = ownerKoSelectedPlayerV306();
+  const existing = selectedGame && selectedPlayer ? ownerKoBetForV306(selectedPlayer.id, selectedGame.id) : null;
+  if (!existing) return toast?.("Não existe aposta para limpar.");
+  if (!confirm(`Limpar a aposta de ${selectedPlayer.name} neste jogo?`)) return;
+
+  bets = bets.filter(item => item.id !== existing.id);
+  await persistOwnerKoBetChangeV306("dono limpou aposta eliminatória", [existing.id], []);
+  toast?.("Aposta limpa.");
+}
+
+async function clearOwnerKoGameBetsV306() {
+  if (!ownerKoUnlockedV306()) return toast?.("Ativa primeiro o modo Dono desbloqueado.");
+  const selectedGame = ownerKoSelectedGameV306();
+  if (!selectedGame) return;
+  const ids = betsForGame(selectedGame.id).map(bet => bet.id).filter(Boolean);
+  if (!ids.length) return toast?.("Este jogo não tem apostas.");
+  if (!confirm(`Limpar TODAS as ${ids.length} apostas deste jogo eliminatório?`)) return;
+
+  bets = bets.filter(bet => String(bet.gameId || "") !== String(selectedGame.id || ""));
+  await persistOwnerKoBetChangeV306("dono limpou apostas de jogo eliminatório", ids, []);
+  toast?.("Apostas deste jogo limpas.");
+}
+
+(function installOwnerKoUnlockV306() {
+  if (window.__ownerKoUnlockV306) return;
+  window.__ownerKoUnlockV306 = true;
+
+  const originalLock = typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241 : null;
+  if (originalLock && !originalLock.__ownerUnlockV306) {
+    isKnockoutBetLockedV241 = function isKnockoutBetLockedOwnerUnlockV306(match) {
+      if (ownerKoUnlockedV306()) return false;
+      return originalLock.apply(this, arguments);
+    };
+    isKnockoutBetLockedV241.__ownerUnlockV306 = true;
+    window.isKnockoutBetLockedV241 = isKnockoutBetLockedV241;
+  }
+
+  const originalRenderAdmin = typeof renderKnockoutAdmin === "function" ? renderKnockoutAdmin : null;
+  if (originalRenderAdmin && !originalRenderAdmin.__ownerUnlockV306) {
+    renderKnockoutAdmin = function renderKnockoutAdminOwnerUnlockV306() {
+      const result = originalRenderAdmin.apply(this, arguments);
+      setTimeout(renderOwnerKoBetUnlockPanelV306, 0);
+      return result;
+    };
+    renderKnockoutAdmin.__ownerUnlockV306 = true;
+    window.renderKnockoutAdmin = renderKnockoutAdmin;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__ownerUnlockV306) {
+    renderActivePageV187 = function renderActivePageOwnerKoUnlockV306() {
+      const result = originalRenderActive.apply(this, arguments);
+      setTimeout(renderOwnerKoBetUnlockPanelV306, 160);
+      return result;
+    };
+    renderActivePageV187.__ownerUnlockV306 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__ownerUnlockV306) {
+    renderAll = function renderAllOwnerKoUnlockV306() {
+      const result = originalRenderAll.apply(this, arguments);
+      setTimeout(renderOwnerKoBetUnlockPanelV306, 300);
+      return result;
+    };
+    renderAll.__ownerUnlockV306 = true;
+    window.renderAll = renderAll;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.('[data-tab="adminTab"],[data-tab="knockoutTab"]')) {
+      setTimeout(renderOwnerKoBetUnlockPanelV306, 180);
+    }
+  }, true);
+
+  setTimeout(renderOwnerKoBetUnlockPanelV306, 1200);
+})();
+
+window.debugDonoApostasEliminatoriasV306 = function debugDonoApostasEliminatoriasV306() {
+  return {
+    version: APP_VERSION_V306_OWNER_UNLOCK_KO_BETS,
+    owner: ownerKoCanManageV306(),
+    unlocked: ownerKoUnlockedV306(),
+    settings: appSettings?.knockout?.ownerBetUnlock || null,
+    panel: Boolean(document.getElementById("ownerKoBetUnlockPanelV306")),
+    games: ownerKoMatchListV306().length,
+    players: ownerKoPlayerListV306().length,
+    selectedGame: ownerKoBetGameIdV306,
+    selectedPlayer: ownerKoBetPlayerIdV306
+  };
+};
+
+
+/* v307 — Dono edita/limpa apostas direto no "Ver apostas" do Calendário */
+const APP_VERSION_V307_PENCIL_EDIT_BETS_MODAL = "307.0";
+let ownerKoEditGameIdV307 = "";
+let ownerKoEditBetIdV307 = "";
+
+function ownerKoModalCanEditV307() {
+  try { return typeof ownerKoUnlockedV306 === "function" && ownerKoUnlockedV306() === true; }
+  catch { return false; }
+}
+
+function koModalGameMatchV307(gameId) {
+  try {
+    const game = (games || []).find(item => String(item.id || "") === String(gameId || ""));
+    const match = typeof knockoutMatchFromCalendarGameV259 === "function" ? knockoutMatchFromCalendarGameV259(game) : null;
+    if (match) return { game, match };
+    const byId = typeof knockoutMatchById === "function" ? knockoutMatchById(gameId) : null;
+    return { game, match: byId };
+  } catch {
+    return { game: null, match: null };
+  }
+}
+
+function koModalBetByIdV307(betId) {
+  return (bets || []).find(bet => String(bet.id || "") === String(betId || "")) || null;
+}
+
+function koModalBetIdV307(bet, gameId) {
+  if (bet?.id) return String(bet.id);
+  return `${bet?.playerId || playerIdFromName?.(bet?.playerName || "jogador") || "jogador"}_${gameId}`;
+}
+
+function koModalTeamOptionsV307(match, selected = "") {
+  const teams = [match?.homeTeam, match?.awayTeam].filter(Boolean);
+  return `<option value="">Escolher equipa qualificada</option>` + teams.map(team => `
+    <option value="${escapeHtml(team)}" ${normalizeComparable(team) === normalizeComparable(selected) ? "selected" : ""}>${escapeHtml(team)}</option>
+  `).join("");
+}
+
+function koModalRenderEditBoxV307(gameId, betId) {
+  const body = document.getElementById("betsModalBody");
+  if (!body) return;
+
+  let box = document.getElementById("koModalEditBoxV307");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "koModalEditBoxV307";
+    box.className = "ko-modal-edit-box-v307";
+    body.prepend(box);
+  }
+
+  if (!ownerKoModalCanEditV307()) {
+    box.remove();
+    return;
+  }
+
+  const { match } = koModalGameMatchV307(gameId);
+  const bet = koModalBetByIdV307(betId);
+  if (!match || !bet) {
+    box.innerHTML = `<div class="empty small-empty">Aposta não encontrada.</div>`;
+    return;
+  }
+
+  const homeGuess = bet.homeGuess ?? bet.homeScore ?? bet.home ?? "";
+  const awayGuess = bet.awayGuess ?? bet.awayScore ?? bet.away ?? "";
+  const qualified = bet.qualifiedTeam || bet.qualified || bet.winner || "";
+
+  box.dataset.gameId = gameId;
+  box.dataset.betId = koModalBetIdV307(bet, gameId);
+  box.innerHTML = `
+    <div class="ko-modal-edit-head-v307">
+      <div>
+        <strong>✏️ Editar aposta</strong>
+        <span>${escapeHtml(bet.playerName || bet.playerId || "Jogador")} · ${escapeHtml(match.homeTeam || "")} vs ${escapeHtml(match.awayTeam || "")}</span>
+      </div>
+      <button class="icon-button" type="button" id="koModalCloseEditV307" aria-label="Fechar edição">x</button>
+    </div>
+
+    <div class="ko-modal-edit-fields-v307">
+      <label>Casa
+        <input id="koModalEditHomeV307" type="number" min="0" inputmode="numeric" value="${escapeHtml(homeGuess)}" />
+      </label>
+      <label>Fora
+        <input id="koModalEditAwayV307" type="number" min="0" inputmode="numeric" value="${escapeHtml(awayGuess)}" />
+      </label>
+      <label>Qualificada
+        <select id="koModalEditQualifiedV307">
+          ${koModalTeamOptionsV307(match, qualified)}
+        </select>
+      </label>
+    </div>
+
+    <div class="ko-modal-edit-actions-v307">
+      <button id="koModalSaveEditV307" class="primary" type="button">Guardar alteração</button>
+      <button id="koModalClearEditV307" class="secondary danger-soft" type="button">Limpar aposta</button>
+    </div>
+  `;
+}
+
+function koModalCloseEditBoxV307() {
+  document.getElementById("koModalEditBoxV307")?.remove();
+  ownerKoEditGameIdV307 = "";
+  ownerKoEditBetIdV307 = "";
+}
+
+async function koModalPersistChangeV307(reason, deletedIds = [], savedIds = []) {
+  try {
+    if (deletedIds.length && typeof markBetsForDelete === "function") markBetsForDelete(deletedIds);
+    if (savedIds.length && typeof markBetsPending === "function") markBetsPending(savedIds);
+    saveLocalData?.(reason);
+    scheduleFullSync?.(reason, 250);
+    addSystemLog?.("Dono editou apostas", reason, { deleted: deletedIds.length, saved: savedIds.length }, { sync: true });
+  } catch (error) {
+    console.warn("v307 persist modal aposta", error);
+  }
+
+  try { renderCalendar?.(); } catch {}
+  try { renderScore?.(); } catch {}
+
+  const gameId = ownerKoEditGameIdV307 || document.getElementById("koModalEditBoxV307")?.dataset?.gameId || "";
+  if (gameId) {
+    setTimeout(() => {
+      try { showGameBets?.(gameId); } catch {}
+    }, 80);
+  }
+}
+
+async function koModalSaveEditV307() {
+  if (!ownerKoModalCanEditV307()) return toast?.("Tens de desbloquear o modo Dono primeiro.");
+
+  const box = document.getElementById("koModalEditBoxV307");
+  const gameId = box?.dataset?.gameId || ownerKoEditGameIdV307;
+  const betId = box?.dataset?.betId || ownerKoEditBetIdV307;
+
+  const { match } = koModalGameMatchV307(gameId);
+  const bet = koModalBetByIdV307(betId);
+  if (!match || !bet) return toast?.("Aposta não encontrada.");
+
+  const home = document.getElementById("koModalEditHomeV307")?.value ?? "";
+  const away = document.getElementById("koModalEditAwayV307")?.value ?? "";
+  const qualified = document.getElementById("koModalEditQualifiedV307")?.value || "";
+
+  if (home === "" || away === "") return toast?.("Preenche o resultado.");
+  if (!qualified) return toast?.("Escolhe a equipa qualificada.");
+
+  const h = Number(home);
+  const a = Number(away);
+  if (!Number.isFinite(h) || !Number.isFinite(a) || h < 0 || a < 0) return toast?.("Resultado inválido.");
+
+  if (![normalizeComparable(match.homeTeam), normalizeComparable(match.awayTeam)].includes(normalizeComparable(qualified))) {
+    return toast?.("A qualificada tem de ser uma das equipas do jogo.");
+  }
+  if (h > a && normalizeComparable(qualified) !== normalizeComparable(match.homeTeam)) return toast?.("A qualificada não bate certo com o resultado.");
+  if (a > h && normalizeComparable(qualified) !== normalizeComparable(match.awayTeam)) return toast?.("A qualificada não bate certo com o resultado.");
+
+  const updated = {
+    ...bet,
+    id: koModalBetIdV307(bet, gameId),
+    gameId,
+    homeGuess: h,
+    awayGuess: a,
+    winner: qualified,
+    qualifiedTeam: qualified,
+    qualified,
+    phase: "knockout",
+    editedByOwner: true,
+    editedBy: currentUser?.email || currentProfile?.email || "",
+    updatedAt: new Date().toISOString()
+  };
+
+  bets = (bets || []).filter(item => koModalBetIdV307(item, item.gameId) !== updated.id);
+  bets.push(updated);
+
+  ownerKoEditGameIdV307 = gameId;
+  ownerKoEditBetIdV307 = updated.id;
+  await koModalPersistChangeV307("dono editou aposta no modal Ver apostas", [], [updated.id]);
+  toast?.("Aposta atualizada.");
+}
+
+async function koModalClearEditV307() {
+  if (!ownerKoModalCanEditV307()) return toast?.("Tens de desbloquear o modo Dono primeiro.");
+
+  const box = document.getElementById("koModalEditBoxV307");
+  const gameId = box?.dataset?.gameId || ownerKoEditGameIdV307;
+  const betId = box?.dataset?.betId || ownerKoEditBetIdV307;
+  const bet = koModalBetByIdV307(betId);
+  if (!bet) return toast?.("Aposta não encontrada.");
+
+  if (!confirm(`Limpar a aposta de ${bet.playerName || bet.playerId || "Jogador"}?`)) return;
+
+  bets = (bets || []).filter(item => koModalBetIdV307(item, item.gameId) !== koModalBetIdV307(bet, gameId));
+
+  ownerKoEditGameIdV307 = gameId;
+  ownerKoEditBetIdV307 = "";
+  await koModalPersistChangeV307("dono limpou aposta no modal Ver apostas", [koModalBetIdV307(bet, gameId)], []);
+  koModalCloseEditBoxV307();
+  toast?.("Aposta limpa.");
+}
+
+function koModalInjectPencilButtonsV307(gameId) {
+  if (!ownerKoModalCanEditV307()) return;
+  const modal = document.getElementById("betsModal");
+  const body = document.getElementById("betsModalBody");
+  if (!modal || modal.classList.contains("hidden") || !body) return;
+
+  const { match } = koModalGameMatchV307(gameId);
+  if (!match) return;
+
+  const rows = [...body.querySelectorAll(".bet-user-row")];
+  const gameBets = betsForGame(gameId);
+
+  rows.forEach((row, index) => {
+    if (row.querySelector(".ko-pencil-edit-v307")) return;
+    const bet = gameBets[index];
+    if (!bet) return;
+
+    row.classList.add("ko-editable-row-v307");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ko-pencil-edit-v307";
+    btn.textContent = "✏️";
+    btn.title = "Editar ou limpar aposta";
+    btn.dataset.gameId = gameId;
+    btn.dataset.betId = koModalBetIdV307(bet, gameId);
+
+    const pointsCell = row.querySelector('b[data-label="Pontos"]') || row.querySelector("b") || row;
+    pointsCell.insertAdjacentElement("afterend", btn);
+  });
+}
+
+function koModalPatchAfterShowV307(gameId) {
+  requestAnimationFrame(() => {
+    koModalInjectPencilButtonsV307(gameId);
+    const body = document.getElementById("betsModalBody");
+    if (body && ownerKoModalCanEditV307() && !document.getElementById("koModalOwnerHintV307")) {
+      const hint = document.createElement("div");
+      hint.id = "koModalOwnerHintV307";
+      hint.className = "ko-modal-owner-hint-v307";
+      hint.textContent = "Modo Dono desbloqueado: usa ✏️ para editar ou limpar apostas.";
+      body.prepend(hint);
+    }
+  });
+}
+
+(function installPencilEditBetsModalV307() {
+  if (window.__pencilEditBetsModalV307) return;
+  window.__pencilEditBetsModalV307 = true;
+
+  const originalShowGameBets = typeof showGameBets === "function" ? showGameBets : null;
+  if (originalShowGameBets && !originalShowGameBets.__pencilV307) {
+    showGameBets = function showGameBetsPencilEditV307(gameId) {
+      const result = originalShowGameBets.apply(this, arguments);
+      const { match } = koModalGameMatchV307(gameId);
+      if (match) koModalPatchAfterShowV307(gameId);
+      return result;
+    };
+    showGameBets.__pencilV307 = true;
+    window.showGameBets = showGameBets;
+  }
+
+  document.addEventListener("click", event => {
+    const editBtn = event.target.closest?.(".ko-pencil-edit-v307");
+    if (editBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!ownerKoModalCanEditV307()) return toast?.("Tens de desbloquear o modo Dono primeiro.");
+      ownerKoEditGameIdV307 = editBtn.dataset.gameId || "";
+      ownerKoEditBetIdV307 = editBtn.dataset.betId || "";
+      koModalRenderEditBoxV307(ownerKoEditGameIdV307, ownerKoEditBetIdV307);
+      return;
+    }
+
+    if (event.target.closest?.("#koModalCloseEditV307")) {
+      event.preventDefault();
+      koModalCloseEditBoxV307();
+      return;
+    }
+
+    if (event.target.closest?.("#koModalSaveEditV307")) {
+      event.preventDefault();
+      koModalSaveEditV307();
+      return;
+    }
+
+    if (event.target.closest?.("#koModalClearEditV307")) {
+      event.preventDefault();
+      koModalClearEditV307();
+    }
+  }, true);
+})();
+
+window.debugLapisApostasV307 = function debugLapisApostasV307(gameId = "") {
+  return {
+    version: APP_VERSION_V307_PENCIL_EDIT_BETS_MODAL,
+    ownerUnlocked: ownerKoModalCanEditV307(),
+    requestedGame: gameId,
+    hasMatch: Boolean(koModalGameMatchV307(gameId).match),
+    modalOpen: !document.getElementById("betsModal")?.classList.contains("hidden"),
+    pencilButtons: document.querySelectorAll(".ko-pencil-edit-v307").length,
+    editBox: Boolean(document.getElementById("koModalEditBoxV307"))
+  };
+};
+
+
+/* v308 — Lápis direto no HTML do modal Ver apostas da Fase Final */
+const APP_VERSION_V308_DIRECT_PENCIL_KO_MODAL = "308.0";
+
+function ownerCanSeePencilV308() {
+  try {
+    return typeof ownerKoModalCanEditV307 === "function" && ownerKoModalCanEditV307();
+  } catch {
+    return false;
+  }
+}
+
+function koModalGameAndMatchV308(gameId) {
+  const game = (games || []).find(item => String(item.id || "") === String(gameId || ""));
+  let match = null;
+
+  try {
+    if (game && typeof isKnockoutCalendarGameV259 === "function" && isKnockoutCalendarGameV259(game) && typeof knockoutMatchFromCalendarGameV259 === "function") {
+      match = knockoutMatchFromCalendarGameV259(game);
+    }
+  } catch {}
+
+  try {
+    if (!match && typeof knockoutMatchById === "function") match = knockoutMatchById(gameId);
+  } catch {}
+
+  try {
+    if (!match && appSettings?.knockout?.matches) {
+      match = appSettings.knockout.matches.find(item => String(item.id || "") === String(gameId || "")) || null;
+    }
+  } catch {}
+
+  return { game, match };
+}
+
+function koBetIdForModalV308(bet, gameId) {
+  try {
+    if (typeof koModalBetIdV307 === "function") return koModalBetIdV307(bet, gameId);
+  } catch {}
+  return String(bet?.id || `${bet?.playerId || playerIdFromName?.(bet?.playerName || "jogador") || "jogador"}_${gameId}`);
+}
+
+function showKnockoutBetsModalDirectPencilV308(gameId) {
+  const { game, match } = koModalGameAndMatchV308(gameId);
+  if (!game || !match) return false;
+
+  const modal = $("betsModal");
+  const title = $("betsModalTitle");
+  const subtitle = $("betsModalSubtitle");
+  const summary = $("betsGameSummary");
+  const body = $("betsModalBody");
+  if (!modal || !title || !subtitle || !summary || !body) return false;
+
+  const canEdit = ownerCanSeePencilV308();
+
+  const rows = betsForGame(game.id).sort((a, b) =>
+    pointsForKnockoutBet(b, match) - pointsForKnockoutBet(a, match) ||
+    String(a.playerName || "").localeCompare(String(b.playerName || ""), "pt")
+  );
+
+  const hasKoResult = knockoutMatchHasResult(match);
+  const exactCount = rows.filter(bet => typeof isExactKnockoutBet === "function" && isExactKnockoutBet(bet, match)).length;
+  const winnerCount = rows.filter(bet => !(typeof isExactKnockoutBet === "function" && isExactKnockoutBet(bet, match)) && typeof isWinnerKnockoutBet === "function" && isWinnerKnockoutBet(bet, match)).length;
+  const totalPoints = rows.reduce((sum, bet) => sum + pointsForKnockoutBet(bet, match), 0);
+  const qualified = game.qualified || game.qualifiedTeam || match.qualified || match.winnerTeam || match.winner || "";
+
+  title.textContent = `${game.homeTeam} - ${game.awayTeam}`;
+  subtitle.textContent = `${game.group || match.roundLabel || "Fase Final"} · ${dateHeader(game.matchDate || match.matchDate || match.date)} · ${timePortugal(game.matchDate || match.matchDate || match.date)}`;
+
+  summary.innerHTML = `
+    <div class="bets-summary-card main">
+      <span>Resultado</span>
+      <strong>${hasFinalResult(game) || hasKoResult ? `${game.homeScore ?? match.homeScore}-${game.awayScore ?? match.awayScore}` : "Por colocar"}</strong>
+    </div>
+    <div class="bets-summary-card">
+      <span>Apostas</span>
+      <strong>${rows.length}</strong>
+    </div>
+    <div class="bets-summary-card">
+      <span>Exatos</span>
+      <strong>${hasKoResult ? exactCount : "-"}</strong>
+    </div>
+    <div class="bets-summary-card">
+      <span>Vencedor/empate</span>
+      <strong>${hasKoResult ? winnerCount : "-"}</strong>
+    </div>
+    <div class="bets-summary-card">
+      <span>Pontos</span>
+      <strong>${hasKoResult ? totalPoints : "-"}</strong>
+    </div>
+  `;
+
+  if (!rows.length) {
+    body.innerHTML = `
+      ${canEdit ? `<div class="ko-modal-owner-hint-v307">Modo Dono desbloqueado: ainda não existem apostas neste jogo.</div>` : ""}
+      <div class="empty">Ainda não existem apostas para este jogo.</div>
+    `;
+  } else {
+    body.innerHTML = `
+      ${canEdit ? `<div id="koModalOwnerHintV307" class="ko-modal-owner-hint-v307">Modo Dono desbloqueado: usa ✏️ para editar ou limpar apostas.</div>` : ""}
+      <div class="bets-list-head ${canEdit ? "ko-list-head-edit-v308" : ""}">
+        <span>Jogador</span>
+        <span>Aposta</span>
+        <span>Tipo</span>
+        <span>Pontos</span>
+        ${canEdit ? `<span>Editar</span>` : ""}
+      </div>
+      <div class="bets-list">
+        ${rows.map((bet, index) => {
+          const points = pointsForKnockoutBet(bet, match);
+          const typeLabel = hasKoResult ? knockoutBetResultLabel(bet, match) : "Por jogar";
+          const typeClass = hasKoResult ? knockoutBetResultClass(bet, match) : "pending";
+          const betId = koBetIdForModalV308(bet, game.id);
+          return `
+            <article class="bet-user-row ${typeClass} ${canEdit ? "ko-editable-row-v307 ko-direct-edit-row-v308" : ""}">
+              <div class="bet-user-main" data-label="Jogador">
+                <span class="bet-position">${index + 1}</span>
+                <strong title="${escapeHtml(bet.playerName || bet.playerId || "Jogador")}">${escapeHtml(bet.playerName || bet.playerId || "Jogador")}</strong>
+              </div>
+              <div class="bet-score-pill" data-label="Aposta">${escapeHtml(knockoutBetDisplay(bet))}</div>
+              <div class="bet-type-pill" data-label="Tipo">${escapeHtml(typeLabel)}</div>
+              <b data-label="Pontos">${hasKoResult ? points : "-"}</b>
+              ${canEdit ? `
+                <button
+                  type="button"
+                  class="ko-pencil-edit-v307 ko-pencil-direct-v308"
+                  title="Editar ou limpar aposta"
+                  data-game-id="${escapeHtml(game.id)}"
+                  data-bet-id="${escapeHtml(betId)}"
+                >✏️</button>
+              ` : ""}
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  modal.classList.remove("hidden");
+  return true;
+}
+
+(function installDirectPencilKoModalV308() {
+  if (window.__directPencilKoModalV308) return;
+  window.__directPencilKoModalV308 = true;
+
+  const previousShowGameBets = typeof showGameBets === "function" ? showGameBets : null;
+  if (previousShowGameBets && !previousShowGameBets.__directPencilV308) {
+    showGameBets = function showGameBetsDirectPencilV308(gameId) {
+      if (showKnockoutBetsModalDirectPencilV308(gameId)) return;
+      return previousShowGameBets.apply(this, arguments);
+    };
+    showGameBets.__directPencilV308 = true;
+    window.showGameBets = showGameBets;
+  }
+
+  // Segurança: se o botão antigo abrir o modal antes, volta a renderizar pelo sistema novo.
+  document.addEventListener("click", event => {
+    const btn = event.target.closest?.("[data-bets-game]");
+    if (!btn) return;
+    const gameId = btn.dataset.betsGame || "";
+    const { match } = koModalGameAndMatchV308(gameId);
+    if (!match) return;
+    setTimeout(() => showKnockoutBetsModalDirectPencilV308(gameId), 0);
+  }, true);
+})();
+
+window.debugLapisDiretoV308 = function debugLapisDiretoV308(gameId = "") {
+  const { game, match } = koModalGameAndMatchV308(gameId);
+  return {
+    version: APP_VERSION_V308_DIRECT_PENCIL_KO_MODAL,
+    ownerCanSeePencil: ownerCanSeePencilV308(),
+    gameId,
+    hasGame: Boolean(game),
+    hasMatch: Boolean(match),
+    modalOpen: !document.getElementById("betsModal")?.classList.contains("hidden"),
+    pencilButtons: document.querySelectorAll(".ko-pencil-edit-v307").length,
+    ownerUnlockDebug: (() => {
+      try { return debugDonoApostasEliminatoriasV306?.(); } catch { return null; }
+    })()
+  };
+};
+
+
+/* v309 — Calendário mostra marcador live dos golos sem esperar pelo resultado final */
+const APP_VERSION_V309_CALENDAR_LIVE_SCORE = "309.0";
+
+function numberFromScoreKeysV309(source = {}, keys = []) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value === null || value === undefined || value === "") continue;
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
+}
+
+function finalScorePairV309(game = {}) {
+  const home = numberFromScoreKeysV309(game, ["homeScore", "homeResult", "resultHome", "finalHomeScore"]);
+  const away = numberFromScoreKeysV309(game, ["awayScore", "awayResult", "resultAway", "finalAwayScore"]);
+  if (home === null || away === null) return null;
+  return { home, away, final: true };
+}
+
+function liveScorePairV309(game = {}) {
+  const home = numberFromScoreKeysV309(game, [
+    "liveHomeScore",
+    "currentHomeScore",
+    "homeLiveScore",
+    "scoreHomeLive",
+    "goalsHomeLive",
+    "scoreHome",
+    "goalsHome"
+  ]);
+  const away = numberFromScoreKeysV309(game, [
+    "liveAwayScore",
+    "currentAwayScore",
+    "awayLiveScore",
+    "scoreAwayLive",
+    "goalsAwayLive",
+    "scoreAway",
+    "goalsAway"
+  ]);
+  if (home === null || away === null) return null;
+  return { home, away, final: false };
+}
+
+function visibleScorePairV309(game = {}) {
+  const finalScore = finalScorePairV309(game);
+  if (finalScore) return finalScore;
+  return liveScorePairV309(game);
+}
+
+function visibleScoreTextV309(game = {}) {
+  const score = visibleScorePairV309(game);
+  return score ? `${score.home}-${score.away}` : "";
+}
+
+function gameHasLiveScoreOnlyV309(game = {}) {
+  return !finalScorePairV309(game) && Boolean(liveScorePairV309(game));
+}
+
+function isFinishedStatusV309(game = {}) {
+  const status = String(game?.footballDataStatus || game?.statusApi || game?.status || "").toUpperCase();
+  return ["FINISHED", "AWARDED"].includes(status);
+}
+
+(function installCalendarLiveScoreV309() {
+  if (window.__calendarLiveScoreV309) return;
+  window.__calendarLiveScoreV309 = true;
+
+  const originalStatusOf = typeof statusOf === "function" ? statusOf : null;
+  if (originalStatusOf && !originalStatusOf.__liveScoreV309) {
+    statusOf = function statusOfLiveScoreV309(game) {
+      const original = originalStatusOf.apply(this, arguments);
+      if (gameHasLiveScoreOnlyV309(game) && !isFinishedStatusV309(game)) {
+        return { text: "A Decorrer", className: "live" };
+      }
+      return original;
+    };
+    statusOf.__liveScoreV309 = true;
+    window.statusOf = statusOf;
+  }
+
+  const originalRenderMatchRow = typeof renderMatchRow === "function" ? renderMatchRow : null;
+  if (originalRenderMatchRow && !originalRenderMatchRow.__liveScoreV309) {
+    renderMatchRow = function renderMatchRowLiveScoreV309(game) {
+      let html = originalRenderMatchRow.apply(this, arguments);
+      const scoreText = visibleScoreTextV309(game);
+      if (!scoreText) return html;
+
+      const liveOnly = gameHasLiveScoreOnlyV309(game);
+      const scoreClass = liveOnly ? "score-vs live-score-v309" : "score-vs";
+
+      // Substitui o VS por marcador live/final, sem mexer no cálculo de pontos.
+      html = html.replace(
+        /<div class="score-vs">(?:VS|Vs|vs)<\/div>/,
+        `<div class="${scoreClass}">${escapeHtml(scoreText)}</div>`
+      );
+
+      // Se o score veio apenas live, reforça a linha como live e melhora a nota.
+      if (liveOnly) {
+        html = html.replace(/<article class="match-row ([^"]*)"/, (match, classes) => {
+          const clean = String(classes || "").replace(/\bopen\b/g, "").replace(/\bplayed\b/g, "").trim();
+          return `<article class="match-row ${clean} live live-score-row-v309"`;
+        });
+
+        html = html.replace(/<div class="state [^"]*">[^<]*<\/div>/, `<div class="state live">A Decorrer</div>`);
+
+        if (html.includes("apostas importadas")) {
+          html = html.replace(/(<div class="bet-note[^"]*">)([^<]*)/, `$1${escapeHtml(scoreText)} ao vivo · $2`);
+        }
+      }
+
+      return html;
+    };
+    renderMatchRow.__liveScoreV309 = true;
+    window.renderMatchRow = renderMatchRow;
+  }
+
+  const originalShowGameBets = typeof showGameBets === "function" ? showGameBets : null;
+  if (originalShowGameBets && !originalShowGameBets.__liveScoreV309) {
+    showGameBets = function showGameBetsLiveScoreV309(gameId) {
+      const result = originalShowGameBets.apply(this, arguments);
+      try {
+        const game = (games || []).find(item => String(item.id || "") === String(gameId || ""));
+        const scoreText = visibleScoreTextV309(game);
+        if (game && scoreText && gameHasLiveScoreOnlyV309(game)) {
+          const summary = document.getElementById("betsGameSummary");
+          const first = summary?.querySelector(".bets-summary-card.main strong");
+          if (first && /Por colocar|VS|Vs|vs/i.test(first.textContent || "")) {
+            first.textContent = `${scoreText} ao vivo`;
+          }
+        }
+      } catch {}
+      return result;
+    };
+    showGameBets.__liveScoreV309 = true;
+    window.showGameBets = showGameBets;
+  }
+
+  const originalQueueRealtimeRender = typeof queueRealtimeRender === "function" ? queueRealtimeRender : null;
+  if (originalQueueRealtimeRender && !originalQueueRealtimeRender.__liveScoreV309) {
+    queueRealtimeRender = function queueRealtimeRenderLiveScoreV309(reason = "firebase realtime") {
+      const isGameRealtime = String(reason || "").includes("jogos");
+      if (isGameRealtime && document.querySelector(".tab-panel.active")?.id === "calendarTab") {
+        // Para golos, não esperar 1.2s. Atualiza o Calendário quase logo.
+        if (realtimeRenderTimer) clearTimeout(realtimeRenderTimer);
+        realtimeRenderTimer = setTimeout(() => {
+          realtimeRenderTimer = null;
+          ensureKnockoutSettings?.();
+          saveLocalData?.(reason);
+          renderCalendar?.();
+          renderCalendarFilterState?.();
+        }, 120);
+        return;
+      }
+      return originalQueueRealtimeRender.apply(this, arguments);
+    };
+    queueRealtimeRender.__liveScoreV309 = true;
+    window.queueRealtimeRender = queueRealtimeRender;
+  }
+})();
+
+window.debugMarcadorLiveV309 = function debugMarcadorLiveV309() {
+  return {
+    version: APP_VERSION_V309_CALENDAR_LIVE_SCORE,
+    calendarActive: document.querySelector(".tab-panel.active")?.id === "calendarTab",
+    visibleGames: [...document.querySelectorAll("#gamesList .match-row")].slice(0, 20).map(row => ({
+      teams: row.textContent?.replace(/\s+/g, " ").trim().slice(0, 120),
+      score: row.querySelector(".score-vs")?.textContent?.trim() || "",
+      state: row.querySelector(".state")?.textContent?.trim() || "",
+      classes: row.className
+    })),
+    liveData: (games || []).filter(game => visibleScorePairV309(game)).map(game => ({
+      id: game.id,
+      label: `${game.homeTeam} - ${game.awayTeam}`,
+      status: game.footballDataStatus || game.statusApi || game.status || "",
+      homeScore: game.homeScore ?? null,
+      awayScore: game.awayScore ?? null,
+      liveHomeScore: game.liveHomeScore ?? null,
+      liveAwayScore: game.liveAwayScore ?? null,
+      visible: visibleScoreTextV309(game)
+    })).slice(0, 30)
   };
 };
