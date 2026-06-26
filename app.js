@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v302";
+const APP_VERSION_LABEL = "v304";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -19657,7 +19657,7 @@ function koV284EnsureModal() {
     <div class="modal-card ko-bet-hub-card-v284">
       <div class="modal-head ko-bet-hub-head-v284">
         <div>
-          <h2>⚽ Apostas Fase Final</h2>
+          <h2>⚽ Apostas Eliminatórias</h2>
           <p>Resultado aos 90 minutos + equipa que se qualifica.</p>
         </div>
         <button id="closeKnockoutBetHubV284" class="icon-button" type="button" aria-label="Fechar">×</button>
@@ -19853,7 +19853,7 @@ function koV284EntryButtonHtml() {
   const player = koV284Player();
   if (!player) return "";
   const counts = koV284Counts();
-  const label = counts.pending ? `Apostas FF · ${counts.pending}` : counts.missed ? `Apostas FF · ${counts.missed} a 0` : "Apostas FF";
+  const label = counts.pending ? `Apostas Eliminatórias · ${counts.pending}` : counts.missed ? `Apostas Eliminatórias · ${counts.missed} a 0` : "Apostas Eliminatórias";
   const tone = counts.pending ? "pending" : counts.missed ? "missed" : "ok";
   return `<button class="ko-bet-entry-btn-v284 ${tone}" type="button" data-open-ko-bet-hub-v284>⚽ ${escapeHtml(label)}</button>`;
 }
@@ -20286,7 +20286,7 @@ window.debugFaseFinalFiltroV286 = function debugFaseFinalFiltroV286() {
 };
 
 
-/* v287 — limpar banner Apostas FF no Calendário e alinhar botão Fase Final */
+/* v287 — limpar banner Apostas Eliminatórias no Calendário e alinhar botão Fase Final */
 const APP_VERSION_V287_UI_FILTER_CLEAN = "287.0";
 
 (function installApostasFFCleanV287() {
@@ -20567,7 +20567,7 @@ window.debugUsersOnlineJogadorV290 = function debugUsersOnlineJogadorV290() {
 };
 
 
-/* v291 — Apostas Fase Final no mobile em página fixa */
+/* v291 — Apostas Eliminatórias no mobile em página fixa */
 const APP_VERSION_V291_BETS_MOBILE_PAGE = "291.0";
 
 function koV291IsMobile() {
@@ -20596,7 +20596,7 @@ function koV291ApplyBetHubMode() {
         const title = modal?.querySelector(".ko-bet-hub-head-v284 h2");
         if (title && !title.dataset.v291) {
           title.dataset.v291 = "1";
-          title.textContent = "Apostas Fase Final";
+          title.textContent = "Apostas Eliminatórias";
         }
         const closeBtn = modal?.querySelector("#closeKnockoutBetHubV284");
         if (closeBtn) closeBtn.textContent = koV291IsMobile() ? "Voltar" : "×";
@@ -20688,7 +20688,7 @@ window.debugApostasFFMobilePageV291 = function debugApostasFFMobilePageV291() {
 };
 
 
-/* v292 — corrigir cards da página mobile Apostas Fase Final */
+/* v292 — corrigir cards da página mobile Apostas Eliminatórias */
 const APP_VERSION_V292_BETS_MOBILE_CARDS_FIX = "292.0";
 
 (function installBetHubMobileCardsFixV292() {
@@ -22737,5 +22737,380 @@ window.debugCalendarioEstavelV302 = function debugCalendarioEstavelV302() {
     })),
     lastRenderAt: calendarLastRenderAtV302,
     now: Date.now()
+  };
+};
+
+
+/* v303 — Admin limpo: Resumo e Resultados passam para Configurações só do Dono */
+const APP_VERSION_V303_ADMIN_CLEAN_OWNER_CONFIG = "303.0";
+
+function ownerCanSeeMovedAdminBlocksV303() {
+  try {
+    const role = normalizeRole(currentProfile?.role || "");
+    return role === "owner" || Boolean(isOwnerProfileV264?.());
+  } catch {
+    return Boolean(isOwner);
+  }
+}
+
+function ownerSettingsHostV303() {
+  try { ensureSettingsSectionsV213?.(); } catch {}
+  const settingsTab = document.getElementById("settingsTab");
+  if (!settingsTab) return null;
+
+  const content =
+    document.querySelector("#settingsSectionV213_admin .settings-section-content-v213") ||
+    document.querySelector("#settingsSectionV213_system .settings-section-content-v213") ||
+    settingsTab;
+
+  let host = document.getElementById("ownerAdminMovedBlocksV303");
+  if (!host && content) {
+    host = document.createElement("section");
+    host.id = "ownerAdminMovedBlocksV303";
+    host.className = "owner-admin-moved-v303";
+    host.innerHTML = `
+      <div class="owner-admin-moved-head-v303">
+        <div>
+          <strong>Área do Dono</strong>
+          <span>Resumo e Resultados foram movidos do Admin para aqui.</span>
+        </div>
+      </div>
+      <div id="ownerAdminOverviewSlotV303" class="owner-admin-slot-v303"></div>
+      <div id="ownerAdminResultsSlotV303" class="owner-admin-slot-v303"></div>
+    `;
+    content.prepend(host);
+  }
+  return host;
+}
+
+function ownerHiddenHostV303() {
+  let host = document.getElementById("ownerAdminHiddenBlocksV303");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "ownerAdminHiddenBlocksV303";
+    host.hidden = true;
+    host.style.display = "none";
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+function moveAdminOverviewToOwnerSettingsV303() {
+  const overview = document.getElementById("adminOverviewV162");
+  if (!overview) return;
+
+  if (!ownerCanSeeMovedAdminBlocksV303()) {
+    const hidden = ownerHiddenHostV303();
+    hidden.appendChild(overview);
+    overview.hidden = true;
+    overview.style.display = "none";
+    return;
+  }
+
+  const host = ownerSettingsHostV303();
+  const slot = document.getElementById("ownerAdminOverviewSlotV303");
+  if (!host || !slot) return;
+
+  slot.appendChild(overview);
+  overview.hidden = false;
+  overview.style.display = "";
+  overview.classList.add("owner-admin-overview-v303");
+}
+
+function moveResultCardsToOwnerSettingsV303() {
+  const hidden = ownerHiddenHostV303();
+  const host = ownerSettingsHostV303();
+  const slot = document.getElementById("ownerAdminResultsSlotV303");
+  const canOwnerSee = ownerCanSeeMovedAdminBlocksV303();
+
+  let cards = [];
+  try {
+    cards = typeof adminCardsV214 === "function" ? adminCardsV214() : Array.from(document.querySelectorAll(".admin-card"));
+  } catch {
+    cards = Array.from(document.querySelectorAll(".admin-card"));
+  }
+
+  cards.forEach(card => {
+    const section = (() => {
+      try { return adminSectionForCardV187?.(card) || ""; } catch { return ""; }
+    })();
+
+    if (section !== "results") return;
+
+    card.dataset.adminSectionV187 = "results";
+    card.classList.add("owner-results-card-v303");
+
+    if (!canOwnerSee) {
+      hidden.appendChild(card);
+      card.hidden = true;
+      card.style.display = "none";
+      return;
+    }
+
+    if (slot) {
+      slot.appendChild(card);
+      card.hidden = false;
+      card.style.display = "";
+      card.classList.remove("admin-section-hidden-v187", "admin-section-force-hidden-v202");
+      if (card.tagName?.toLowerCase() === "details") card.open = false;
+    }
+  });
+
+  if (host) {
+    host.hidden = !canOwnerSee;
+    host.style.display = canOwnerSee ? "" : "none";
+  }
+}
+
+function removeResultsTabFromAdminV303() {
+  document.querySelectorAll('#adminSectionTabsV187 [data-admin-section-v187="results"]').forEach(btn => {
+    btn.remove();
+  });
+
+  const active = localStorage.getItem(`${STORAGE_KEY}_admin_section_v187`);
+  if (active === "results" || active === "all") {
+    localStorage.setItem(`${STORAGE_KEY}_admin_section_v187`, "users");
+  }
+}
+
+function applyAdminCleanOwnerConfigV303() {
+  removeResultsTabFromAdminV303();
+  moveAdminOverviewToOwnerSettingsV303();
+  moveResultCardsToOwnerSettingsV303();
+
+  const overviewInAdmin = document.querySelector("#adminUnlocked > #adminOverviewV162");
+  if (overviewInAdmin) moveAdminOverviewToOwnerSettingsV303();
+
+  // Garante que o Admin fica limpo.
+  document.querySelectorAll("#adminUnlocked > .admin-card").forEach(card => {
+    try {
+      if (adminSectionForCardV187?.(card) === "results") moveResultCardsToOwnerSettingsV303();
+    } catch {}
+  });
+
+  try { updateSettingsSectionCountsV213?.(); } catch {}
+}
+
+(function installAdminCleanOwnerConfigV303() {
+  if (window.__adminCleanOwnerConfigV303) return;
+  window.__adminCleanOwnerConfigV303 = true;
+
+  const originalEnsureTabsV190 = typeof ensureAdminSectionTabsV190 === "function" ? ensureAdminSectionTabsV190 : null;
+  if (originalEnsureTabsV190 && !originalEnsureTabsV190.__v303) {
+    ensureAdminSectionTabsV190 = function ensureAdminSectionTabsCleanV303() {
+      const tabs = originalEnsureTabsV190.apply(this, arguments);
+      removeResultsTabFromAdminV303();
+      return tabs;
+    };
+    ensureAdminSectionTabsV190.__v303 = true;
+    window.ensureAdminSectionTabsV190 = ensureAdminSectionTabsV190;
+  }
+
+  const originalEnsureTabsV187 = typeof ensureAdminSectionTabsV187 === "function" ? ensureAdminSectionTabsV187 : null;
+  if (originalEnsureTabsV187 && !originalEnsureTabsV187.__v303) {
+    ensureAdminSectionTabsV187 = function ensureAdminSectionTabsCleanV303() {
+      const tabs = originalEnsureTabsV187.apply(this, arguments);
+      removeResultsTabFromAdminV303();
+      return tabs;
+    };
+    ensureAdminSectionTabsV187.__v303 = true;
+    window.ensureAdminSectionTabsV187 = ensureAdminSectionTabsV187;
+  }
+
+  const originalRoute = typeof routeAdminCardsV214 === "function" ? routeAdminCardsV214 : null;
+  if (originalRoute && !originalRoute.__v303) {
+    routeAdminCardsV214 = function routeAdminCardsCleanOwnerV303(settings = savedAdminLayoutSettingsV213?.()) {
+      const safeSettings = settings || {};
+      safeSettings.adminSections = { ...(safeSettings.adminSections || {}), results: "hidden" };
+      const result = originalRoute.call(this, safeSettings);
+      try { result?.delete?.("results"); } catch {}
+      setTimeout(applyAdminCleanOwnerConfigV303, 0);
+      return result;
+    };
+    routeAdminCardsV214.__v303 = true;
+    window.routeAdminCardsV214 = routeAdminCardsV214;
+  }
+
+  const originalApplyLayout = typeof applyAdminLayoutSettingsV213 === "function" ? applyAdminLayoutSettingsV213 : null;
+  if (originalApplyLayout && !originalApplyLayout.__v303) {
+    applyAdminLayoutSettingsV213 = function applyAdminLayoutSettingsCleanV303() {
+      const result = originalApplyLayout.apply(this, arguments);
+      applyAdminCleanOwnerConfigV303();
+      return result;
+    };
+    applyAdminLayoutSettingsV213.__v303 = true;
+    window.applyAdminLayoutSettingsV213 = applyAdminLayoutSettingsV213;
+  }
+
+  const originalSettingsLayout = typeof applySettingsLayoutV213 === "function" ? applySettingsLayoutV213 : null;
+  if (originalSettingsLayout && !originalSettingsLayout.__v303) {
+    applySettingsLayoutV213 = function applySettingsLayoutCleanV303() {
+      const result = originalSettingsLayout.apply(this, arguments);
+      applyAdminCleanOwnerConfigV303();
+      return result;
+    };
+    applySettingsLayoutV213.__v303 = true;
+    window.applySettingsLayoutV213 = applySettingsLayoutV213;
+  }
+
+  const originalRenderAdminOverview = typeof renderAdminOverviewV162 === "function" ? renderAdminOverviewV162 : null;
+  if (originalRenderAdminOverview && !originalRenderAdminOverview.__v303) {
+    renderAdminOverviewV162 = function renderAdminOverviewOwnerSettingsV303() {
+      if (!ownerCanSeeMovedAdminBlocksV303()) {
+        moveAdminOverviewToOwnerSettingsV303();
+        return;
+      }
+      const result = originalRenderAdminOverview.apply(this, arguments);
+      setTimeout(moveAdminOverviewToOwnerSettingsV303, 0);
+      return result;
+    };
+    renderAdminOverviewV162.__v303 = true;
+    window.renderAdminOverviewV162 = renderAdminOverviewV162;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__v303) {
+    renderActivePageV187 = function renderActivePageCleanAdminV303(tabId = document.querySelector(".tab-panel.active")?.id || "calendarTab") {
+      const result = originalRenderActive.apply(this, arguments);
+      setTimeout(applyAdminCleanOwnerConfigV303, 80);
+      setTimeout(applyAdminCleanOwnerConfigV303, 260);
+      return result;
+    };
+    renderActivePageV187.__v303 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__v303) {
+    renderAll = function renderAllCleanAdminV303() {
+      const result = originalRenderAll.apply(this, arguments);
+      setTimeout(applyAdminCleanOwnerConfigV303, 120);
+      setTimeout(applyAdminCleanOwnerConfigV303, 500);
+      return result;
+    };
+    renderAll.__v303 = true;
+    window.renderAll = renderAll;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.('[data-tab="adminTab"],[data-tab="settingsTab"],[data-admin-section-v187]')) {
+      setTimeout(applyAdminCleanOwnerConfigV303, 120);
+      setTimeout(applyAdminCleanOwnerConfigV303, 400);
+    }
+  }, true);
+
+  setTimeout(applyAdminCleanOwnerConfigV303, 900);
+  setTimeout(applyAdminCleanOwnerConfigV303, 1800);
+})();
+
+window.debugAdminLimpoV303 = function debugAdminLimpoV303() {
+  return {
+    version: APP_VERSION_V303_ADMIN_CLEAN_OWNER_CONFIG,
+    owner: ownerCanSeeMovedAdminBlocksV303(),
+    overviewParent: document.getElementById("adminOverviewV162")?.parentElement?.id || "",
+    resultsCards: [...document.querySelectorAll(".owner-results-card-v303")].map(card => ({
+      title: card.querySelector("h2,summary,strong")?.textContent?.trim() || card.textContent.trim().slice(0, 50),
+      parent: card.parentElement?.id || "",
+      hidden: card.hidden,
+      display: card.style.display
+    })),
+    adminTabs: [...document.querySelectorAll("#adminSectionTabsV187 [data-admin-section-v187]")].map(btn => btn.dataset.adminSectionV187)
+  };
+};
+
+
+/* v304 — Renomeia botão Apostas FF para Apostas Eliminatórias */
+const APP_VERSION_V304_APOSTAS_ELIMINATORIAS_LABEL = "304.0";
+
+function renameApostasFFButtonsV304() {
+  const selectors = [
+    "[data-open-ko-bet-hub-v284]",
+    "#openFaseFinalBetsV284",
+    "#calendarKoBetHubBtnV284",
+    "button",
+    "a"
+  ];
+
+  document.querySelectorAll(selectors.join(",")).forEach(el => {
+    const text = (el.textContent || "").trim();
+    if (!text) return;
+
+    if (text.includes("Apostas FF")) {
+      el.textContent = el.textContent.replace(/Apostas FF/g, "Apostas Eliminatórias");
+    }
+
+    if (text.includes("Apostas Fase Final")) {
+      el.textContent = el.textContent.replace(/Apostas Fase Final/g, "Apostas Eliminatórias");
+    }
+
+    const aria = el.getAttribute("aria-label") || "";
+    if (aria.includes("Apostas FF") || aria.includes("Apostas Fase Final")) {
+      el.setAttribute("aria-label", aria.replace(/Apostas FF/g, "Apostas Eliminatórias").replace(/Apostas Fase Final/g, "Apostas Eliminatórias"));
+    }
+
+    const title = el.getAttribute("title") || "";
+    if (title.includes("Apostas FF") || title.includes("Apostas Fase Final")) {
+      el.setAttribute("title", title.replace(/Apostas FF/g, "Apostas Eliminatórias").replace(/Apostas Fase Final/g, "Apostas Eliminatórias"));
+    }
+  });
+}
+
+(function installApostasEliminatoriasLabelV304() {
+  if (window.__apostasEliminatoriasLabelV304) return;
+  window.__apostasEliminatoriasLabelV304 = true;
+
+  const originalEntry = typeof koV284EntryButtonHtml === "function" ? koV284EntryButtonHtml : null;
+  if (originalEntry && !originalEntry.__v304) {
+    koV284EntryButtonHtml = function koV284EntryButtonHtmlLabelV304() {
+      return String(originalEntry.apply(this, arguments))
+        .replace(/Apostas FF/g, "Apostas Eliminatórias")
+        .replace(/Apostas Fase Final/g, "Apostas Eliminatórias");
+    };
+    koV284EntryButtonHtml.__v304 = true;
+    window.koV284EntryButtonHtml = koV284EntryButtonHtml;
+  }
+
+  const originalRenderEntry = typeof koV284RenderEntryPoints === "function" ? koV284RenderEntryPoints : null;
+  if (originalRenderEntry && !originalRenderEntry.__v304) {
+    koV284RenderEntryPoints = function koV284RenderEntryPointsLabelV304() {
+      const result = originalRenderEntry.apply(this, arguments);
+      setTimeout(renameApostasFFButtonsV304, 0);
+      return result;
+    };
+    koV284RenderEntryPoints.__v304 = true;
+    window.koV284RenderEntryPoints = koV284RenderEntryPoints;
+  }
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__labelV304) {
+    renderCalendar = function renderCalendarApostasLabelV304() {
+      const result = originalRenderCalendar.apply(this, arguments);
+      setTimeout(renameApostasFFButtonsV304, 0);
+      return result;
+    };
+    renderCalendar.__labelV304 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__labelV304) {
+    renderAll = function renderAllApostasLabelV304() {
+      const result = originalRenderAll.apply(this, arguments);
+      setTimeout(renameApostasFFButtonsV304, 150);
+      return result;
+    };
+    renderAll.__labelV304 = true;
+    window.renderAll = renderAll;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => setTimeout(renameApostasFFButtonsV304, 500));
+  document.addEventListener("click", () => setTimeout(renameApostasFFButtonsV304, 80), true);
+  setTimeout(renameApostasFFButtonsV304, 900);
+})();
+
+window.debugApostasEliminatoriasLabelV304 = function debugApostasEliminatoriasLabelV304() {
+  return {
+    version: APP_VERSION_V304_APOSTAS_ELIMINATORIAS_LABEL,
+    matches: [...document.querySelectorAll("button,a")].filter(el => /Apostas/i.test(el.textContent || "")).map(el => el.textContent.trim())
   };
 };

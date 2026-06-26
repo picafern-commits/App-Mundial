@@ -16317,3 +16317,54 @@ body.mandatory-notice-open-v295{
     animation:none!important;
   }
 }
+
+
+/* v303 — Admin limpo, Resumo/Resultados movidos para Configurações do Dono */
+.owner-admin-moved-v303{
+  display:grid;
+  gap:14px;
+  padding:14px;
+  margin:0 0 16px;
+  border-radius:18px;
+  border:1px solid rgba(250,204,21,.22);
+  background:linear-gradient(135deg,rgba(250,204,21,.08),rgba(15,23,42,.82));
+}
+
+.owner-admin-moved-head-v303{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:center;
+}
+
+.owner-admin-moved-head-v303 strong{
+  display:block;
+  color:#fff;
+  font-size:18px;
+}
+
+.owner-admin-moved-head-v303 span{
+  display:block;
+  color:#b9c7dc;
+  font-size:13px;
+  margin-top:3px;
+  font-weight:800;
+}
+
+.owner-admin-slot-v303{
+  display:grid;
+  gap:12px;
+}
+
+.owner-admin-overview-v303{
+  margin:0!important;
+}
+
+.owner-results-card-v303{
+  margin:0!important;
+}
+
+#adminUnlocked > #adminOverviewV162,
+#adminSectionTabsV187 [data-admin-section-v187="results"]{
+  display:none!important;
+}
