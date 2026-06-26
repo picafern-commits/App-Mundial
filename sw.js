@@ -1,4 +1,4 @@
-const CACHE_NAME = "mundial-pontos-2026-v309-ver-apostas-eliminatorias-igual";
+const CACHE_NAME = "mundial-pontos-2026-v302-calendario-cards-estaveis";
 const APP_VERSION_SW_V298_USER_NOTIFICATIONS = "298.0";
 let userNotificationsEnabledSwV298 = true;
 
