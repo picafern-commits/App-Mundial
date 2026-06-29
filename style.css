@@ -17753,3 +17753,120 @@ html.app-modern-v314 .tab[aria-selected="true"]{
     flex-direction:column;
   }
 }
+
+
+/* v332 — lápis garantido e Admin > Fase Final limpo */
+#betsModal .bets-list-head.ko-owner-head-v332{
+  grid-template-columns:minmax(170px,.9fr) minmax(330px,1.8fr) minmax(140px,.75fr) 64px 56px!important;
+  align-items:center!important;
+}
+#betsModal .bet-user-row.ko-owner-row-v332{
+  grid-template-columns:minmax(170px,.9fr) minmax(330px,1.8fr) minmax(140px,.75fr) 64px 56px!important;
+  align-items:center!important;
+}
+#betsModal .ko-owner-edit-btn-v332{
+  justify-self:end!important;
+  opacity:1!important;
+  visibility:visible!important;
+  display:inline-flex!important;
+}
+#betsModal .ko-owner-add-bar-v332{
+  border:1px solid rgba(250,204,21,.32)!important;
+  background:linear-gradient(135deg,rgba(250,204,21,.12),rgba(15,23,42,.72))!important;
+}
+
+#knockoutAdminPanel.ko-admin-clean-v332{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+}
+#knockoutAdminPanel .ko-admin-clean-head-v332{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px;
+  border-radius:18px;
+  border:1px solid rgba(96,165,250,.20);
+  background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(15,23,42,.78));
+}
+#knockoutAdminPanel .ko-admin-clean-head-v332 strong{
+  display:block;
+  color:#fff;
+  font-size:20px;
+  font-weight:1000;
+}
+#knockoutAdminPanel .ko-admin-clean-head-v332 span,
+#knockoutAdminPanel .ko-admin-clean-head-v332 small{
+  color:#94a3b8;
+  font-size:12px;
+  font-weight:850;
+}
+#knockoutAdminPanel .ko-admin-list-clean-v332{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:12px!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332{
+  display:grid!important;
+  grid-template-columns:minmax(120px,.65fr) minmax(150px,1fr) auto minmax(150px,1fr) minmax(185px,.9fr) minmax(170px,.8fr) minmax(170px,.8fr) minmax(170px,.8fr) auto auto!important;
+  gap:10px!important;
+  align-items:end!important;
+  padding:14px!important;
+  border-radius:18px!important;
+  border:1px solid rgba(148,163,184,.16)!important;
+  background:rgba(15,23,42,.50)!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332 > strong{
+  color:#e0f2fe!important;
+  font-size:13px!important;
+  line-height:1.2!important;
+  align-self:center!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332 select,
+#knockoutAdminPanel .ko-admin-row-clean-v332 input{
+  width:100%!important;
+  min-height:40px!important;
+  border-radius:12px!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332 .ko-score-label{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+  color:#94a3b8!important;
+  font-size:11px!important;
+  font-weight:950!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332 .ko-score-pair{
+  display:grid!important;
+  grid-template-columns:1fr auto 1fr!important;
+  gap:6px!important;
+  align-items:center!important;
+}
+#knockoutAdminPanel .ko-admin-row-clean-v332 button.small{
+  min-height:40px!important;
+  white-space:nowrap!important;
+}
+@media(max-width:1300px){
+  #knockoutAdminPanel .ko-admin-row-clean-v332{
+    grid-template-columns:1fr 1fr!important;
+  }
+  #knockoutAdminPanel .ko-admin-row-clean-v332 > span{
+    display:none!important;
+  }
+}
+@media(max-width:720px){
+  #betsModal .bets-list-head.ko-owner-head-v332,
+  #betsModal .bet-user-row.ko-owner-row-v332{
+    grid-template-columns:1fr!important;
+  }
+  #knockoutAdminPanel .ko-admin-row-clean-v332,
+  #knockoutAdminPanel .ko-admin-clean-head-v332{
+    grid-template-columns:1fr!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+  }
+}
+
+/* v333-pontos-qualificada */
