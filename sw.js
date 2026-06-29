@@ -1,4 +1,4 @@
-const CACHE_NAME = "mundial-pontos-2026-v329-desbloqueio-globalopen-prazo";
+const CACHE_NAME = "mundial-pontos-2026-v331-dono-editar-apostas";
 const APP_VERSION_SW_V298_USER_NOTIFICATIONS = "298.0";
 let userNotificationsEnabledSwV298 = true;
 const APP_VERSION_SW_V311_CLEAN_AUDIT = "311.0";
