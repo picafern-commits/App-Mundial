@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v315";
+const APP_VERSION_LABEL = "v327";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -25141,5 +25141,256 @@ window.debugPesquisarJogosV315 = function debugPesquisarJogosV315() {
       v115: typeof v115PesquisarTodosInterval !== "undefined" && Boolean(v115PesquisarTodosInterval),
       v117: typeof v117PesquisarReapply !== "undefined" && Boolean(v117PesquisarReapply)
     }
+  };
+};
+
+
+/* v327 — Oficial: horas da Fase Final em Portugal + desbloqueio de apostas pelo Dono */
+const APP_VERSION_V327_KO_TIME_UNLOCK = "327.0";
+
+function hasExplicitTimezoneV327(value) {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(String(value || "").trim());
+}
+
+function padDatePartV327(value) {
+  return String(value).padStart(2, "0");
+}
+
+function portugalPartsFromDateV327(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PORTUGAL_TZ || "Europe/Lisbon",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  const get = type => parts.find(part => part.type === type)?.value || "";
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour") === "24" ? "00" : get("hour"),
+    minute: get("minute")
+  };
+}
+
+function portugalInputValueFromDateV327(date) {
+  if (!date || Number.isNaN(date.getTime())) return "";
+  const p = portugalPartsFromDateV327(date);
+  if (!p.year || !p.month || !p.day || !p.hour || !p.minute) return "";
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+function parsePortugalDateV327(value) {
+  if (value instanceof Date) return value;
+  const raw = String(value || "").trim();
+  if (!raw) return new Date(value);
+
+  // Se vier da API com Z/offset, respeita UTC e mostra/converte para Europe/Lisbon.
+  if (hasExplicitTimezoneV327(raw)) {
+    return new Date(raw);
+  }
+
+  // Se for datetime-local manual, interpreta como hora portuguesa/local da app.
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]));
+  }
+
+  return new Date(raw);
+}
+
+// Corrige a função global usada por calendário, pontuação e Fase Final.
+try {
+  parsePortugalDate = parsePortugalDateV327;
+  window.parsePortugalDate = parsePortugalDate;
+} catch {}
+
+function knockoutRawDateV327(match) {
+  return String(match?.matchDate || match?.date || match?.kickoff || match?.startAt || match?.utcDate || match?.time || "").trim();
+}
+
+function knockoutMatchDateInputValueV327(match) {
+  const raw = knockoutRawDateV327(match);
+  if (!raw) return "";
+
+  // Manual sem timezone: mantém exatamente o que foi escolhido no input.
+  if (!hasExplicitTimezoneV327(raw)) {
+    const direct = raw.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+    if (direct) return direct[1];
+  }
+
+  // UTC/API: converte para hora portuguesa para aparecer corretamente no input e no card.
+  const parsed = parsePortugalDateV327(raw);
+  return portugalInputValueFromDateV327(parsed);
+}
+
+function normalizeKnockoutMatchDateV327(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (!hasExplicitTimezoneV327(raw)) {
+    const direct = raw.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+    if (direct) return direct[1];
+  }
+  return portugalInputValueFromDateV327(parsePortugalDateV327(raw));
+}
+
+try {
+  knockoutMatchDateInputValueV243 = knockoutMatchDateInputValueV327;
+  normalizeKnockoutMatchDateV243 = normalizeKnockoutMatchDateV327;
+} catch {}
+
+knockoutMatchStartMillisV241 = function knockoutMatchStartMillisV327(match) {
+  const raw = knockoutRawDateV327(match);
+  if (!raw) return 0;
+  const parsed = hasExplicitTimezoneV327(raw)
+    ? parsePortugalDateV327(raw)
+    : parsePortugalDateV327(knockoutMatchDateInputValueV327(match));
+  const time = parsed?.getTime?.() || 0;
+  return Number.isFinite(time) ? time : 0;
+};
+window.knockoutMatchStartMillisV241 = knockoutMatchStartMillisV241;
+
+function knockoutBetLockMillisV327(match) {
+  const start = knockoutMatchStartMillisV241(match);
+  return start ? start - (KNOCKOUT_BET_LOCK_MINUTES_V243 * 60 * 1000) : 0;
+}
+
+function knockoutBetDeadlineLabelV327(match) {
+  const deadline = knockoutBetLockMillisV327(match);
+  if (!deadline) return "Data/hora por definir";
+  return dateTimePortugal(new Date(deadline));
+}
+
+try {
+  knockoutBetLockMillisV243 = knockoutBetLockMillisV327;
+  knockoutBetDeadlineLabelV243 = knockoutBetDeadlineLabelV327;
+} catch {}
+
+function ownerKoGlobalOpenV327() {
+  try {
+    ensureKnockoutSettings?.();
+    return appSettings?.knockout?.ownerBetUnlock?.globalOpen === true;
+  } catch {
+    return false;
+  }
+}
+
+function ownerKoCanGloballyOpenV327() {
+  try { return ownerKoCanManageV306?.() === true; }
+  catch { return false; }
+}
+
+const previousKoLockV327 = typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241 : null;
+isKnockoutBetLockedV241 = function isKnockoutBetLockedV327(match) {
+  if (!match) return true;
+  if (!match.homeTeam || !match.awayTeam) return true;
+
+  // Dono continua a poder desbloquear tudo para gerir/editar.
+  try {
+    if (ownerKoUnlockedV306?.()) return false;
+  } catch {}
+
+  // Modo aberto pelo Dono: users podem apostar/editar até o jogo ter resultado.
+  // Não abre jogos já finalizados para evitar alterações depois do resultado oficial.
+  if (ownerKoGlobalOpenV327() && !knockoutMatchHasResult(match)) return false;
+
+  if (previousKoLockV327) return previousKoLockV327.apply(this, arguments);
+
+  if (knockoutMatchHasResult(match)) return true;
+  const deadline = knockoutBetLockMillisV327(match);
+  if (!deadline) return true;
+  return Date.now() >= deadline;
+};
+window.isKnockoutBetLockedV241 = isKnockoutBetLockedV241;
+
+function renderOwnerKoGlobalUnlockV327() {
+  const panel = document.getElementById("ownerKoBetUnlockPanelV306");
+  if (!panel || !ownerKoCanGloballyOpenV327()) return;
+  if (document.getElementById("ownerKoGlobalUnlockV327")) return;
+
+  const open = ownerKoGlobalOpenV327();
+  const block = document.createElement("div");
+  block.id = "ownerKoGlobalUnlockV327";
+  block.className = `owner-ko-global-unlock-v327 ${open ? "open" : "closed"}`;
+  block.innerHTML = `
+    <div>
+      <strong>${open ? "Apostas abertas temporariamente" : "Abrir apostas para todos"}</strong>
+      <span>${open ? "Os users conseguem apostar/editar na Fase Final mesmo depois do bloqueio normal. Jogos com resultado continuam protegidos." : "Usa isto só quando precisares de desbloquear o prazo de apostas da Fase Final para todos."}</span>
+    </div>
+    <button id="ownerKoGlobalUnlockBtnV327" class="${open ? "secondary danger-soft" : "primary"}" type="button">
+      ${open ? "Voltar a bloquear para todos" : "Desbloquear apostas para todos"}
+    </button>
+  `;
+  panel.appendChild(block);
+
+  document.getElementById("ownerKoGlobalUnlockBtnV327")?.addEventListener("click", toggleOwnerKoGlobalUnlockV327);
+}
+
+async function toggleOwnerKoGlobalUnlockV327() {
+  if (!ownerKoCanGloballyOpenV327()) return toast?.("Só o Dono pode fazer isto.");
+  const settings = ownerKoSettingsV306?.() || (appSettings.knockout.ownerBetUnlock = {});
+  settings.globalOpen = settings.globalOpen !== true;
+  settings.globalOpenUpdatedAt = new Date().toISOString();
+  settings.globalOpenUpdatedBy = currentUser?.email || currentProfile?.email || "";
+  try {
+    await saveOwnerKoSettingsV306?.(settings.globalOpen ? "dono abriu apostas eliminatórias para todos" : "dono voltou a bloquear apostas eliminatórias para todos");
+  } catch {
+    try { saveLocalData?.("alterar desbloqueio global apostas"); scheduleFullSync?.("alterar desbloqueio global apostas", 300); } catch {}
+  }
+  try { renderOwnerKoBetUnlockPanelV306?.(); } catch {}
+  try { renderCalendar?.(); } catch {}
+  try { renderScore?.(); } catch {}
+  toast?.(settings.globalOpen ? "Apostas da Fase Final abertas para todos." : "Bloqueio normal das apostas reposto.");
+}
+
+const originalRenderOwnerKoPanelV327 = typeof renderOwnerKoBetUnlockPanelV306 === "function" ? renderOwnerKoBetUnlockPanelV306 : null;
+if (originalRenderOwnerKoPanelV327 && !originalRenderOwnerKoPanelV327.__v327) {
+  renderOwnerKoBetUnlockPanelV306 = function renderOwnerKoBetUnlockPanelV327() {
+    const result = originalRenderOwnerKoPanelV327.apply(this, arguments);
+    setTimeout(renderOwnerKoGlobalUnlockV327, 0);
+    return result;
+  };
+  renderOwnerKoBetUnlockPanelV306.__v327 = true;
+  window.renderOwnerKoBetUnlockPanelV306 = renderOwnerKoBetUnlockPanelV306;
+}
+
+document.addEventListener("click", event => {
+  if (event.target.closest?.('[data-tab="adminTab"],[data-tab="knockoutTab"]')) {
+    setTimeout(renderOwnerKoGlobalUnlockV327, 220);
+  }
+}, true);
+
+setTimeout(renderOwnerKoGlobalUnlockV327, 1500);
+
+window.debugHorasFaseFinalV327 = function debugHorasFaseFinalV327() {
+  const matches = (appSettings?.knockout?.matches || []).slice(0, 20).map(match => {
+    const raw = knockoutRawDateV327(match);
+    return {
+      id: match.id,
+      teams: `${match.homeTeam || ""} - ${match.awayTeam || ""}`,
+      raw,
+      hasTimezone: hasExplicitTimezoneV327(raw),
+      inputPortugal: knockoutMatchDateInputValueV327(match),
+      display: raw ? `${dateHeader(raw)} ${timePortugal(raw)}` : "",
+      deadline: knockoutBetDeadlineLabelV327(match),
+      startMillis: knockoutMatchStartMillisV241(match)
+    };
+  });
+  return { version: APP_VERSION_V327_KO_TIME_UNLOCK, timezone: PORTUGAL_TZ, matches };
+};
+
+window.debugDesbloqueioApostasV327 = function debugDesbloqueioApostasV327() {
+  return {
+    version: APP_VERSION_V327_KO_TIME_UNLOCK,
+    owner: ownerKoCanGloballyOpenV327(),
+    ownerUnlocked: Boolean(ownerKoUnlockedV306?.()),
+    globalOpen: ownerKoGlobalOpenV327(),
+    settings: appSettings?.knockout?.ownerBetUnlock || null,
+    panel: Boolean(document.getElementById("ownerKoBetUnlockPanelV306")),
+    globalPanel: Boolean(document.getElementById("ownerKoGlobalUnlockV327")),
+    matches: (appSettings?.knockout?.matches || []).length
   };
 };
