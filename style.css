@@ -17516,3 +17516,43 @@ html.app-modern-v314 .tab[aria-selected="true"]{
     align-items:stretch;
   }
 }
+
+
+/* v329 — painel compatível de desbloqueio global */
+.ko-global-unlock-panel-v329{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin:0 0 14px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(250,204,21,.28);
+  background:linear-gradient(135deg,rgba(250,204,21,.11),rgba(15,23,42,.60));
+}
+
+.ko-global-unlock-panel-v329 strong{
+  display:block;
+  color:#fff;
+  font-size:15px;
+  font-weight:1000;
+}
+
+.ko-global-unlock-panel-v329 span{
+  display:block;
+  margin-top:4px;
+  color:#cbd5e1;
+  font-size:12px;
+  font-weight:850;
+}
+
+.ko-global-unlock-panel-v329 button{
+  white-space:nowrap;
+}
+
+@media(max-width:720px){
+  .ko-global-unlock-panel-v329{
+    flex-direction:column;
+    align-items:stretch;
+  }
+}

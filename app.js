@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v328";
+const APP_VERSION_LABEL = "v329";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -25580,5 +25580,248 @@ window.debugDesbloqueioRealV328 = function debugDesbloqueioRealV328() {
     isBetLockedGuarded: Boolean(typeof isBetLocked === "function" && isBetLocked.__realUnlockV328),
     buttonExists: Boolean(document.getElementById("toggleRealUnlockBetsV328")),
     firstMatchLockedNow: firstMatch && typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241(firstMatch) : null
+  };
+};
+
+
+/* v329 — Desbloqueio compatível com botão antigo/globalOpen + prazo obrigatório */
+const APP_VERSION_V329_UNLOCK_COMPAT = "329.0";
+
+function koUnlockSettingsV329() {
+  if (!appSettings || typeof appSettings !== "object") appSettings = {};
+  if (!appSettings.knockout || typeof appSettings.knockout !== "object") appSettings.knockout = {};
+  if (!appSettings.knockout.ownerBetUnlock || typeof appSettings.knockout.ownerBetUnlock !== "object") {
+    appSettings.knockout.ownerBetUnlock = {};
+  }
+  return appSettings.knockout.ownerBetUnlock;
+}
+
+function isOwnerV329() {
+  try { return normalizeRole?.(currentProfile?.role || "") === "owner"; }
+  catch { return false; }
+}
+
+function koOwnerUnlockV329() {
+  const s = koUnlockSettingsV329();
+  // compatibilidade com v306/v327/v328
+  return Boolean(s.enabled || s.ownerUnlocked || s.owner || s.dono);
+}
+
+function koGlobalUnlockV329() {
+  const s = koUnlockSettingsV329();
+  // globalOpen é o nome usado pelo botão da v327. unlockAll/allUsers foi o nome usado na v328.
+  return Boolean(
+    s.globalOpen ||
+    s.unlockAll ||
+    s.allUsers ||
+    s.usersUnlocked ||
+    s.openAll ||
+    s.everyone ||
+    s.desbloquearTodos
+  );
+}
+
+function koBypassLockV329(matchOrGame = null) {
+  if (koGlobalUnlockV329()) return true;
+  if (isOwnerV329() && koOwnerUnlockV329()) return true;
+  return false;
+}
+
+async function saveKoUnlockCompatV329(reason = "desbloqueio apostas fase final") {
+  const s = koUnlockSettingsV329();
+  s.updatedAt = new Date().toISOString();
+  s.updatedBy = currentUser?.email || currentProfile?.email || currentProfile?.uid || "owner";
+  try { saveLocalData?.(reason); } catch {}
+  try {
+    if (typeof saveOwnerKoSettingsV306 === "function") {
+      await saveOwnerKoSettingsV306(reason);
+      return true;
+    }
+  } catch (error) { console.warn("v329 saveOwnerKoSettings falhou", error); }
+  try {
+    if (typeof persistSettings === "function") {
+      await persistSettings();
+      return true;
+    }
+  } catch (error) { console.warn("v329 persistSettings falhou", error); }
+  try { scheduleFullSync?.(reason, 500); } catch {}
+  return false;
+}
+
+async function setKoGlobalUnlockV329(enabled) {
+  if (!isOwnerV329()) {
+    toast?.("Só o Dono pode desbloquear apostas.");
+    return;
+  }
+  const s = koUnlockSettingsV329();
+  const value = Boolean(enabled);
+
+  // gravar em todos os nomes para o código antigo e novo lerem o mesmo estado
+  s.globalOpen = value;
+  s.unlockAll = value;
+  s.allUsers = value;
+  s.usersUnlocked = value;
+  s.openAll = value;
+  s.desbloquearTodos = value;
+
+  await saveKoUnlockCompatV329(value ? "desbloquear apostas fase final para todos" : "bloquear apostas fase final");
+  try { renderKnockoutAdmin?.(); } catch {}
+  try { renderKnockout?.(); } catch {}
+  try { renderCalendar?.(); } catch {}
+  try { renderActivePageV187?.(); } catch {}
+  setTimeout(installKoUnlockPanelV329, 120);
+  toast?.(value ? "Apostas da Fase Final desbloqueadas para todos." : "Bloqueio de apostas reposto.");
+}
+
+function installKoUnlockPanelV329() {
+  if (!isOwnerV329()) return;
+  const host = document.querySelector(".owner-ko-unlock-panel-v306") ||
+               document.getElementById("ownerKoBetUnlockPanelV306") ||
+               document.getElementById("knockoutAdminPanel") ||
+               document.getElementById("adminUnlocked") ||
+               document.getElementById("settingsTab");
+  if (!host) return;
+
+  let panel = document.getElementById("koGlobalUnlockPanelV329");
+  const open = koGlobalUnlockV329();
+  const html = `
+    <div>
+      <strong>Desbloqueio global das apostas</strong>
+      <span>${open ? "As apostas da Fase Final estão abertas para todos, mesmo com o prazo terminado." : "Abre temporariamente as apostas da Fase Final para todos."}</span>
+    </div>
+    <button type="button" class="${open ? "danger" : "primary"}" id="koGlobalUnlockBtnV329">
+      ${open ? "Voltar a bloquear apostas" : "Desbloquear apostas para todos"}
+    </button>
+  `;
+
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "koGlobalUnlockPanelV329";
+    panel.className = "ko-global-unlock-panel-v329";
+    host.prepend(panel);
+  }
+  panel.innerHTML = html;
+  document.getElementById("koGlobalUnlockBtnV329")?.addEventListener("click", () => setKoGlobalUnlockV329(!koGlobalUnlockV329()));
+}
+
+(function installKoUnlockCompatV329() {
+  if (window.__koUnlockCompatV329) return;
+  window.__koUnlockCompatV329 = true;
+
+  // Desbloqueio real da função de lock da fase final
+  const prevKoLock = typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241 : null;
+  if (prevKoLock && !prevKoLock.__unlockCompatV329) {
+    isKnockoutBetLockedV241 = function isKnockoutBetLockedCompatV329(match) {
+      if (koBypassLockV329(match)) {
+        // mesmo desbloqueado, jogos com resultado continuam protegidos
+        try { if (knockoutMatchHasResult?.(match)) return true; } catch {}
+        return false;
+      }
+      return prevKoLock.apply(this, arguments);
+    };
+    isKnockoutBetLockedV241.__unlockCompatV329 = true;
+    window.isKnockoutBetLockedV241 = isKnockoutBetLockedV241;
+  }
+
+  const prevGenericKoLock = typeof isKnockoutBetLocked === "function" ? isKnockoutBetLocked : null;
+  if (prevGenericKoLock && !prevGenericKoLock.__unlockCompatV329) {
+    isKnockoutBetLocked = function isKnockoutBetLockedCompatV329(match) {
+      if (koBypassLockV329(match)) {
+        try { if (knockoutMatchHasResult?.(match)) return true; } catch {}
+        return false;
+      }
+      return prevGenericKoLock.apply(this, arguments);
+    };
+    isKnockoutBetLocked.__unlockCompatV329 = true;
+    window.isKnockoutBetLocked = isKnockoutBetLocked;
+  }
+
+  // Isto era outro bloqueio: deadline obrigatório de modais automáticos.
+  const prevDeadlineOpen = typeof knockoutMandatoryDeadlineOpenV247 === "function" ? knockoutMandatoryDeadlineOpenV247 : null;
+  if (prevDeadlineOpen && !prevDeadlineOpen.__unlockCompatV329) {
+    knockoutMandatoryDeadlineOpenV247 = function knockoutMandatoryDeadlineOpenCompatV329(match) {
+      if (koBypassLockV329(match)) {
+        try { if (knockoutMatchHasResult?.(match)) return false; } catch {}
+        return true;
+      }
+      return prevDeadlineOpen.apply(this, arguments);
+    };
+    knockoutMandatoryDeadlineOpenV247.__unlockCompatV329 = true;
+    window.knockoutMandatoryDeadlineOpenV247 = knockoutMandatoryDeadlineOpenV247;
+  }
+
+  // Compatibilidade: se o botão antigo da v327 for usado, garantimos que também grava unlockAll.
+  const prevToggleGlobalV327 = typeof toggleOwnerKoGlobalUnlockV327 === "function" ? toggleOwnerKoGlobalUnlockV327 : null;
+  if (prevToggleGlobalV327 && !prevToggleGlobalV327.__unlockCompatV329) {
+    toggleOwnerKoGlobalUnlockV327 = async function toggleOwnerKoGlobalUnlockCompatV329() {
+      const result = await prevToggleGlobalV327.apply(this, arguments);
+      const s = koUnlockSettingsV329();
+      const value = Boolean(s.globalOpen);
+      s.unlockAll = value;
+      s.allUsers = value;
+      s.usersUnlocked = value;
+      s.openAll = value;
+      s.desbloquearTodos = value;
+      await saveKoUnlockCompatV329("sincronizar desbloqueio global");
+      setTimeout(installKoUnlockPanelV329, 120);
+      return result;
+    };
+    toggleOwnerKoGlobalUnlockV327.__unlockCompatV329 = true;
+    window.toggleOwnerKoGlobalUnlockV327 = toggleOwnerKoGlobalUnlockV327;
+  }
+
+  const prevRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (prevRenderAll && !prevRenderAll.__unlockCompatV329) {
+    renderAll = function renderAllUnlockCompatV329() {
+      const result = prevRenderAll.apply(this, arguments);
+      requestAnimationFrame(installKoUnlockPanelV329);
+      setTimeout(installKoUnlockPanelV329, 160);
+      return result;
+    };
+    renderAll.__unlockCompatV329 = true;
+    window.renderAll = renderAll;
+  }
+
+  const prevRenderKnockoutAdmin = typeof renderKnockoutAdmin === "function" ? renderKnockoutAdmin : null;
+  if (prevRenderKnockoutAdmin && !prevRenderKnockoutAdmin.__unlockCompatV329) {
+    renderKnockoutAdmin = function renderKnockoutAdminUnlockCompatV329() {
+      const result = prevRenderKnockoutAdmin.apply(this, arguments);
+      requestAnimationFrame(installKoUnlockPanelV329);
+      setTimeout(installKoUnlockPanelV329, 160);
+      return result;
+    };
+    renderKnockoutAdmin.__unlockCompatV329 = true;
+    window.renderKnockoutAdmin = renderKnockoutAdmin;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#koGlobalUnlockBtnV329")) {
+      event.preventDefault();
+      setKoGlobalUnlockV329(!koGlobalUnlockV329());
+    }
+  }, true);
+
+  setTimeout(installKoUnlockPanelV329, 350);
+})();
+
+window.debugDesbloqueioV329 = function debugDesbloqueioV329() {
+  const s = koUnlockSettingsV329();
+  let first = null;
+  try { first = (appSettings?.knockout?.matches || [])[0] || null; } catch {}
+  return {
+    version: APP_VERSION_V329_UNLOCK_COMPAT,
+    role: currentProfile?.role || "",
+    isOwner: isOwnerV329(),
+    settings: { ...s },
+    ownerUnlock: koOwnerUnlockV329(),
+    globalUnlock: koGlobalUnlockV329(),
+    bypassFirst: first ? koBypassLockV329(first) : null,
+    firstHasResult: first ? knockoutMatchHasResult?.(first) : null,
+    firstLockedNow: first && typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241(first) : null,
+    koLockGuardV329: Boolean(isKnockoutBetLockedV241?.__unlockCompatV329),
+    deadlineGuardV329: Boolean(knockoutMandatoryDeadlineOpenV247?.__unlockCompatV329),
+    oldGlobalOpenReader: typeof ownerKoGlobalOpenV327 === "function" ? ownerKoGlobalOpenV327() : null,
+    panel: Boolean(document.getElementById("koGlobalUnlockPanelV329")),
+    oldPanel: Boolean(document.getElementById("ownerKoGlobalUnlockV327"))
   };
 };
