@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v309";
+const APP_VERSION_LABEL = "v315";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -24218,5 +24218,928 @@ window.debugMarcadorLiveV309 = function debugMarcadorLiveV309() {
       liveAwayScore: game.liveAwayScore ?? null,
       visible: visibleScoreTextV309(game)
     })).slice(0, 30)
+  };
+};
+
+
+/* v310 — alargar coluna Aposta no modal de Ver apostas da Fase Final */
+const APP_VERSION_V310_KO_BET_COLUMN_WIDE = "310.0";
+window.debugKoBetColumnWideV310 = function debugKoBetColumnWideV310() {
+  return {
+    version: APP_VERSION_V310_KO_BET_COLUMN_WIDE,
+    modalOpen: !document.getElementById("betsModal")?.classList.contains("hidden"),
+    rows: [...document.querySelectorAll("#betsModal .bet-user-row")].slice(0, 5).map(row => ({
+      classes: row.className,
+      grid: getComputedStyle(row).gridTemplateColumns,
+      betText: row.querySelector('.bet-score-pill')?.textContent?.trim() || ''
+    }))
+  };
+};
+
+
+/* v311 — Revisão geral: diagnóstico, limpeza visual e estabilidade segura */
+const APP_VERSION_V311_GERAL_CLEAN_AUDIT = "311.0";
+
+function appHealthCheckV311() {
+  const checks = [];
+
+  function add(name, ok, detail = "", level = "info") {
+    checks.push({ name, ok: Boolean(ok), detail: String(detail || ""), level: ok ? "ok" : level });
+  }
+
+  const gameIds = new Set();
+  const duplicateGames = [];
+  (games || []).forEach(game => {
+    if (!game?.id) return;
+    if (gameIds.has(game.id)) duplicateGames.push(game.id);
+    gameIds.add(game.id);
+  });
+
+  const betIds = new Set();
+  const duplicateBets = [];
+  (bets || []).forEach(bet => {
+    const id = bet?.id || `${bet?.playerId || ""}_${bet?.gameId || ""}`;
+    if (!id) return;
+    if (betIds.has(id)) duplicateBets.push(id);
+    betIds.add(id);
+  });
+
+  const knockoutMatches = appSettings?.knockout?.matches || [];
+  const koReady = Array.isArray(knockoutMatches);
+  const linkedPlayer = (() => {
+    try { return linkedPlayerForCurrentUserV241?.() || null; } catch { return null; }
+  })();
+
+  add("DOM principal", Boolean(document.getElementById("calendarTab") && document.getElementById("gamesList")), "Calendário e lista de jogos existem.", "error");
+  add("Jogos carregados", Array.isArray(games) && games.length > 0, `${(games || []).length} jogos`, "error");
+  add("Apostas carregadas", Array.isArray(bets), `${(bets || []).length} apostas`, "error");
+  add("Configurações", Boolean(appSettings && typeof appSettings === "object"), "appSettings ativo", "error");
+  add("Fase Final", koReady, `${knockoutMatches.length} jogos eliminatórios`, "error");
+  add("IDs de jogos", duplicateGames.length === 0, duplicateGames.length ? `Duplicados: ${duplicateGames.slice(0, 8).join(", ")}` : "Sem duplicados", "warn");
+  add("IDs de apostas", duplicateBets.length === 0, duplicateBets.length ? `Duplicadas: ${duplicateBets.slice(0, 8).join(", ")}` : "Sem duplicados", "warn");
+  add("Firebase", storageMode === "firebase" && Boolean(db && firebaseApi), storageMode === "firebase" ? "Ligado" : `Modo ${storageMode || "local"}`, "warn");
+  add("Perfil atual", Boolean(currentProfile), currentProfile ? `${currentProfile.name || currentProfile.email || "sem nome"} · ${currentProfile.role || "sem cargo"}` : "Sem perfil carregado", "warn");
+  add("Jogador ligado", Boolean(linkedPlayer || normalizeRole?.(currentProfile?.role || "") === "owner" || normalizeRole?.(currentProfile?.role || "") === "admin"), linkedPlayer ? `${linkedPlayer.name || linkedPlayer.playerName}` : "Sem jogador ligado", "warn");
+  add("Pendentes Firebase", pendingGameIds().length + pendingBetIds().length + pendingDeleteBetIds().length === 0 && !hasFullSyncPending?.(), `jogos:${pendingGameIds().length} apostas:${pendingBetIds().length} apagar:${pendingDeleteBetIds().length} full:${hasFullSyncPending?.() ? "sim" : "não"}`, "warn");
+  add("Push/Service Worker", "serviceWorker" in navigator, "Suporte do browser", "warn");
+
+  const errors = checks.filter(item => item.level === "error" && !item.ok).length;
+  const warnings = checks.filter(item => item.level === "warn" && !item.ok).length;
+
+  return {
+    version: APP_VERSION_V311_GERAL_CLEAN_AUDIT,
+    appVersion: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+    at: new Date().toISOString(),
+    errors,
+    warnings,
+    ok: errors === 0,
+    counts: {
+      games: (games || []).length,
+      bets: (bets || []).length,
+      knockoutMatches: knockoutMatches.length,
+      users: (appSettings?.users || []).length,
+      permissions: (permissionsCache || []).length
+    },
+    checks
+  };
+}
+
+function appQuickFixSafeV311() {
+  // Correções seguras: não apaga dados. Só normaliza estruturas mínimas e força render.
+  try { ensureKnockoutSettings?.(); } catch {}
+  try { appSettings = mergeSettings?.(appSettings) || appSettings; } catch {}
+  try { games = normalizeGames?.(games) || games; } catch {}
+  try { bets = normalizeBets?.(bets) || bets; } catch {}
+  try { saveLocalData?.("quick fix seguro v311"); } catch {}
+  try { renderAll?.(); } catch {}
+  return appHealthCheckV311();
+}
+
+(function installGeneralCleanAuditV311() {
+  if (window.__geralCleanAuditV311) return;
+  window.__geralCleanAuditV311 = true;
+
+  window.debugAppSaudeV311 = appHealthCheckV311;
+  window.corrigirAppSeguroV311 = appQuickFixSafeV311;
+
+  // Pequena proteção contra scroll horizontal acidental em modais/cards.
+  requestAnimationFrame(() => {
+    try { document.documentElement.classList.add("app-clean-v311"); } catch {}
+  });
+})();
+
+
+/* v312 — Pontuação reconstruída de raiz: grupos + Fase Final no mesmo sistema */
+const APP_VERSION_V312_SCORE_CLEAN_REBUILD = "312.0";
+
+function scoreCleanParseDateV312(value) {
+  if (!value) return 0;
+  try {
+    const parsed = parsePortugalDate?.(value);
+    const ms = parsed?.getTime?.();
+    if (Number.isFinite(ms)) return ms;
+  } catch {}
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function scoreCleanDateSourcesV312(source = {}) {
+  return [
+    source.matchDate,
+    source.date,
+    source.kickoff,
+    source.utcDate,
+    source.footballDataUtcDate,
+    source.startAt,
+    source.startTime,
+    source.datetime
+  ].filter(Boolean);
+}
+
+function scoreCleanBestDateV312(...sources) {
+  for (const source of sources) {
+    for (const value of scoreCleanDateSourcesV312(source || {})) {
+      if (scoreCleanParseDateV312(value)) return value;
+    }
+  }
+  for (const source of sources) {
+    const fallback = scoreCleanDateSourcesV312(source || {})[0];
+    if (fallback) return fallback;
+  }
+  return "";
+}
+
+function scoreCleanDateLabelV312(value) {
+  if (!value) return "";
+  try {
+    return `${dateHeader(value)} · ${timePortugal(value)}`;
+  } catch {
+    return String(value || "");
+  }
+}
+
+function scoreCleanNumberV312(...values) {
+  for (const value of values) {
+    if (value === "" || value === null || value === undefined) continue;
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function scoreCleanGameHasFinalResultV312(game = {}) {
+  const h = scoreCleanNumberV312(game.homeScore, game.scoreHome, game.homeGoals, game.resultHome, game.goalsHome);
+  const a = scoreCleanNumberV312(game.awayScore, game.scoreAway, game.awayGoals, game.resultAway, game.goalsAway);
+  return h !== null && a !== null;
+}
+
+function scoreCleanScorePairV312(game = {}) {
+  const h = scoreCleanNumberV312(game.homeScore, game.scoreHome, game.homeGoals, game.resultHome, game.goalsHome);
+  const a = scoreCleanNumberV312(game.awayScore, game.scoreAway, game.awayGoals, game.resultAway, game.goalsAway);
+  return h === null || a === null ? null : { home: h, away: a };
+}
+
+function scoreCleanIsKoCalendarGameV312(game = {}) {
+  try { if (typeof isKnockoutCalendarGameV259 === "function" && isKnockoutCalendarGameV259(game)) return true; } catch {}
+  const text = `${game.phase || ""} ${game.group || ""} ${game.roundLabel || ""}`.toLowerCase();
+  return text.includes("fase final") || text.includes("16 avos") || text.includes("oitavos") || text.includes("quartos") || text.includes("meias") || text.includes("final");
+}
+
+function scoreCleanCalendarGameForMatchV312(match = {}) {
+  return (games || []).find(game => String(game.id || "") === String(match.id || "")) || null;
+}
+
+function scoreCleanBetForPlayerV312(playerName, playerId, gameId) {
+  const normalizedName = String(playerName || "").trim().toLowerCase();
+  const normalizedId = String(playerId || playerIdFromName?.(playerName || "") || "").trim();
+
+  return (bets || []).find(bet => {
+    if (String(bet.gameId || "") !== String(gameId || "")) return false;
+    const betId = String(bet.playerId || "").trim();
+    const betName = String(bet.playerName || "").trim();
+    return (
+      betId === normalizedId ||
+      playerIdFromName?.(betName) === normalizedId ||
+      betName.toLowerCase() === normalizedName
+    );
+  }) || null;
+}
+
+function scoreCleanKnockoutWinnerV312(match = {}, calendarGame = {}) {
+  try {
+    const direct = match.qualified || match.winnerTeam || match.winner || match.qualifiedTeam ||
+      calendarGame.qualified || calendarGame.winnerTeam || calendarGame.winner || calendarGame.qualifiedTeam || "";
+    if (direct) return direct;
+    return knockoutWinner?.(match) || "";
+  } catch {
+    return match.qualified || match.winnerTeam || match.winner || calendarGame.qualified || "";
+  }
+}
+
+function scoreCleanKnockoutResultV312(match = {}, calendarGame = {}) {
+  const source = { ...(calendarGame || {}), ...(match || {}) };
+  const score = scoreCleanScorePairV312(source);
+  if (!score) return "-";
+  const winner = scoreCleanKnockoutWinnerV312(match, calendarGame);
+  return winner ? `${score.home}-${score.away} · qual. ${winner}` : `${score.home}-${score.away}`;
+}
+
+function scoreCleanGroupResultV312(game = {}) {
+  const score = scoreCleanScorePairV312(game);
+  return score ? `${score.home}-${score.away}` : "-";
+}
+
+function scoreCleanBetDisplayV312(row = {}) {
+  if (!row.bet) return "-";
+  if (row.knockout) return knockoutBetDisplay?.(row.bet) || "-";
+  return `${row.bet.homeGuess ?? "-"}-${row.bet.awayGuess ?? "-"}`;
+}
+
+function scoreCleanRoundNameV312(match = {}, calendarGame = {}) {
+  return match.roundLabel || calendarGame.group || calendarGame.roundLabel || knockoutRoundLabel?.(match.round) || "Fase Final";
+}
+
+function scoreCleanBuildGroupRowsV312(playerName, playerId) {
+  return (games || [])
+    .filter(game => !scoreCleanIsKoCalendarGameV312(game))
+    .filter(game => scoreCleanGameHasFinalResultV312(game))
+    .map(game => {
+      const bet = scoreCleanBetForPlayerV312(playerName, playerId, game.id);
+      const dateValue = scoreCleanBestDateV312(game);
+      const points = bet ? pointsForBet(bet, game) : 0;
+      return {
+        id: game.id,
+        type: "group",
+        knockout: false,
+        dateValue,
+        dateMs: scoreCleanParseDateV312(dateValue),
+        title: `${game.homeTeam || ""} - ${game.awayTeam || ""}`,
+        subtitle: `${game.group || "Grupo"}${dateValue ? ` · ${scoreCleanDateLabelV312(dateValue)}` : ""}`,
+        game,
+        match: null,
+        bet,
+        points,
+        resultText: scoreCleanGroupResultV312(game),
+        betText: bet ? `${bet.homeGuess ?? "-"}-${bet.awayGuess ?? "-"}` : "-",
+        label: bet ? betResultLabel(bet, game) : "Sem aposta",
+        className: bet ? betResultClass(bet, game) : "miss"
+      };
+    });
+}
+
+function scoreCleanBuildKnockoutRowsV312(playerName, playerId) {
+  return (appSettings?.knockout?.matches || [])
+    .filter(match => match && match.id && (match.homeTeam || match.awayTeam))
+    .filter(match => {
+      try { return knockoutMatchHasResult?.(match); } catch { return scoreCleanGameHasFinalResultV312(match); }
+    })
+    .map(match => {
+      const calendarGame = scoreCleanCalendarGameForMatchV312(match);
+      const dateValue = scoreCleanBestDateV312(match, calendarGame || {});
+      const bet = scoreCleanBetForPlayerV312(playerName, playerId, match.id);
+      const points = bet ? pointsForKnockoutBet(bet, match) : 0;
+      const round = scoreCleanRoundNameV312(match, calendarGame || {});
+      const title = `${match.homeTeam || calendarGame?.homeTeam || ""} - ${match.awayTeam || calendarGame?.awayTeam || ""}`;
+      const subtitle = `${round}${dateValue ? ` · ${scoreCleanDateLabelV312(dateValue)}` : ""}`;
+
+      const mergedGame = {
+        ...(calendarGame || {}),
+        ...(match || {}),
+        id: match.id,
+        homeTeam: match.homeTeam || calendarGame?.homeTeam || "",
+        awayTeam: match.awayTeam || calendarGame?.awayTeam || "",
+        group: subtitle,
+        matchDate: dateValue,
+        date: dateValue,
+        phase: "Fase Final"
+      };
+
+      return {
+        id: match.id,
+        type: "knockout",
+        knockout: true,
+        dateValue,
+        dateMs: scoreCleanParseDateV312(dateValue),
+        title,
+        subtitle,
+        game: mergedGame,
+        match,
+        bet,
+        points,
+        resultText: scoreCleanKnockoutResultV312(match, calendarGame || {}),
+        betText: bet ? (knockoutBetDisplay?.(bet) || "-") : "-",
+        label: bet ? knockoutBetResultLabel(bet, match) : "Sem aposta",
+        className: bet ? knockoutBetResultClass(bet, match) : "miss"
+      };
+    });
+}
+
+function scoreCleanRowsForPlayerV312(playerName) {
+  const playerId = playerIdFromName?.(playerName || "") || String(playerName || "");
+  const rows = [
+    ...scoreCleanBuildGroupRowsV312(playerName, playerId),
+    ...scoreCleanBuildKnockoutRowsV312(playerName, playerId)
+  ];
+
+  return rows.sort((a, b) => {
+    const date = (b.dateMs || 0) - (a.dateMs || 0);
+    if (date !== 0) return date;
+    if (a.knockout !== b.knockout) return a.knockout ? -1 : 1;
+    return String(a.title || "").localeCompare(String(b.title || ""), "pt");
+  });
+}
+
+function scoreCleanRenderRowV312(row = {}) {
+  const cls = row.className || "miss";
+  return `
+    <article class="score-clean-game-row-v312 ${cls} ${row.knockout ? "is-ko-v312" : "is-group-v312"}">
+      <div class="score-clean-game-main-v312">
+        <strong>${escapeHtml(row.title || "")}</strong>
+        <small>${escapeHtml(row.subtitle || "")}</small>
+      </div>
+      <div class="score-clean-pill-v312 bet" data-label="Aposta">${escapeHtml(row.betText || "-")}</div>
+      <div class="score-clean-pill-v312 result" data-label="Resultado">${escapeHtml(row.resultText || "-")}</div>
+      <div class="score-clean-type-v312" data-label="Tipo"><em>${escapeHtml(row.label || "")}</em></div>
+      <strong class="score-clean-points-v312" data-label="Pontos">${row.points ?? 0}</strong>
+    </article>
+  `;
+}
+
+function renderScoreCleanV312() {
+  const rows = leaderboard?.() || [];
+  const target = $("scoreSummary");
+  if (!target) return;
+
+  if (!rows.length) {
+    target.innerHTML = `<div class="empty">Importa o Excel de Resultados para criar a classificação.</div>`;
+    return;
+  }
+
+  target.innerHTML = `
+    <div class="score-clean-page-v312">
+      <div class="score-clean-toolbar-v312">
+        <div>
+          <strong>Pontuação</strong>
+          <span>Jogos ordenados do mais recente para o mais antigo. Fase Final entra no dia certo.</span>
+        </div>
+        <div class="score-clean-chips-v312">
+          <span>${rows.length} jogadores</span>
+          <span>${(games || []).filter(game => scoreCleanGameHasFinalResultV312(game)).length} jogos grupos</span>
+          <span>${(appSettings?.knockout?.matches || []).filter(match => { try { return knockoutMatchHasResult?.(match); } catch { return false; } }).length} eliminatórias</span>
+        </div>
+      </div>
+
+      <div class="score-detail-list score-clean-list-v312">
+        ${rows.map((row, index) => {
+          const gameRows = scoreCleanRowsForPlayerV312(row.playerName);
+          const withBets = gameRows.filter(item => item.bet).length;
+          const koCount = gameRows.filter(item => item.knockout).length;
+          const groupCount = gameRows.length - koCount;
+
+          return `
+            <details class="player-score-card score-clean-player-card-v312">
+              <summary>
+                <div class="player-rank">${index + 1}</div>
+                <div class="player-score-main">
+                  <strong>${escapeHtml(row.playerName)}</strong>
+                  <span>${row.exact} exatos · ${row.winner} vencedor · ${row.penalties || 0} qualificada · ${gameRows.length} jogos com resultado · ${withBets} apostas</span>
+                </div>
+                <div class="player-total">${row.points} pts</div>
+                <div class="player-arrow"></div>
+              </summary>
+
+              <div class="score-clean-player-meta-v312">
+                <span>${groupCount} grupos</span>
+                <span>${koCount} fase final</span>
+                <span>${withBets} apostas</span>
+              </div>
+
+              <div class="score-clean-games-table-v312">
+                <div class="score-clean-game-row-v312 head">
+                  <span>Jogo</span>
+                  <span>Aposta</span>
+                  <span>Resultado</span>
+                  <span>Tipo</span>
+                  <span>Pontos</span>
+                </div>
+                ${gameRows.map(scoreCleanRenderRowV312).join("")}
+              </div>
+            </details>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// Neutraliza a combinação antiga playerGameRows + renderScore apenas na página Pontuação.
+playerGameRows = function playerGameRowsCleanV312(playerName) {
+  return scoreCleanRowsForPlayerV312(playerName).map(row => ({
+    game: row.game,
+    match: row.match,
+    bet: row.bet,
+    points: row.points,
+    label: row.label,
+    className: row.className,
+    knockout: row.knockout,
+    dateMs: row.dateMs,
+    subtitle: row.subtitle
+  }));
+};
+window.playerGameRows = playerGameRows;
+
+renderScore = renderScoreCleanV312;
+window.renderScore = renderScore;
+
+window.debugPontuacaoCleanV312 = function debugPontuacaoCleanV312(playerName = "") {
+  const first = playerName || leaderboard?.()[0]?.playerName || "";
+  const rows = scoreCleanRowsForPlayerV312(first);
+  return {
+    version: APP_VERSION_V312_SCORE_CLEAN_REBUILD,
+    base: "v311",
+    oldSystemsNeutralized: ["playerGameRows", "renderScore"],
+    player: first,
+    total: rows.length,
+    groupRows: rows.filter(row => !row.knockout).length,
+    knockoutRows: rows.filter(row => row.knockout).length,
+    first20: rows.slice(0, 20).map(row => ({
+      dateMs: row.dateMs,
+      date: row.dateValue,
+      title: row.title,
+      subtitle: row.subtitle,
+      knockout: row.knockout,
+      bet: row.betText,
+      result: row.resultText,
+      points: row.points
+    }))
+  };
+};
+
+
+/* v313 — Estabilidade global: menos flashes, refreshs e renders duplicados */
+const APP_VERSION_V313_RENDER_STABILITY = "313.0";
+
+const renderStabilityV313 = {
+  renderAllCount: 0,
+  renderAllSkipped: 0,
+  activePageCount: 0,
+  calendarCount: 0,
+  scoreCount: 0,
+  realtimeCount: 0,
+  lastRenderAllAt: 0,
+  lastActivePageAt: 0,
+  pendingRenderAllTimer: null,
+  pendingActivePageTimer: null,
+  pendingCalendarFrame: 0,
+  pendingScoreFrame: 0,
+  pendingCalendarArgs: null,
+  pendingScoreArgs: null,
+  stabilizingTimer: null
+};
+
+function activeTabIdStableV313() {
+  try { return document.querySelector(".tab-panel.active")?.id || activeTabIdV187?.() || "calendarTab"; }
+  catch { return "calendarTab"; }
+}
+
+function setRenderStabilizingV313(on = true) {
+  try {
+    document.documentElement.classList.toggle("render-stabilizing-v313", Boolean(on));
+    if (renderStabilityV313.stabilizingTimer) clearTimeout(renderStabilityV313.stabilizingTimer);
+    if (on) {
+      renderStabilityV313.stabilizingTimer = setTimeout(() => {
+        document.documentElement.classList.remove("render-stabilizing-v313");
+        renderStabilityV313.stabilizingTimer = null;
+      }, 180);
+    }
+  } catch {}
+}
+
+function afterRenderStabilizeV313() {
+  try { updateCalendarFilterButtonsV221?.(); } catch {}
+  try { renderCalendarFilterState?.(); } catch {}
+  try { applyPermissionsToUi?.(); } catch {}
+  try { koV262ApplyCalendarDayRoundColors?.(); } catch {}
+  try { freezeCalendarCardsV302?.(); } catch {}
+  try { document.documentElement.classList.remove("render-stabilizing-v313"); } catch {}
+}
+
+function installRenderStabilityV313() {
+  if (window.__renderStabilityV313) return;
+  window.__renderStabilityV313 = true;
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__stableV313) {
+    renderCalendar = function renderCalendarStableV313() {
+      renderStabilityV313.pendingCalendarArgs = arguments;
+      if (renderStabilityV313.pendingCalendarFrame) return;
+      renderStabilityV313.pendingCalendarFrame = requestAnimationFrame(() => {
+        renderStabilityV313.pendingCalendarFrame = 0;
+        renderStabilityV313.calendarCount += 1;
+        setRenderStabilizingV313(true);
+        try {
+          originalRenderCalendar.apply(this, renderStabilityV313.pendingCalendarArgs || []);
+        } finally {
+          requestAnimationFrame(afterRenderStabilizeV313);
+        }
+      });
+    };
+    renderCalendar.__stableV313 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  const originalRenderScore = typeof renderScore === "function" ? renderScore : null;
+  if (originalRenderScore && !originalRenderScore.__stableV313) {
+    renderScore = function renderScoreStableV313() {
+      renderStabilityV313.pendingScoreArgs = arguments;
+      if (renderStabilityV313.pendingScoreFrame) return;
+      renderStabilityV313.pendingScoreFrame = requestAnimationFrame(() => {
+        renderStabilityV313.pendingScoreFrame = 0;
+        renderStabilityV313.scoreCount += 1;
+        setRenderStabilizingV313(true);
+        try {
+          originalRenderScore.apply(this, renderStabilityV313.pendingScoreArgs || []);
+        } finally {
+          requestAnimationFrame(afterRenderStabilizeV313);
+        }
+      });
+    };
+    renderScore.__stableV313 = true;
+    window.renderScore = renderScore;
+  }
+
+  const originalRenderActivePage = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActivePage && !originalRenderActivePage.__stableV313) {
+    renderActivePageV187 = function renderActivePageStableV313(tabId = activeTabIdStableV313()) {
+      const now = Date.now();
+      const important = String(tabId || "").includes("login") || !document.querySelector(".app-shell.hidden");
+      if (now - renderStabilityV313.lastActivePageAt < 70 && !important) {
+        renderStabilityV313.activePageCount += 0;
+        clearTimeout(renderStabilityV313.pendingActivePageTimer);
+        renderStabilityV313.pendingActivePageTimer = setTimeout(() => {
+          renderStabilityV313.lastActivePageAt = Date.now();
+          renderStabilityV313.activePageCount += 1;
+          setRenderStabilizingV313(true);
+          originalRenderActivePage.call(this, activeTabIdStableV313());
+          requestAnimationFrame(afterRenderStabilizeV313);
+        }, 90);
+        return;
+      }
+
+      renderStabilityV313.lastActivePageAt = now;
+      renderStabilityV313.activePageCount += 1;
+      setRenderStabilizingV313(true);
+      const result = originalRenderActivePage.apply(this, arguments);
+      requestAnimationFrame(afterRenderStabilizeV313);
+      return result;
+    };
+    renderActivePageV187.__stableV313 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__stableV313) {
+    renderAll = function renderAllStableV313(reason = "renderAll") {
+      const now = Date.now();
+
+      if (now - renderStabilityV313.lastRenderAllAt < 140) {
+        renderStabilityV313.renderAllSkipped += 1;
+        clearTimeout(renderStabilityV313.pendingRenderAllTimer);
+        renderStabilityV313.pendingRenderAllTimer = setTimeout(() => {
+          renderStabilityV313.lastRenderAllAt = Date.now();
+          renderStabilityV313.renderAllCount += 1;
+          setRenderStabilizingV313(true);
+          try {
+            originalRenderAll.call(this, `${reason} · consolidado`);
+          } finally {
+            requestAnimationFrame(afterRenderStabilizeV313);
+          }
+        }, 160);
+        return;
+      }
+
+      renderStabilityV313.lastRenderAllAt = now;
+      renderStabilityV313.renderAllCount += 1;
+      setRenderStabilizingV313(true);
+      const result = originalRenderAll.apply(this, arguments);
+      requestAnimationFrame(afterRenderStabilizeV313);
+      return result;
+    };
+    renderAll.__stableV313 = true;
+    window.renderAll = renderAll;
+  }
+
+  const originalQueueRealtimeRender = typeof queueRealtimeRender === "function" ? queueRealtimeRender : null;
+  if (originalQueueRealtimeRender && !originalQueueRealtimeRender.__stableV313) {
+    queueRealtimeRender = function queueRealtimeRenderStableV313(reason = "firebase realtime") {
+      renderStabilityV313.realtimeCount += 1;
+      if (realtimeRenderTimer) clearTimeout(realtimeRenderTimer);
+
+      const reasonText = String(reason || "").toLowerCase();
+      const fast = reasonText.includes("jogos") || reasonText.includes("bets") || reasonText.includes("apostas") || reasonText.includes("resultado");
+      realtimeRenderTimer = setTimeout(() => {
+        realtimeRenderTimer = null;
+        try { ensureKnockoutSettings?.(); } catch {}
+        try { saveLocalData?.(reason); } catch {}
+
+        const active = activeTabIdStableV313();
+        if (active === "calendarTab") {
+          try { renderCalendar?.(); } catch {}
+          try { renderCalendarFilterState?.(); } catch {}
+        } else if (active === "scoreTab") {
+          try { renderScore?.(); } catch {}
+        } else {
+          try { renderActivePageV187?.(active); } catch {}
+        }
+
+        requestAnimationFrame(afterRenderStabilizeV313);
+      }, fast ? 180 : 520);
+    };
+    queueRealtimeRender.__stableV313 = true;
+    window.queueRealtimeRender = queueRealtimeRender;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.(".tab,[data-tab],button")) {
+      setRenderStabilizingV313(true);
+      requestAnimationFrame(afterRenderStabilizeV313);
+    }
+  }, true);
+
+  requestAnimationFrame(afterRenderStabilizeV313);
+}
+
+installRenderStabilityV313();
+
+window.debugEstabilidadeV313 = function debugEstabilidadeV313() {
+  return {
+    version: APP_VERSION_V313_RENDER_STABILITY,
+    activeTab: activeTabIdStableV313(),
+    ...renderStabilityV313,
+    pending: {
+      renderAllTimer: Boolean(renderStabilityV313.pendingRenderAllTimer),
+      activePageTimer: Boolean(renderStabilityV313.pendingActivePageTimer),
+      calendarFrame: Boolean(renderStabilityV313.pendingCalendarFrame),
+      scoreFrame: Boolean(renderStabilityV313.pendingScoreFrame),
+      realtimeTimer: Boolean(realtimeRenderTimer)
+    },
+    visibleButtons: [...document.querySelectorAll("button")].filter(btn => btn.offsetParent !== null).length,
+    hiddenButtons: [...document.querySelectorAll("button")].filter(btn => btn.offsetParent === null).length,
+    activeCards: [...document.querySelectorAll(".match-row,.admin-card,.player-score-card,.modal-card")].filter(el => el.offsetParent !== null).length
+  };
+};
+
+
+/* v314 — Design system global + Calendário clean, sem alterar regras */
+const APP_VERSION_V314_DESIGN_CALENDAR_CLEAN = "314.0";
+
+function calendarModernGameTypeV314(game = {}) {
+  try {
+    if (typeof isKnockoutCalendarGameV259 === "function" && isKnockoutCalendarGameV259(game)) return "knockout";
+  } catch {}
+  const text = `${game.phase || ""} ${game.group || ""} ${game.round || ""} ${game.roundLabel || ""}`.toLowerCase();
+  if (text.includes("fase final") || text.includes("oitavos") || text.includes("quartos") || text.includes("meias") || text.includes("final")) return "knockout";
+  return "group";
+}
+
+function calendarModernStatusV314(game = {}) {
+  try {
+    const state = statusOf?.(game);
+    const text = String(state?.text || "").toLowerCase();
+    if (text.includes("decorrer") || text.includes("live")) return "live";
+    if (text.includes("resultado") || text.includes("falta")) return "missing";
+    if (text.includes("jogado") || text.includes("final") || text.includes("termin")) return "played";
+    return String(state?.className || "upcoming");
+  } catch {
+    return "upcoming";
+  }
+}
+
+function applyModernCalendarClassesV314() {
+  const shell = document.querySelector(".app-shell");
+  const calendar = document.getElementById("calendarTab");
+  const list = document.getElementById("gamesList");
+
+  document.documentElement.classList.add("app-modern-v314");
+  shell?.classList.add("app-shell-modern-v314");
+
+  if (!calendar || !list) return;
+  calendar.classList.add("calendar-modern-v314");
+  list.classList.add("games-list-modern-v314");
+
+  list.querySelectorAll(".day-block").forEach(day => {
+    day.classList.add("day-block-modern-v314");
+  });
+
+  list.querySelectorAll(".match-row").forEach(row => {
+    row.classList.add("match-row-modern-v314");
+
+    const gameId = row.dataset?.gameId || row.getAttribute("data-game-id") || row.querySelector("[data-bets-game]")?.dataset?.betsGame || row.querySelector("[data-ko-calendar-game-v259]")?.dataset?.koCalendarGameV259 || "";
+    const game = (games || []).find(item => String(item.id || "") === String(gameId || "")) || null;
+
+    if (game) {
+      row.dataset.calendarTypeV314 = calendarModernGameTypeV314(game);
+      row.dataset.calendarStateV314 = calendarModernStatusV314(game);
+    }
+
+    const actions = row.querySelector(".bet-inputs,.calendar-actions,.match-actions");
+    actions?.classList.add("match-actions-modern-v314");
+
+    const score = row.querySelector(".score-vs");
+    score?.classList.add("score-modern-v314");
+  });
+}
+
+function applyModernGlobalClassesV314() {
+  document.documentElement.classList.add("app-modern-v314");
+  document.querySelectorAll(".modal-card").forEach(el => el.classList.add("modal-card-modern-v314"));
+  document.querySelectorAll(".admin-card,.player-score-card,.top-card,.settings-card,.score-card").forEach(el => el.classList.add("surface-modern-v314"));
+  document.querySelectorAll("button.primary,.primary").forEach(el => el.classList.add("btn-modern-primary-v314"));
+  document.querySelectorAll("button.secondary,.secondary").forEach(el => el.classList.add("btn-modern-secondary-v314"));
+  document.querySelectorAll(".tab").forEach(el => el.classList.add("tab-modern-v314"));
+}
+
+(function installDesignCalendarCleanV314() {
+  if (window.__designCalendarCleanV314) return;
+  window.__designCalendarCleanV314 = true;
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__modernV314) {
+    renderCalendar = function renderCalendarModernV314() {
+      const result = originalRenderCalendar.apply(this, arguments);
+      requestAnimationFrame(() => {
+        applyModernGlobalClassesV314();
+        applyModernCalendarClassesV314();
+      });
+      return result;
+    };
+    renderCalendar.__modernV314 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAll && !originalRenderAll.__modernV314) {
+    renderAll = function renderAllModernV314() {
+      const result = originalRenderAll.apply(this, arguments);
+      requestAnimationFrame(() => {
+        applyModernGlobalClassesV314();
+        applyModernCalendarClassesV314();
+      });
+      return result;
+    };
+    renderAll.__modernV314 = true;
+    window.renderAll = renderAll;
+  }
+
+  const originalRenderActive = typeof renderActivePageV187 === "function" ? renderActivePageV187 : null;
+  if (originalRenderActive && !originalRenderActive.__modernV314) {
+    renderActivePageV187 = function renderActivePageModernV314() {
+      const result = originalRenderActive.apply(this, arguments);
+      requestAnimationFrame(() => {
+        applyModernGlobalClassesV314();
+        applyModernCalendarClassesV314();
+      });
+      return result;
+    };
+    renderActivePageV187.__modernV314 = true;
+    window.renderActivePageV187 = renderActivePageV187;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.(".tab,[data-tab],#calendarTab button")) {
+      requestAnimationFrame(() => {
+        applyModernGlobalClassesV314();
+        applyModernCalendarClassesV314();
+      });
+    }
+  }, true);
+
+  requestAnimationFrame(() => {
+    applyModernGlobalClassesV314();
+    applyModernCalendarClassesV314();
+  });
+})();
+
+window.debugDesignCalendarioV314 = function debugDesignCalendarioV314() {
+  return {
+    version: APP_VERSION_V314_DESIGN_CALENDAR_CLEAN,
+    base: "v313",
+    htmlModern: document.documentElement.classList.contains("app-modern-v314"),
+    calendarModern: document.getElementById("calendarTab")?.classList.contains("calendar-modern-v314") || false,
+    visibleMatchRows: [...document.querySelectorAll("#gamesList .match-row")].filter(row => row.offsetParent !== null).length,
+    sampleRows: [...document.querySelectorAll("#gamesList .match-row")].slice(0, 8).map(row => ({
+      className: row.className,
+      type: row.dataset.calendarTypeV314 || "",
+      state: row.dataset.calendarStateV314 || "",
+      score: row.querySelector(".score-vs")?.textContent?.trim() || ""
+    }))
+  };
+};
+
+
+/* v315 — Remover botão Pesquisar dos cards de jogos no Calendário */
+const APP_VERSION_V315_NO_SEARCH_BUTTON_GAME_CARDS = "315.0";
+
+function removeSearchButtonsFromGameCardsV315() {
+  try {
+    document.querySelectorAll("#gamesList [data-search-result-game], #calendarTab [data-search-result-game], .match-row [data-search-result-game], [data-game-id] > [data-search-result-game]").forEach(btn => {
+      btn.remove();
+    });
+  } catch {}
+}
+
+function isCalendarGameCardSearchTargetV315(element) {
+  if (!element) return false;
+  const card = element.closest?.("#gamesList .match-row, #calendarTab .match-row, #gamesList [data-game-id], #calendarTab [data-game-id]");
+  return Boolean(card);
+}
+
+(function installNoSearchButtonGameCardsV315() {
+  if (window.__noSearchButtonGameCardsV315) return;
+  window.__noSearchButtonGameCardsV315 = true;
+
+  const originalAddSearchButtons = typeof addSearchButtonsToResultCards === "function" ? addSearchButtonsToResultCards : null;
+  if (originalAddSearchButtons && !originalAddSearchButtons.__noCardsV315) {
+    addSearchButtonsToResultCards = function addSearchButtonsNoGameCardsV315() {
+      // Mantém o botão global "Pesquisar todos" e pesquisa fora dos cards.
+      // Nos cards do calendário, o botão antigo era injetado por interval/setTimeout e causava piscar.
+      const before = document.querySelectorAll("#gamesList [data-search-result-game], #calendarTab [data-search-result-game]").length;
+
+      // Corre o sistema antigo para não quebrar outros ecrãs onde possa ser necessário.
+      const result = originalAddSearchButtons.apply(this, arguments);
+
+      // Remove imediatamente só dos cards/jogos do Calendário.
+      removeSearchButtonsFromGameCardsV315();
+
+      return result;
+    };
+    addSearchButtonsToResultCards.__noCardsV315 = true;
+    window.addSearchButtonsToResultCards = addSearchButtonsToResultCards;
+  }
+
+  const originalSetupSearch = typeof setupSearchResultsAdminButton === "function" ? setupSearchResultsAdminButton : null;
+  if (originalSetupSearch && !originalSetupSearch.__noCardsV315) {
+    setupSearchResultsAdminButton = function setupSearchResultsAdminButtonNoCardsV315() {
+      const result = originalSetupSearch.apply(this, arguments);
+      removeSearchButtonsFromGameCardsV315();
+      return result;
+    };
+    setupSearchResultsAdminButton.__noCardsV315 = true;
+    window.setupSearchResultsAdminButton = setupSearchResultsAdminButton;
+  }
+
+  const originalRenderCalendar = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendar && !originalRenderCalendar.__noSearchCardsV315) {
+    renderCalendar = function renderCalendarNoSearchCardsV315() {
+      const result = originalRenderCalendar.apply(this, arguments);
+      removeSearchButtonsFromGameCardsV315();
+      requestAnimationFrame(removeSearchButtonsFromGameCardsV315);
+      setTimeout(removeSearchButtonsFromGameCardsV315, 80);
+      return result;
+    };
+    renderCalendar.__noSearchCardsV315 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#calendarTab, #gamesList, .tab, [data-tab]")) {
+      requestAnimationFrame(removeSearchButtonsFromGameCardsV315);
+      setTimeout(removeSearchButtonsFromGameCardsV315, 120);
+    }
+  }, true);
+
+  // Como há intervalos antigos a tentar reinjetar o botão, este observador remove antes de ficar visível.
+  const target = document.getElementById("calendarTab") || document.body;
+  try {
+    const observer = new MutationObserver(mutations => {
+      let found = false;
+      for (const mutation of mutations) {
+        mutation.addedNodes?.forEach(node => {
+          if (node?.nodeType !== 1) return;
+          if (node.matches?.("[data-search-result-game]") || node.querySelector?.("[data-search-result-game]")) found = true;
+        });
+      }
+      if (found) removeSearchButtonsFromGameCardsV315();
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    window.__searchButtonObserverV315 = observer;
+  } catch {}
+
+  removeSearchButtonsFromGameCardsV315();
+  requestAnimationFrame(removeSearchButtonsFromGameCardsV315);
+})();
+
+window.debugPesquisarJogosV315 = function debugPesquisarJogosV315() {
+  const all = [...document.querySelectorAll("[data-search-result-game]")];
+  const calendar = [...document.querySelectorAll("#gamesList [data-search-result-game], #calendarTab [data-search-result-game]")];
+  return {
+    version: APP_VERSION_V315_NO_SEARCH_BUTTON_GAME_CARDS,
+    totalSearchButtons: all.length,
+    calendarSearchButtons: calendar.length,
+    calendarSearchButtonsText: calendar.map(btn => btn.textContent?.trim() || ""),
+    intervalLegacyKnown: {
+      v115: typeof v115PesquisarTodosInterval !== "undefined" && Boolean(v115PesquisarTodosInterval),
+      v117: typeof v117PesquisarReapply !== "undefined" && Boolean(v117PesquisarReapply)
+    }
   };
 };

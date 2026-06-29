@@ -16664,3 +16664,770 @@ body.mandatory-notice-open-v295{
   font-weight:1000;
   letter-spacing:.04em;
 }
+
+
+/* v310 — coluna Aposta mais larga no modal Ver apostas (Calendário > Fase Final) */
+#betsModal .bets-list-head.ko-list-head-edit-v308{
+  grid-template-columns:minmax(170px,.9fr) minmax(360px,1.9fr) minmax(150px,.8fr) 64px 52px!important;
+}
+
+#betsModal .bet-user-row.ko-direct-edit-row-v308{
+  grid-template-columns:minmax(170px,.9fr) minmax(360px,1.9fr) minmax(150px,.8fr) 64px 52px!important;
+  align-items:center!important;
+}
+
+#betsModal .bet-user-row.ko-direct-edit-row-v308 .bet-score-pill{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  justify-content:flex-start!important;
+  padding:8px 14px!important;
+  border-radius:14px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  line-height:1.2!important;
+}
+
+#betsModal .bet-user-row.ko-direct-edit-row-v308 .bet-type-pill{
+  width:100%!important;
+  min-width:0!important;
+}
+
+#betsModal .bet-user-row.ko-direct-edit-row-v308 .bet-user-main strong{
+  white-space:nowrap!important;
+}
+
+@media(max-width:1200px){
+  #betsModal .bets-list-head.ko-list-head-edit-v308{
+    grid-template-columns:minmax(160px,.95fr) minmax(300px,1.65fr) minmax(130px,.8fr) 60px 50px!important;
+  }
+
+  #betsModal .bet-user-row.ko-direct-edit-row-v308{
+    grid-template-columns:minmax(160px,.95fr) minmax(300px,1.65fr) minmax(130px,.8fr) 60px 50px!important;
+  }
+}
+
+@media(max-width:760px){
+  #betsModal .bet-user-row.ko-direct-edit-row-v308 .bet-score-pill{
+    white-space:normal!important;
+    overflow:visible!important;
+  }
+}
+
+
+/* v311 — limpeza visual global segura */
+html.app-clean-v311,
+html.app-clean-v311 body{
+  overflow-x:hidden!important;
+}
+
+.app-clean-v311 .top-card,
+.app-clean-v311 .admin-card,
+.app-clean-v311 .match-row,
+.app-clean-v311 .modal-card,
+.app-clean-v311 .settings-card,
+.app-clean-v311 .score-card{
+  box-shadow:0 14px 38px rgba(0,0,0,.18)!important;
+}
+
+.app-clean-v311 button,
+.app-clean-v311 .tab,
+.app-clean-v311 input,
+.app-clean-v311 select,
+.app-clean-v311 textarea{
+  -webkit-tap-highlight-color:transparent;
+}
+
+.app-clean-v311 .modal-card{
+  backdrop-filter:blur(14px);
+}
+
+.app-clean-v311 .bets-list,
+.app-clean-v311 .chat-messages,
+.app-clean-v311 .notifications-list,
+.app-clean-v311 .admin-stack{
+  scrollbar-width:thin;
+}
+
+/* v311 — Ver apostas: coluna Aposta larga em TODOS os modos, com ou sem lápis */
+#betsModal .bets-modal-card{
+  width:min(1180px, calc(100vw - 32px))!important;
+  max-width:1180px!important;
+}
+
+#betsModal .bets-list-head:not(.ko-list-head-edit-v308){
+  grid-template-columns:minmax(170px,.9fr) minmax(360px,1.9fr) minmax(150px,.8fr) 64px!important;
+  gap:12px!important;
+}
+
+#betsModal .bet-user-row:not(.ko-direct-edit-row-v308){
+  grid-template-columns:minmax(170px,.9fr) minmax(360px,1.9fr) minmax(150px,.8fr) 64px!important;
+  gap:12px!important;
+}
+
+#betsModal .bets-list-head.ko-list-head-edit-v308{
+  grid-template-columns:minmax(160px,.8fr) minmax(410px,2.05fr) minmax(135px,.7fr) 58px 52px!important;
+  gap:12px!important;
+}
+
+#betsModal .bet-user-row.ko-direct-edit-row-v308{
+  grid-template-columns:minmax(160px,.8fr) minmax(410px,2.05fr) minmax(135px,.7fr) 58px 52px!important;
+  gap:12px!important;
+}
+
+#betsModal .bet-score-pill{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  justify-content:flex-start!important;
+  text-align:left!important;
+  padding:8px 14px!important;
+  border-radius:14px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  line-height:1.18!important;
+}
+
+#betsModal .bet-type-pill{
+  min-width:0!important;
+  width:100%!important;
+}
+
+#betsModal .bet-user-main{
+  min-width:0!important;
+}
+
+#betsModal .ko-pencil-direct-v308,
+#betsModal .ko-pencil-edit-v307{
+  justify-self:end!important;
+}
+
+@media(max-width:1100px){
+  #betsModal .bets-list-head:not(.ko-list-head-edit-v308),
+  #betsModal .bet-user-row:not(.ko-direct-edit-row-v308){
+    grid-template-columns:minmax(150px,.85fr) minmax(300px,1.65fr) minmax(125px,.75fr) 58px!important;
+  }
+
+  #betsModal .bets-list-head.ko-list-head-edit-v308,
+  #betsModal .bet-user-row.ko-direct-edit-row-v308{
+    grid-template-columns:minmax(145px,.8fr) minmax(310px,1.7fr) minmax(120px,.7fr) 54px 48px!important;
+  }
+}
+
+@media(max-width:760px){
+  #betsModal .bets-list-head,
+  #betsModal .bets-list-head.ko-list-head-edit-v308{
+    display:none!important;
+  }
+
+  #betsModal .bet-user-row,
+  #betsModal .bet-user-row.ko-direct-edit-row-v308{
+    grid-template-columns:1fr!important;
+  }
+
+  #betsModal .bet-score-pill{
+    white-space:normal!important;
+    overflow:visible!important;
+    width:100%!important;
+  }
+
+  #betsModal .ko-pencil-direct-v308,
+  #betsModal .ko-pencil-edit-v307{
+    justify-self:stretch!important;
+    width:100%!important;
+  }
+}
+
+
+/* v312 — Pontuação clean, moderna e unificada */
+.score-clean-page-v312{
+  display:grid;
+  gap:14px;
+}
+
+.score-clean-toolbar-v312{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  border:1px solid rgba(59,130,246,.22);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(59,130,246,.10),rgba(15,23,42,.72));
+}
+
+.score-clean-toolbar-v312 strong{
+  display:block;
+  color:#fff;
+  font-size:18px;
+  font-weight:1000;
+}
+
+.score-clean-toolbar-v312 span{
+  display:block;
+  color:#aab8ce;
+  font-size:12px;
+  font-weight:850;
+  margin-top:3px;
+}
+
+.score-clean-chips-v312{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.score-clean-chips-v312 span{
+  margin:0;
+  padding:7px 10px;
+  border-radius:999px;
+  color:#dbeafe;
+  background:rgba(59,130,246,.12);
+  border:1px solid rgba(59,130,246,.22);
+}
+
+.score-clean-player-card-v312{
+  overflow:hidden;
+}
+
+.score-clean-player-card-v312[open]{
+  border-color:rgba(59,130,246,.34)!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.88),rgba(30,41,59,.72))!important;
+}
+
+.score-clean-player-meta-v312{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:4px 0 12px;
+}
+
+.score-clean-player-meta-v312 span{
+  padding:6px 9px;
+  border-radius:999px;
+  color:#cbd5e1;
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:11px;
+  font-weight:950;
+}
+
+.score-clean-games-table-v312{
+  display:grid;
+  gap:6px;
+}
+
+.score-clean-game-row-v312{
+  display:grid;
+  grid-template-columns:minmax(260px,1.6fr) minmax(150px,.75fr) minmax(150px,.75fr) minmax(130px,.65fr) 58px;
+  gap:10px;
+  align-items:center;
+  padding:10px 12px;
+  border-radius:13px;
+  border:1px solid rgba(255,255,255,.075);
+  background:rgba(15,23,42,.48);
+}
+
+.score-clean-game-row-v312.head{
+  padding:6px 12px;
+  color:#8ea0bb;
+  background:transparent;
+  border:0;
+  font-size:11px;
+  font-weight:1000;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+
+.score-clean-game-main-v312{
+  min-width:0;
+}
+
+.score-clean-game-main-v312 strong{
+  display:block;
+  color:#fff;
+  font-size:13px;
+  font-weight:1000;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+.score-clean-game-main-v312 small{
+  display:block;
+  color:#8ea0bb;
+  font-size:11px;
+  font-weight:850;
+  margin-top:3px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+.score-clean-pill-v312,
+.score-clean-type-v312{
+  min-height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,.055);
+  color:#e5edf8;
+  font-size:12px;
+  font-weight:950;
+  text-align:center;
+}
+
+.score-clean-pill-v312.bet,
+.score-clean-pill-v312.result{
+  justify-content:flex-start;
+  text-align:left;
+  white-space:normal;
+  line-height:1.18;
+}
+
+.score-clean-type-v312 em{
+  font-style:normal;
+}
+
+.score-clean-points-v312{
+  color:#ffd45a;
+  font-size:17px;
+  text-align:right;
+}
+
+.score-clean-game-row-v312.exact .score-clean-type-v312{
+  color:#111827;
+  background:#ffd45a;
+}
+
+.score-clean-game-row-v312.winner .score-clean-type-v312{
+  color:#dcffef;
+  background:rgba(38,194,129,.25);
+}
+
+.score-clean-game-row-v312.miss .score-clean-type-v312{
+  color:#ffc0c0;
+  background:rgba(239,68,68,.18);
+}
+
+.score-clean-game-row-v312.pending .score-clean-type-v312{
+  color:#dbeafe;
+  background:rgba(59,130,246,.16);
+}
+
+.score-clean-game-row-v312.is-ko-v312{
+  border-color:rgba(45,212,191,.16);
+  background:linear-gradient(135deg,rgba(20,184,166,.055),rgba(15,23,42,.50));
+}
+
+.score-clean-game-row-v312.is-ko-v312 .score-clean-game-main-v312 small{
+  color:#99f6e4;
+}
+
+@media(max-width:900px){
+  .score-clean-toolbar-v312{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .score-clean-chips-v312{
+    justify-content:flex-start;
+  }
+
+  .score-clean-game-row-v312,
+  .score-clean-game-row-v312.head{
+    grid-template-columns:minmax(220px,1.4fr) minmax(130px,.8fr) minmax(130px,.8fr) minmax(110px,.7fr) 52px;
+    gap:8px;
+  }
+}
+
+@media(max-width:680px){
+  .score-clean-game-row-v312.head{
+    display:none;
+  }
+
+  .score-clean-game-row-v312{
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .score-clean-game-main-v312{
+    grid-column:1/-1;
+  }
+
+  .score-clean-pill-v312,
+  .score-clean-type-v312,
+  .score-clean-points-v312{
+    position:relative;
+    justify-content:flex-start;
+    min-height:46px;
+    padding:17px 10px 7px;
+    border-radius:12px;
+    text-align:left;
+  }
+
+  .score-clean-pill-v312::before,
+  .score-clean-type-v312::before,
+  .score-clean-points-v312::before{
+    content:attr(data-label);
+    position:absolute;
+    top:5px;
+    left:10px;
+    color:#8ea0bb;
+    font-size:9px;
+    font-weight:1000;
+    text-transform:uppercase;
+  }
+
+  .score-clean-type-v312{
+    grid-column:1/-1;
+  }
+
+  .score-clean-points-v312{
+    background:rgba(255,212,90,.09);
+  }
+}
+
+
+/* v313 — estabilidade visual: evita flashes, saltos e animações durante renders */
+html.render-stabilizing-v313 *,
+html.render-stabilizing-v313 *::before,
+html.render-stabilizing-v313 *::after{
+  transition:none!important;
+  animation:none!important;
+  scroll-behavior:auto!important;
+}
+
+html.render-stabilizing-v313 .match-row,
+html.render-stabilizing-v313 .admin-card,
+html.render-stabilizing-v313 .player-score-card,
+html.render-stabilizing-v313 .modal-card,
+html.render-stabilizing-v313 button{
+  transform:none!important;
+}
+
+.app-shell,
+.tab-panel,
+#gamesList,
+#scoreSummary,
+#adminUnlocked,
+#knockoutBracket{
+  contain:layout style;
+}
+
+button,
+.tab,
+.match-row,
+.player-score-card,
+.admin-card{
+  backface-visibility:hidden;
+}
+
+.match-row,
+.player-score-card,
+.admin-card{
+  will-change:auto!important;
+}
+
+/* botões principais com tamanho mínimo estável para não encolher/aparecer */
+.match-row button,
+.calendar-actions button,
+.top-actions button,
+.modal-actions button{
+  min-height:38px;
+}
+
+#gamesList .day-block h3,
+.match-row,
+.player-score-card > summary{
+  overflow-anchor:none;
+}
+
+
+/* v314 — Design system global: clean, premium, consistente */
+:root{
+  --modern-bg:#07111f;
+  --modern-bg-soft:#0b1728;
+  --modern-surface:rgba(15,23,42,.74);
+  --modern-surface-strong:rgba(15,23,42,.92);
+  --modern-line:rgba(148,163,184,.16);
+  --modern-line-strong:rgba(96,165,250,.30);
+  --modern-text:#f8fafc;
+  --modern-muted:#93a4bb;
+  --modern-blue:#3b82f6;
+  --modern-cyan:#38bdf8;
+  --modern-green:#22c55e;
+  --modern-gold:#facc15;
+  --modern-red:#ef4444;
+  --modern-radius:18px;
+  --modern-radius-sm:13px;
+  --modern-shadow:0 18px 45px rgba(0,0,0,.22);
+}
+
+html.app-modern-v314 body{
+  background:
+    radial-gradient(circle at 12% 8%,rgba(59,130,246,.14),transparent 28rem),
+    radial-gradient(circle at 88% 12%,rgba(56,189,248,.10),transparent 26rem),
+    linear-gradient(135deg,var(--modern-bg),#020617)!important;
+  color:var(--modern-text)!important;
+}
+
+html.app-modern-v314 .app-shell{
+  gap:14px!important;
+}
+
+html.app-modern-v314 .topbar,
+html.app-modern-v314 .section-head{
+  border:1px solid var(--modern-line)!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.86),rgba(30,41,59,.62))!important;
+  box-shadow:var(--modern-shadow)!important;
+  border-radius:var(--modern-radius)!important;
+}
+
+html.app-modern-v314 .surface-modern-v314,
+html.app-modern-v314 .admin-card,
+html.app-modern-v314 .player-score-card,
+html.app-modern-v314 .top-card,
+html.app-modern-v314 .settings-card,
+html.app-modern-v314 .score-card{
+  border:1px solid var(--modern-line)!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.82),rgba(30,41,59,.58))!important;
+  border-radius:var(--modern-radius)!important;
+  box-shadow:0 14px 38px rgba(0,0,0,.18)!important;
+}
+
+html.app-modern-v314 .modal-card-modern-v314,
+html.app-modern-v314 .modal-card{
+  border:1px solid rgba(148,163,184,.18)!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(11,23,40,.96))!important;
+  border-radius:22px!important;
+  box-shadow:0 24px 80px rgba(0,0,0,.42)!important;
+}
+
+html.app-modern-v314 input,
+html.app-modern-v314 select,
+html.app-modern-v314 textarea{
+  border:1px solid rgba(148,163,184,.18)!important;
+  background:rgba(2,6,23,.72)!important;
+  color:var(--modern-text)!important;
+  border-radius:13px!important;
+}
+
+html.app-modern-v314 input:focus,
+html.app-modern-v314 select:focus,
+html.app-modern-v314 textarea:focus{
+  outline:none!important;
+  border-color:rgba(96,165,250,.55)!important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.16)!important;
+}
+
+html.app-modern-v314 button,
+html.app-modern-v314 .tab{
+  border-radius:13px!important;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease!important;
+}
+
+html.app-modern-v314 button:hover,
+html.app-modern-v314 .tab:hover{
+  transform:translateY(-1px);
+}
+
+html.app-modern-v314 .btn-modern-primary-v314,
+html.app-modern-v314 button.primary,
+html.app-modern-v314 .primary{
+  border-color:rgba(96,165,250,.36)!important;
+  background:linear-gradient(135deg,var(--modern-blue),#2563eb)!important;
+  color:white!important;
+  box-shadow:0 12px 30px rgba(37,99,235,.22)!important;
+}
+
+html.app-modern-v314 .btn-modern-secondary-v314,
+html.app-modern-v314 button.secondary,
+html.app-modern-v314 .secondary{
+  border-color:rgba(148,163,184,.16)!important;
+  background:rgba(148,163,184,.095)!important;
+  color:#dbeafe!important;
+}
+
+html.app-modern-v314 .tab-modern-v314,
+html.app-modern-v314 .tab{
+  background:rgba(148,163,184,.075)!important;
+  border:1px solid rgba(148,163,184,.14)!important;
+  color:#cbd5e1!important;
+}
+
+html.app-modern-v314 .tab.active,
+html.app-modern-v314 .tab[aria-selected="true"]{
+  background:linear-gradient(135deg,rgba(59,130,246,.30),rgba(56,189,248,.16))!important;
+  border-color:rgba(96,165,250,.40)!important;
+  color:#fff!important;
+}
+
+/* v314 — Calendário clean */
+.calendar-modern-v314 .calendar-filters,
+.calendar-modern-v314 .calendar-mode-tabs,
+.calendar-modern-v314 .filter-row{
+  gap:8px!important;
+}
+
+.games-list-modern-v314{
+  display:grid!important;
+  gap:16px!important;
+}
+
+.day-block-modern-v314{
+  border:1px solid rgba(148,163,184,.12)!important;
+  border-radius:22px!important;
+  padding:12px!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.42),rgba(30,41,59,.24))!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.16)!important;
+  overflow:hidden!important;
+}
+
+.day-block-modern-v314 > h3{
+  margin:0 0 10px!important;
+  padding:10px 12px!important;
+  border-radius:16px!important;
+  border:1px solid rgba(96,165,250,.20)!important;
+  background:linear-gradient(90deg,rgba(59,130,246,.18),rgba(56,189,248,.10))!important;
+  color:#eaf6ff!important;
+  font-size:13px!important;
+  font-weight:1000!important;
+  letter-spacing:.01em!important;
+}
+
+.match-row-modern-v314{
+  position:relative!important;
+  border:1px solid rgba(148,163,184,.13)!important;
+  border-radius:18px!important;
+  background:linear-gradient(135deg,rgba(15,23,42,.78),rgba(30,41,59,.46))!important;
+  box-shadow:0 10px 30px rgba(0,0,0,.15)!important;
+  overflow:hidden!important;
+}
+
+.match-row-modern-v314::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:4px;
+  background:linear-gradient(180deg,rgba(59,130,246,.95),rgba(56,189,248,.65));
+}
+
+.match-row-modern-v314[data-calendar-type-v314="knockout"]::before{
+  background:linear-gradient(180deg,rgba(20,184,166,.95),rgba(56,189,248,.70));
+}
+
+.match-row-modern-v314[data-calendar-state-v314="live"]{
+  border-color:rgba(34,197,94,.30)!important;
+  background:linear-gradient(135deg,rgba(20,83,45,.26),rgba(15,23,42,.72))!important;
+}
+
+.match-row-modern-v314[data-calendar-state-v314="live"]::before{
+  background:linear-gradient(180deg,rgba(34,197,94,.95),rgba(56,189,248,.72));
+}
+
+.match-row-modern-v314 .team strong,
+.match-row-modern-v314 .away strong{
+  color:#f8fafc!important;
+  font-weight:1000!important;
+}
+
+.match-row-modern-v314 .group-pill,
+.match-row-modern-v314 .time,
+.match-row-modern-v314 .state{
+  border-radius:999px!important;
+}
+
+.score-modern-v314,
+.match-row-modern-v314 .score-vs{
+  min-width:58px!important;
+  min-height:40px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:15px!important;
+  border:1px solid rgba(96,165,250,.24)!important;
+  background:rgba(59,130,246,.12)!important;
+  color:#eaf6ff!important;
+  font-weight:1000!important;
+}
+
+.match-row-modern-v314[data-calendar-state-v314="live"] .score-vs{
+  border-color:rgba(34,197,94,.40)!important;
+  background:rgba(34,197,94,.14)!important;
+  color:#bbf7d0!important;
+}
+
+.match-row-modern-v314 .bet-note{
+  border-radius:14px!important;
+  background:rgba(2,6,23,.30)!important;
+  border:1px solid rgba(148,163,184,.10)!important;
+  padding:9px 11px!important;
+}
+
+.match-row-modern-v314 .match-actions-modern-v314,
+.match-row-modern-v314 .bet-inputs{
+  gap:8px!important;
+}
+
+.match-row-modern-v314 .bet-inputs button,
+.match-row-modern-v314 [data-bets-game],
+.match-row-modern-v314 [data-ko-calendar-bet-v259]{
+  min-height:38px!important;
+  border-radius:13px!important;
+}
+
+@media(max-width:760px){
+  .day-block-modern-v314{
+    padding:9px!important;
+    border-radius:18px!important;
+  }
+
+  .match-row-modern-v314{
+    border-radius:16px!important;
+  }
+
+  .match-row-modern-v314::before{
+    width:3px;
+  }
+
+  .score-modern-v314,
+  .match-row-modern-v314 .score-vs{
+    min-width:0!important;
+    width:fit-content!important;
+    padding:8px 12px!important;
+  }
+
+  html.app-modern-v314 button:hover,
+  html.app-modern-v314 .tab:hover{
+    transform:none;
+  }
+}
+
+
+/* v315 — garantia visual: o botão Pesquisar não aparece dentro dos jogos do Calendário */
+#calendarTab .match-row [data-search-result-game],
+#gamesList .match-row [data-search-result-game],
+#calendarTab [data-game-id] [data-search-result-game],
+#gamesList [data-game-id] [data-search-result-game],
+#calendarTab .search-game-result-btn,
+#gamesList .search-game-result-btn{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  width:0!important;
+  min-width:0!important;
+  height:0!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  overflow:hidden!important;
+}
