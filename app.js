@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v327";
+const APP_VERSION_LABEL = "v328";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -25392,5 +25392,193 @@ window.debugDesbloqueioApostasV327 = function debugDesbloqueioApostasV327() {
     panel: Boolean(document.getElementById("ownerKoBetUnlockPanelV306")),
     globalPanel: Boolean(document.getElementById("ownerKoGlobalUnlockV327")),
     matches: (appSettings?.knockout?.matches || []).length
+  };
+};
+
+
+/* v328 — Desbloqueio real das apostas da Fase Final */
+const APP_VERSION_V328_REAL_BET_UNLOCK = "328.0";
+
+function isOwnerV328() {
+  try { return normalizeRole?.(currentProfile?.role || "") === "owner"; }
+  catch { return false; }
+}
+
+function knockoutUnlockSettingsV328() {
+  if (!appSettings || typeof appSettings !== "object") appSettings = {};
+  if (!appSettings.knockout || typeof appSettings.knockout !== "object") appSettings.knockout = {};
+  if (!appSettings.knockout.ownerBetUnlock || typeof appSettings.knockout.ownerBetUnlock !== "object") {
+    appSettings.knockout.ownerBetUnlock = {};
+  }
+  return appSettings.knockout.ownerBetUnlock;
+}
+
+function knockoutUnlockOwnerV328() {
+  const s = knockoutUnlockSettingsV328();
+  return Boolean(s.enabled || s.ownerUnlocked || s.owner || s.dono);
+}
+
+function knockoutUnlockAllV328() {
+  const s = knockoutUnlockSettingsV328();
+  return Boolean(s.unlockAll || s.allUsers || s.everyone || s.usersUnlocked);
+}
+
+function shouldBypassKnockoutLockV328(matchOrGame = null) {
+  const s = knockoutUnlockSettingsV328();
+  if (!s) return false;
+
+  // Dono desbloqueado: só o dono consegue ignorar o bloqueio.
+  if (isOwnerV328() && knockoutUnlockOwnerV328()) return true;
+
+  // Desbloquear para todos: users/admin também conseguem apostar/editar.
+  if (knockoutUnlockAllV328()) return true;
+
+  return false;
+}
+
+function saveUnlockSettingsV328(reason = "desbloqueio apostas fase final") {
+  knockoutUnlockSettingsV328();
+  try { saveLocalData?.(reason); } catch {}
+  try {
+    if (typeof persistSettings === "function") return Promise.resolve(persistSettings()).catch(() => scheduleFullSync?.(reason, 400));
+  } catch {}
+  try { scheduleFullSync?.(reason, 400); } catch {}
+  return Promise.resolve(false);
+}
+
+function setKnockoutUnlockAllV328(enabled) {
+  const s = knockoutUnlockSettingsV328();
+  s.unlockAll = Boolean(enabled);
+  s.allUsers = Boolean(enabled);
+  s.usersUnlocked = Boolean(enabled);
+  s.updatedAt = new Date().toISOString();
+  s.updatedBy = currentProfile?.email || currentProfile?.uid || "owner";
+
+  saveUnlockSettingsV328(enabled ? "desbloquear apostas todos" : "bloquear apostas todos");
+  try { renderKnockoutAdmin?.(); } catch {}
+  try { renderCalendar?.(); } catch {}
+  try { renderActivePageV187?.(); } catch {}
+  toast?.(enabled ? "Apostas desbloqueadas para todos." : "Bloqueio de apostas voltou ao normal.");
+}
+
+function installRealUnlockButtonsV328() {
+  if (!isOwnerV328()) return;
+  const panel = document.getElementById("ownerCompetitionsPanelV316") ||
+                document.querySelector(".owner-ko-unlock-panel-v306") ||
+                document.getElementById("knockoutAdminPanel") ||
+                document.getElementById("adminUnlocked") ||
+                document.getElementById("settingsTab");
+  if (!panel || document.getElementById("realUnlockBetsV328")) return;
+
+  const allUnlocked = knockoutUnlockAllV328();
+  const box = document.createElement("section");
+  box.id = "realUnlockBetsV328";
+  box.className = "real-unlock-bets-v328";
+  box.innerHTML = `
+    <div>
+      <strong>Bloqueio de apostas</strong>
+      <span>Permite abrir temporariamente as apostas da Fase Final mesmo depois da hora do jogo.</span>
+    </div>
+    <button type="button" class="${allUnlocked ? "danger" : "primary"}" id="toggleRealUnlockBetsV328">
+      ${allUnlocked ? "Voltar a bloquear apostas" : "Desbloquear apostas para todos"}
+    </button>
+  `;
+  panel.prepend(box);
+  document.getElementById("toggleRealUnlockBetsV328")?.addEventListener("click", () => {
+    setKnockoutUnlockAllV328(!knockoutUnlockAllV328());
+  });
+}
+
+(function installKnockoutRealBetUnlockV328() {
+  if (window.__knockoutRealBetUnlockV328) return;
+  window.__knockoutRealBetUnlockV328 = true;
+
+  // 1) A função principal de bloqueio da fase final passa a respeitar o desbloqueio.
+  const originalKoLockedV328 = typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241 : null;
+  if (originalKoLockedV328 && !originalKoLockedV328.__realUnlockV328) {
+    isKnockoutBetLockedV241 = function isKnockoutBetLockedRealUnlockV328(match) {
+      if (shouldBypassKnockoutLockV328(match)) return false;
+      return originalKoLockedV328.apply(this, arguments);
+    };
+    isKnockoutBetLockedV241.__realUnlockV328 = true;
+    window.isKnockoutBetLockedV241 = isKnockoutBetLockedV241;
+  }
+
+  // 2) Caso exista outra função global mais genérica, também fica protegida.
+  const originalKoLockedGenericV328 = typeof isKnockoutBetLocked === "function" ? isKnockoutBetLocked : null;
+  if (originalKoLockedGenericV328 && !originalKoLockedGenericV328.__realUnlockV328) {
+    isKnockoutBetLocked = function isKnockoutBetLockedRealUnlockV328(match) {
+      if (shouldBypassKnockoutLockV328(match)) return false;
+      return originalKoLockedGenericV328.apply(this, arguments);
+    };
+    isKnockoutBetLocked.__realUnlockV328 = true;
+    window.isKnockoutBetLocked = isKnockoutBetLocked;
+  }
+
+  // 3) Alguns fluxos usam "isBetLocked" mesmo para botões/cards. Também respeita unlock se for fase final.
+  const originalBetLockedV328 = typeof isBetLocked === "function" ? isBetLocked : null;
+  if (originalBetLockedV328 && !originalBetLockedV328.__realUnlockV328) {
+    isBetLocked = function isBetLockedRealUnlockV328(game) {
+      try {
+        const txt = `${game?.phase || ""} ${game?.group || ""} ${game?.round || ""} ${game?.roundLabel || ""}`.toLowerCase();
+        const isKo = txt.includes("final") || txt.includes("oitavos") || txt.includes("quartos") || txt.includes("meias") || txt.includes("16 avos") || txt.includes("fase final");
+        if (isKo && shouldBypassKnockoutLockV328(game)) return false;
+      } catch {}
+      return originalBetLockedV328.apply(this, arguments);
+    };
+    isBetLocked.__realUnlockV328 = true;
+    window.isBetLocked = isBetLocked;
+  }
+
+  // 4) Render do admin/página volta a meter o botão se o painel for recriado.
+  const originalRenderKnockoutAdminV328 = typeof renderKnockoutAdmin === "function" ? renderKnockoutAdmin : null;
+  if (originalRenderKnockoutAdminV328 && !originalRenderKnockoutAdminV328.__realUnlockV328) {
+    renderKnockoutAdmin = function renderKnockoutAdminRealUnlockV328() {
+      const result = originalRenderKnockoutAdminV328.apply(this, arguments);
+      requestAnimationFrame(installRealUnlockButtonsV328);
+      setTimeout(installRealUnlockButtonsV328, 120);
+      return result;
+    };
+    renderKnockoutAdmin.__realUnlockV328 = true;
+    window.renderKnockoutAdmin = renderKnockoutAdmin;
+  }
+
+  const originalRenderAllV328 = typeof renderAll === "function" ? renderAll : null;
+  if (originalRenderAllV328 && !originalRenderAllV328.__realUnlockV328) {
+    renderAll = function renderAllRealUnlockV328() {
+      const result = originalRenderAllV328.apply(this, arguments);
+      requestAnimationFrame(installRealUnlockButtonsV328);
+      return result;
+    };
+    renderAll.__realUnlockV328 = true;
+    window.renderAll = renderAll;
+  }
+
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#toggleRealUnlockBetsV328")) {
+      event.preventDefault();
+      setKnockoutUnlockAllV328(!knockoutUnlockAllV328());
+    }
+  }, true);
+
+  setTimeout(installRealUnlockButtonsV328, 300);
+})();
+
+window.debugDesbloqueioRealV328 = function debugDesbloqueioRealV328() {
+  const s = knockoutUnlockSettingsV328();
+  let firstMatch = null;
+  try { firstMatch = (appSettings?.knockout?.matches || [])[0] || null; } catch {}
+  return {
+    version: APP_VERSION_V328_REAL_BET_UNLOCK,
+    role: currentProfile?.role || "",
+    isOwner: isOwnerV328(),
+    settings: { ...s },
+    ownerUnlock: knockoutUnlockOwnerV328(),
+    unlockAll: knockoutUnlockAllV328(),
+    shouldBypassFirstMatch: shouldBypassKnockoutLockV328(firstMatch),
+    isKnockoutBetLockedV241Guarded: Boolean(isKnockoutBetLockedV241?.__realUnlockV328),
+    isBetLockedGuarded: Boolean(typeof isBetLocked === "function" && isBetLocked.__realUnlockV328),
+    buttonExists: Boolean(document.getElementById("toggleRealUnlockBetsV328")),
+    firstMatchLockedNow: firstMatch && typeof isKnockoutBetLockedV241 === "function" ? isKnockoutBetLockedV241(firstMatch) : null
   };
 };
