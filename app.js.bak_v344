@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v346";
+const APP_VERSION_LABEL = "v344";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -4320,7 +4320,7 @@ function renderKnockoutRecordForm(match) {
     : `<input class="ko-readonly-team" type="text" value="${escapeHtml(match.awayTeam || "A definir automaticamente")}" disabled aria-label="Equipa visitante" />`;
 
   return `
-    <div class="ko-card-editor" data-ko-admin="${escapeHtml(match.id)}">
+    <div class="ko-card-editor modal" data-ko-admin="${escapeHtml(match.id)}">
       <div class="ko-card-editor-teams">
         ${homeControl}
         ${awayControl}
@@ -18298,7 +18298,7 @@ renderKnockoutRecordForm = function renderKnockoutRecordFormV267(match) {
     ? `<select class="ko-away-team" aria-label="Equipa visitante">${knockoutTeamOptionsHtml(match.awayTeam)}</select>`
     : `<input class="ko-readonly-team" type="text" value="${escapeHtml(match.awayTeam || "A definir automaticamente")}" disabled aria-label="Equipa visitante" />`;
   return `
-    <div class="ko-card-editor" data-ko-admin="${escapeHtml(match.id)}">
+    <div class="ko-card-editor modal" data-ko-admin="${escapeHtml(match.id)}">
       <div class="ko-card-editor-teams">
         ${homeControl}
         ${awayControl}
@@ -27966,7 +27966,7 @@ try {
 renderKnockoutRecordForm = function renderKnockoutRecordFormManualV341(match) {
   const teamsReady = Boolean(match.homeTeam && match.awayTeam);
   return `
-    <div class="ko-card-editor ko-manual-all-v341" data-ko-admin="${escapeHtml(match.id)}">
+    <div class="ko-card-editor modal ko-manual-all-v341" data-ko-admin="${escapeHtml(match.id)}">
       <div class="ko-card-editor-teams">
         <select class="ko-home-team" aria-label="Equipa da casa">${knockoutTeamOptionsHtml(match.homeTeam)}</select>
         <select class="ko-away-team" aria-label="Equipa visitante">${knockoutTeamOptionsHtml(match.awayTeam)}</select>
@@ -28084,7 +28084,6 @@ saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminManualV341
     try { await saveSettingsFastToFirebase("fase final manual incompleta v341"); } catch { scheduleFullSync("fase final manual incompleta v341", 600); }
     renderKnockout();
     renderKnockoutAdmin();
-    // v346: depois de guardar com sucesso no modal, fecha o modal.
     if (sourceModal) closeKnockoutRecordModal();
     toast("Jogo manual guardado. Define as duas equipas para lançar resultado/apostas.");
     return true;
@@ -28172,7 +28171,6 @@ saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminManualV341
   try { renderKnockout?.(); } catch {}
   try { renderKnockoutAdmin?.(); } catch {}
   try { renderCalendar?.(); } catch {}
-  // v346: não fecha ao escrever resultado, mas fecha depois de carregar em Guardar com sucesso.
   if (sourceModal) closeKnockoutRecordModal();
 
   try {
@@ -28232,70 +28230,3 @@ setTimeout(() => {
   try { if (document.querySelector(".tab-panel.active")?.id === "knockoutTab") { renderKnockout?.(); renderKnockoutAdmin?.(); } } catch {}
 }, 1600);
 
-
-
-// v345 — Modal de edição da Fase Final estável.
-// Mantém o modal aberto durante edição/guardar e remove a classe modal do formulário interno.
-const APP_VERSION_V345_KO_MODAL_STABLE = "345.0";
-
-function markKnockoutRecordModalStableV345(modal = document.getElementById("knockoutRecordModal")) {
-  if (!modal) return false;
-  modal.dataset.koStableV345 = "true";
-  modal.querySelectorAll(".ko-card-editor.modal").forEach(editor => editor.classList.remove("modal"));
-  return true;
-}
-
-if (typeof openKnockoutRecordModal === "function" && !window.__openKnockoutRecordModalStableV345) {
-  window.__openKnockoutRecordModalStableV345 = true;
-  const originalOpenKnockoutRecordModalV345 = openKnockoutRecordModal;
-  openKnockoutRecordModal = function openKnockoutRecordModalStableV345(matchId) {
-    const result = originalOpenKnockoutRecordModalV345.apply(this, arguments);
-    const modal = document.getElementById("knockoutRecordModal");
-    markKnockoutRecordModalStableV345(modal);
-    if (modal && !modal.__koStableHandlersV345) {
-      modal.__koStableHandlersV345 = true;
-      modal.addEventListener("input", event => {
-        if (event.target?.closest?.("input, select, textarea")) event.stopPropagation();
-      }, true);
-      modal.addEventListener("change", event => {
-        if (event.target?.closest?.("input, select, textarea")) event.stopPropagation();
-      }, true);
-      modal.addEventListener("keydown", event => {
-        // Evita que Enter dentro dos resultados dispare ações globais/fechos inesperados.
-        if (event.key === "Enter" && event.target?.closest?.("input, select, textarea")) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }, true);
-    }
-    return result;
-  };
-  window.openKnockoutRecordModal = openKnockoutRecordModal;
-}
-
-function debugModalFaseFinalV345() {
-  const modal = document.getElementById("knockoutRecordModal");
-  return {
-    version: APP_VERSION_V345_KO_MODAL_STABLE,
-    modalAberto: Boolean(modal),
-    modalEstavel: modal?.dataset?.koStableV345 === "true",
-    formulariosComClasseModalInterna: modal ? modal.querySelectorAll(".ko-card-editor.modal").length : 0,
-    regra: "O modal só fecha no botão Fechar, no fundo escuro ou Escape; guardar resultado não fecha automaticamente."
-  };
-}
-window.debugModalFaseFinalV345 = debugModalFaseFinalV345;
-
-
-// v346 — Modal Fase Final: guardar fecha o modal.
-const APP_VERSION_V346_KO_MODAL_SAVE_CLOSE = "346.0";
-function debugModalFaseFinalV346() {
-  const modal = document.getElementById("knockoutRecordModal");
-  return {
-    version: APP_VERSION_V346_KO_MODAL_SAVE_CLOSE,
-    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
-    modalAberto: Boolean(modal),
-    comportamento: "O modal nao fecha ao editar campos; fecha apenas em Fechar/Escape/fundo ou apos Guardar jogo manual com sucesso.",
-    saveFunction: typeof saveKnockoutMatchFromAdmin === "function" ? (saveKnockoutMatchFromAdmin.name || "anonima") : "indisponivel"
-  };
-}
-window.debugModalFaseFinalV346 = debugModalFaseFinalV346;
