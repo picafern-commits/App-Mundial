@@ -18127,3 +18127,130 @@ html.app-modern-v314 .tab[aria-selected="true"]{
     width:min(720px, calc(100vw - 36px))!important;
   }
 }
+
+
+/* v343 — Modal de editar Fase Final realmente maior.
+   Correção importante: o formulário interno tinha a classe "modal" e podia herdar
+   position:fixed/inset/background da classe global .modal, ficando visualmente pequeno.
+   Este bloco limita a alteração ao #knockoutRecordModal. */
+#knockoutRecordModal.knockout-record-modal{
+  display:grid!important;
+  place-items:center!important;
+  padding:clamp(20px, 4vw, 52px)!important;
+}
+
+#knockoutRecordModal .knockout-record-card{
+  width:min(980px, calc(100vw - 72px))!important;
+  min-height:min(520px, calc(100dvh - 84px))!important;
+  max-height:calc(100dvh - 72px)!important;
+  padding:clamp(24px, 3vw, 38px)!important;
+  border-radius:30px!important;
+  display:grid!important;
+  gap:20px!important;
+}
+
+#knockoutRecordModal .knockout-record-card .modal-head{
+  margin-bottom:0!important;
+  align-items:center!important;
+}
+
+#knockoutRecordModal .knockout-record-card .modal-head strong{
+  font-size:clamp(24px, 2.4vw, 31px)!important;
+  letter-spacing:-.02em!important;
+}
+
+#knockoutRecordModal .knockout-record-card .modal-head span{
+  font-size:15px!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-editor.modal{
+  position:static!important;
+  inset:auto!important;
+  z-index:auto!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-height:none!important;
+  display:grid!important;
+  place-items:stretch!important;
+  align-items:stretch!important;
+  gap:20px!important;
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;
+  box-shadow:none!important;
+  border:0!important;
+  border-radius:0!important;
+  overflow:visible!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-editor-teams{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:18px!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-editor-scores{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)!important;
+  gap:18px!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-editor select,
+#knockoutRecordModal .knockout-record-card .ko-card-editor input{
+  min-height:60px!important;
+  border-radius:18px!important;
+  padding:14px 16px!important;
+  font-size:17px!important;
+  font-weight:950!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-editor label{
+  gap:10px!important;
+  font-size:13px!important;
+  letter-spacing:.02em!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-score-pair{
+  gap:12px!important;
+}
+
+#knockoutRecordModal .knockout-record-card .ko-card-save{
+  min-height:60px!important;
+  border-radius:18px!important;
+  font-size:17px!important;
+  margin-top:2px!important;
+}
+
+@media(min-width:1200px){
+  #knockoutRecordModal .knockout-record-card{
+    width:min(1040px, calc(100vw - 96px))!important;
+  }
+}
+
+@media(max-width:900px){
+  #knockoutRecordModal.knockout-record-modal{
+    place-items:end center!important;
+    padding:12px!important;
+  }
+
+  #knockoutRecordModal .knockout-record-card{
+    width:100%!important;
+    min-height:min(560px, calc(96dvh - env(safe-area-inset-bottom,0px)))!important;
+    max-height:calc(96dvh - env(safe-area-inset-bottom,0px))!important;
+    padding:22px!important;
+    border-radius:28px 28px 18px 18px!important;
+  }
+
+  #knockoutRecordModal .knockout-record-card .ko-card-editor-teams,
+  #knockoutRecordModal .knockout-record-card .ko-card-editor-scores{
+    grid-template-columns:1fr!important;
+  }
+
+  #knockoutRecordModal .knockout-record-card .ko-card-editor select,
+  #knockoutRecordModal .knockout-record-card .ko-card-editor input{
+    min-height:58px!important;
+    font-size:17px!important;
+  }
+}
