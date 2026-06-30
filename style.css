@@ -18254,3 +18254,54 @@ html.app-modern-v314 .tab[aria-selected="true"]{
     font-size:17px!important;
   }
 }
+
+
+/* v344 — Corrigir dropdowns/selects brancos no tema dark.
+   A alteração é global e visual: não mexe na lógica dos formulários.
+   Nota: alguns sistemas móveis usam o seletor nativo do sistema operativo; nesses casos
+   o Android/iOS pode continuar a controlar parte da aparência, mas no Chrome/Edge/desktop
+   os options deixam de abrir com painel branco gigante. */
+html,
+body,
+.app-shell,
+.modal,
+.modal-card,
+.knockout-record-modal{
+  color-scheme: dark!important;
+}
+
+select{
+  color-scheme: dark!important;
+  background-color:#111827!important;
+  color:#f8fafc!important;
+  border-color:rgba(148,163,184,.24)!important;
+  accent-color:#3b82f6!important;
+}
+
+select option,
+select optgroup{
+  background-color:#0f172a!important;
+  color:#f8fafc!important;
+}
+
+select option:checked,
+select option:hover,
+select option:focus{
+  background-color:#1d4ed8!important;
+  color:#ffffff!important;
+}
+
+select option:disabled{
+  background-color:#111827!important;
+  color:rgba(248,250,252,.48)!important;
+}
+
+/* Garante que selects dentro dos modais da Fase Final também herdam o dropdown dark. */
+#knockoutRecordModal select,
+#knockoutRecordModal select option,
+#knockoutBetModalV241 select,
+#knockoutBetModalV241 select option,
+#ownerKoModalV306 select,
+#ownerKoModalV306 select option{
+  color-scheme: dark!important;
+}
