@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v346";
+const APP_VERSION_LABEL = "v348";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -27123,6 +27123,83 @@ function ownerEditBetGameIdV334(bet) {
   return String(bet?.gameId || bet?.matchId || bet?.knockoutMatchId || bet?.fixtureId || "");
 }
 
+/* v348 — edição de apostas no modal "Ver apostas" sem criar duplicados.
+   A causa era comparar só playerId exato; alguns jogadores chegam como player_*, email/uid
+   ou nome importado. Agora a edição compara também por nome normalizado e preserva o ID real da aposta existente. */
+const APP_VERSION_V348_OWNER_EDIT_BET_UPDATE = "348.0";
+
+function ownerEditNormalizeTextV348(value = "") {
+  try { return normalizeComparable?.(value) || ""; } catch {}
+  return String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function ownerEditSafePlayerIdFromNameV348(name = "") {
+  try { return playerIdFromName?.(name) || ""; } catch {}
+  return String(name || "").trim().replace(/\s+/g, "_");
+}
+
+function ownerEditPlayerFromSelectionV348(playerOrId = "") {
+  if (playerOrId && typeof playerOrId === "object") return playerOrId;
+  const raw = String(playerOrId || "").trim();
+  const players = (() => { try { return ownerEditPlayersV334?.() || []; } catch { return []; } })();
+  return players.find(player => String(player.id || player.playerId || "") === raw) ||
+    players.find(player => ownerEditNormalizeTextV348(player.name || player.playerName || "") === ownerEditNormalizeTextV348(raw)) ||
+    { id: raw, playerId: raw, name: raw, playerName: raw };
+}
+
+function ownerEditCanonicalPlayerForSaveV348(player, existingBet = null) {
+  const name = String(existingBet?.playerName || player?.name || player?.playerName || player?.displayName || player?.email || player?.id || "Jogador").trim();
+  const id = String(existingBet?.playerId || existingBet?.userId || existingBet?.uid || player?.playerId || player?.id || ownerEditSafePlayerIdFromNameV348(name) || name).trim();
+  return {
+    id,
+    playerId: id,
+    name,
+    playerName: name,
+    email: String(existingBet?.email || player?.email || player?.linkedEmail || "").trim()
+  };
+}
+
+function ownerEditPlayerAliasesV348(playerOrId = "") {
+  const player = ownerEditPlayerFromSelectionV348(playerOrId);
+  const ids = new Set();
+  const names = new Set();
+  const emails = new Set();
+  const addId = value => { const text = String(value || "").trim(); if (text) ids.add(text); };
+  const addName = value => { const text = ownerEditNormalizeTextV348(value); if (text) names.add(text); };
+  const addEmail = value => { const text = String(value || "").trim().toLowerCase(); if (text) emails.add(text); };
+
+  addId(player?.id); addId(player?.playerId); addId(player?.linkedPlayerId); addId(player?.uid); addId(player?.email);
+  addName(player?.name); addName(player?.playerName); addName(player?.linkedPlayerName); addName(player?.displayName);
+  addEmail(player?.email); addEmail(player?.linkedEmail);
+
+  [...names].forEach(name => addId(ownerEditSafePlayerIdFromNameV348(name)));
+  return { ids, names, emails };
+}
+
+function ownerEditBetPlayerAliasesV348(bet = {}) {
+  const ids = new Set();
+  const names = new Set();
+  const emails = new Set();
+  const addId = value => { const text = String(value || "").trim(); if (text) ids.add(text); };
+  const addName = value => { const text = ownerEditNormalizeTextV348(value); if (text) names.add(text); };
+  const addEmail = value => { const text = String(value || "").trim().toLowerCase(); if (text) emails.add(text); };
+
+  addId(bet.playerId); addId(bet.userId); addId(bet.uid); addId(bet.email); addId(bet.playerName);
+  addName(bet.playerName); addName(bet.userName); addName(bet.displayName); addName(bet.name); addName(bet.email);
+  addEmail(bet.email);
+  [...names].forEach(name => addId(ownerEditSafePlayerIdFromNameV348(name)));
+  return { ids, names, emails };
+}
+
+function ownerEditSamePlayerV348(bet = {}, playerOrId = "") {
+  const betAliases = ownerEditBetPlayerAliasesV348(bet);
+  const playerAliases = ownerEditPlayerAliasesV348(playerOrId);
+  for (const id of betAliases.ids) if (playerAliases.ids.has(id)) return true;
+  for (const name of betAliases.names) if (playerAliases.names.has(name)) return true;
+  for (const email of betAliases.emails) if (playerAliases.emails.has(email)) return true;
+  return false;
+}
+
 function ownerEditBetMatchesGameV334(bet, resolved) {
   const ids = resolved?.ids || [];
   return ids.includes(ownerEditBetGameIdV334(bet)) ||
@@ -27154,8 +27231,8 @@ function ownerEditBetsForGameV334(resolved) {
 }
 
 function ownerEditBetForPlayerV334(resolved, playerId) {
-  const pid = String(playerId || "");
-  return ownerEditBetsForGameV334(resolved).find(bet => String(ownerEditBetPlayerIdV334(bet)) === pid) || null;
+  const player = ownerEditPlayerFromSelectionV348(playerId);
+  return ownerEditBetsForGameV334(resolved).find(bet => ownerEditSamePlayerV348(bet, player)) || null;
 }
 
 function ownerEditBetDisplayV334(bet) {
@@ -27389,10 +27466,12 @@ async function saveOwnerEditedBet(gameId = "") {
 
   const teams = ownerEditTeamsV334(resolved.match || resolved.game);
   const now = new Date().toISOString();
-  const existing = ownerEditBetForPlayerV334(resolved, player.id);
-  const newId = ownerEditedBetIdV334(resolved.realGameId, player.id);
+  const selectedPlayer = ownerEditPlayerFromSelectionV348(player.id);
+  const existing = ownerEditBetForPlayerV334(resolved, selectedPlayer);
+  const savePlayer = ownerEditCanonicalPlayerForSaveV348(selectedPlayer, existing);
+  const newId = ownerEditedBetIdV334(resolved.realGameId, savePlayer.id);
   const oldIds = ownerEditBetsForGameV334(resolved)
-    .filter(bet => String(ownerEditBetPlayerIdV334(bet)) === String(player.id))
+    .filter(bet => ownerEditSamePlayerV348(bet, savePlayer) || ownerEditSamePlayerV348(bet, selectedPlayer))
     .map(bet => bet.id)
     .filter(Boolean);
 
@@ -27404,9 +27483,9 @@ async function saveOwnerEditedBet(gameId = "") {
     knockoutMatchId: resolved.match?.id || resolved.realGameId,
     type: "knockout",
     source: existing?.source || "FaseFinalOwnerEdit",
-    playerId: player.id,
-    playerName: player.name,
-    email: player.email || existing?.email || "",
+    playerId: savePlayer.id,
+    playerName: savePlayer.name,
+    email: savePlayer.email || existing?.email || "",
     homeGuess: home,
     awayGuess: away,
     homeScore: home,
@@ -27432,7 +27511,7 @@ async function saveOwnerEditedBet(gameId = "") {
   };
 
   if (!Array.isArray(bets)) bets = [];
-  bets = bets.filter(bet => !(ownerEditBetMatchesGameV334(bet, resolved) && String(ownerEditBetPlayerIdV334(bet)) === String(player.id)));
+  bets = bets.filter(bet => !(ownerEditBetMatchesGameV334(bet, resolved) && (ownerEditSamePlayerV348(bet, savePlayer) || ownerEditSamePlayerV348(bet, selectedPlayer))));
   bets.push(updated);
 
   const deleteIds = oldIds.filter(id => id && id !== updated.id);
@@ -27440,7 +27519,7 @@ async function saveOwnerEditedBet(gameId = "") {
   try { if (typeof markBetsPending === "function") markBetsPending([updated.id]); } catch {}
   try { saveLocalData?.("dono editou aposta fase final"); } catch {}
   try { scheduleFullSync?.("dono editou aposta fase final", 250); } catch {}
-  try { addSystemLog?.("Aposta Fase Final editada pelo Dono", `${player.name} · ${teams.home} vs ${teams.away}`, { gameId: resolved.realGameId, playerId: player.id }, { sync: true }); } catch {}
+  try { addSystemLog?.("Aposta Fase Final editada pelo Dono", `${savePlayer.name} · ${teams.home} vs ${teams.away}`, { gameId: resolved.realGameId, playerId: savePlayer.id }, { sync: true }); } catch {}
 
   document.getElementById("ownerEditBetModalV334")?.remove();
   try { showGameBets?.(resolved.realGameId); } catch {}
@@ -27460,12 +27539,13 @@ async function deleteOwnerEditedBet(gameId = "") {
   const player = ownerEditPlayersV334().find(item => String(item.id) === String(playerId));
   if (!player) return ownerToastV334("Jogador não encontrado.");
 
-  const toDelete = ownerEditBetsForGameV334(resolved).filter(bet => String(ownerEditBetPlayerIdV334(bet)) === String(player.id));
+  const selectedPlayer = ownerEditPlayerFromSelectionV348(player.id);
+  const toDelete = ownerEditBetsForGameV334(resolved).filter(bet => ownerEditSamePlayerV348(bet, selectedPlayer));
   if (!toDelete.length) return ownerToastV334("Este jogador ainda não tem aposta neste jogo.");
   if (!confirm(`Limpar a aposta de ${player.name}?`)) return;
 
   const deleteIds = toDelete.map(bet => bet.id).filter(Boolean);
-  bets = (bets || []).filter(bet => !(ownerEditBetMatchesGameV334(bet, resolved) && String(ownerEditBetPlayerIdV334(bet)) === String(player.id)));
+  bets = (bets || []).filter(bet => !(ownerEditBetMatchesGameV334(bet, resolved) && ownerEditSamePlayerV348(bet, selectedPlayer)));
 
   try { if (deleteIds.length && typeof markBetsForDelete === "function") markBetsForDelete(deleteIds); } catch {}
   try { saveLocalData?.("dono limpou aposta fase final"); } catch {}
@@ -27558,6 +27638,28 @@ window.debugOwnerEditBetsV334 = function debugOwnerEditBetsV334(gameId = "") {
     modalOpen: Boolean(document.getElementById("betsModal") && !document.getElementById("betsModal").classList.contains("hidden")),
     pencils: document.querySelectorAll(".ko-owner-edit-btn-v334").length,
     addButton: Boolean(document.getElementById("ownerAddEditBetV334"))
+  };
+};
+
+window.debugOwnerEditBetsV348 = function debugOwnerEditBetsV348(gameId = "") {
+  const gid = gameId || ownerEditCurrentGameIdV334 || document.getElementById("betsModal")?.dataset.ownerEditGameV334 || "";
+  const resolved = ownerEditResolveGameV334(gid);
+  const rows = ownerEditBetsForGameV334(resolved);
+  const grouped = new Map();
+  rows.forEach(bet => {
+    const nameKey = ownerEditNormalizeTextV348(bet.playerName || bet.name || ownerEditBetPlayerIdV334(bet));
+    const key = nameKey || ownerEditBetPlayerIdV334(bet);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push({ id: bet.id, playerId: bet.playerId, playerName: bet.playerName, gameId: bet.gameId });
+  });
+  return {
+    version: APP_VERSION_V348_OWNER_EDIT_BET_UPDATE,
+    requestedGameId: gid,
+    realGameId: resolved.realGameId,
+    ids: resolved.ids,
+    betsForGame: rows.length,
+    duplicatePlayers: [...grouped.entries()].filter(([, list]) => list.length > 1).map(([player, list]) => ({ player, count: list.length, bets: list })),
+    players: ownerEditPlayersV334().map(player => ({ id: player.id, name: player.name, email: player.email || "" })).slice(0, 80)
   };
 };
 
@@ -28299,3 +28401,348 @@ function debugModalFaseFinalV346() {
   };
 }
 window.debugModalFaseFinalV346 = debugModalFaseFinalV346;
+
+
+// v347 — Fase Final: 16 avos manuais, rondas seguintes automáticas pelos vencedores.
+// A API continua bloqueada na Fase Final; só o Dono/Admin define os 16 avos e os resultados.
+const APP_VERSION_V347_KO_WINNERS_AUTO = "347.0";
+
+function isFirstKnockoutRoundV347(match = {}) {
+  return String(match?.round || "").toLowerCase() === "r32";
+}
+
+function isAutoKnockoutRoundV347(match = {}) {
+  return isKnockoutMatchV341?.(match) && !isFirstKnockoutRoundV347(match);
+}
+
+function knockoutTeamPairV347(match = {}) {
+  return `${match.homeTeam || ""}|${match.awayTeam || ""}`;
+}
+
+function clearKnockoutResultOnlyV347(match = {}) {
+  if (!match) return false;
+  let changed = false;
+  ["homeScore", "awayScore", "homePenalties", "awayPenalties"].forEach(key => {
+    if (match[key] !== null && match[key] !== undefined && match[key] !== "") {
+      match[key] = null;
+      changed = true;
+    }
+  });
+  ["winner", "winnerTeam", "qualified", "qualifiedTeam"].forEach(key => {
+    if (match[key]) {
+      match[key] = "";
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function setKnockoutTeamSlotV347(match, slot, team, sourceMatchId = "") {
+  if (!match || !slot) return false;
+  const key = slot === "away" ? "awayTeam" : slot === "home" ? "homeTeam" : slot;
+  if (key !== "homeTeam" && key !== "awayTeam") return false;
+  const value = team || "";
+  const before = match[key] || "";
+  if (before === value) return false;
+  match[key] = value;
+  match.autoTeamsFrom = sourceMatchId || match.autoTeamsFrom || "";
+  match.manualTeams = false;
+  return true;
+}
+
+function propagateKnockoutWinnersV347(shouldSave = true) {
+  try { ensureKnockoutSettings?.(); } catch {}
+  const matches = Array.isArray(appSettings?.knockout?.matches) ? appSettings.knockout.matches : [];
+  if (!matches.length) return false;
+
+  const previousPairs = new Map(matches.map(match => [match.id, knockoutTeamPairV347(match)]));
+  let changed = false;
+
+  // Só os 16 avos mantêm equipas manuais. O resto é sempre reconstruído pelos vencedores.
+  matches.forEach(match => {
+    if (!isAutoKnockoutRoundV347(match)) return;
+    if (match.homeTeam || match.awayTeam) changed = true;
+    match.homeTeam = "";
+    match.awayTeam = "";
+    match.manualTeams = false;
+    match.autoTeamsFrom = "";
+  });
+
+  const orderedRounds = ["r32", "r16", "qf", "sf", "final"];
+  orderedRounds.forEach(round => {
+    matches
+      .filter(match => String(match.round || "").toLowerCase() === round)
+      .sort((a, b) => Number(a.index || 0) - Number(b.index || 0))
+      .forEach(match => {
+        const currentPair = knockoutTeamPairV347(match);
+        if (isAutoKnockoutRoundV347(match) && previousPairs.get(match.id) !== currentPair) {
+          changed = clearKnockoutResultOnlyV347(match) || changed;
+        }
+
+        const winner = knockoutWinner(match);
+        if (!winner || !match.nextMatchId || !match.nextSlot) return;
+
+        const next = matches.find(item => item.id === match.nextMatchId);
+        if (!next) return;
+        changed = setKnockoutTeamSlotV347(next, match.nextSlot, winner, match.id) || changed;
+      });
+  });
+
+  matches.forEach(match => {
+    match.qualifiedTeam = match.qualified || match.winnerTeam || match.winner || "";
+  });
+
+  if (changed && shouldSave) {
+    try { markSettingsPending?.(); } catch {}
+    try { saveLocalData?.("fase final vencedores automáticos v347"); } catch {}
+    try { scheduleFullSync?.("fase final vencedores automáticos v347", 450); } catch {}
+  }
+
+  return changed;
+}
+
+try {
+  isFirstKnockoutRound = function isFirstKnockoutRoundAutoV347(match) {
+    return isFirstKnockoutRoundV347(match);
+  };
+  window.isFirstKnockoutRound = isFirstKnockoutRound;
+} catch {}
+
+try {
+  isManualKnockoutRound = function isManualKnockoutRoundAutoV347(match) {
+    return isFirstKnockoutRoundV347(match);
+  };
+  window.isManualKnockoutRound = isManualKnockoutRound;
+} catch {}
+
+try {
+  propagateKnockoutWinners = propagateKnockoutWinnersV347;
+  window.propagateKnockoutWinners = propagateKnockoutWinners;
+} catch {}
+
+renderKnockoutRecordForm = function renderKnockoutRecordFormAutoWinnersV347(match) {
+  const firstRound = isFirstKnockoutRoundV347(match);
+  const teamsReady = Boolean(match.homeTeam && match.awayTeam);
+  const homeControl = firstRound
+    ? `<select class="ko-home-team" aria-label="Equipa da casa">${knockoutTeamOptionsHtml(match.homeTeam)}</select>`
+    : `<input class="ko-readonly-team" type="text" value="${escapeHtml(match.homeTeam || "A definir pelo vencedor anterior")}" disabled aria-label="Equipa da casa" />`;
+  const awayControl = firstRound
+    ? `<select class="ko-away-team" aria-label="Equipa visitante">${knockoutTeamOptionsHtml(match.awayTeam)}</select>`
+    : `<input class="ko-readonly-team" type="text" value="${escapeHtml(match.awayTeam || "A definir pelo vencedor anterior")}" disabled aria-label="Equipa visitante" />`;
+  const autoNotice = firstRound
+    ? `<small class="ko-auto-note-v347">Edita os 16 avos manualmente. Os vencedores passam para as rondas seguintes.</small>`
+    : `<small class="ko-auto-note-v347">As equipas deste jogo vêm automaticamente dos vencedores anteriores.</small>`;
+
+  return `
+    <div class="ko-card-editor ko-winners-auto-v347" data-ko-admin="${escapeHtml(match.id)}">
+      <div class="ko-card-editor-teams">
+        ${homeControl}
+        ${awayControl}
+      </div>
+      ${autoNotice}
+      <label class="ko-match-date-label-v243">Data/hora do jogo
+        <input class="ko-match-date-v243" type="datetime-local" value="${escapeHtml(knockoutMatchDateInputValueV243(match))}" />
+      </label>
+      <div class="ko-card-editor-scores">
+        <label>Resultado aos 90 minutos + compensação
+          <span class="ko-score-pair">
+            <input class="ko-home-score" type="number" min="0" inputmode="numeric" value="${match.homeScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+            <em>-</em>
+            <input class="ko-away-score" type="number" min="0" inputmode="numeric" value="${match.awayScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+          </span>
+        </label>
+        ${renderKnockoutQualifiedControl(match)}
+      </div>
+      <button class="primary small ko-card-save" type="button" data-ko-save="${escapeHtml(match.id)}">${firstRound ? "Guardar 16 avos" : "Guardar resultado"}</button>
+    </div>
+  `;
+};
+window.renderKnockoutRecordForm = renderKnockoutRecordForm;
+
+saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminAutoWinnersV347(matchId, sourceElement = null) {
+  if (!hasPermission("editKnockout")) { toast("Sem permissão."); return false; }
+
+  ensureKnockoutSettings();
+  try { disableKnockoutApiManualV341?.({ persist: false, reason: "fase final API bloqueada v347" }); } catch {}
+  try { applyCleanKnockoutIdsV338?.(); } catch {}
+  try { propagateKnockoutWinnersV347(false); } catch {}
+
+  const sourceModal = sourceElement?.closest("#knockoutRecordModal");
+  const row = sourceElement?.closest(`[data-ko-admin="${CSS.escape(matchId)}"]`) || document.querySelector(`[data-ko-admin="${CSS.escape(matchId)}"]`);
+  const match = knockoutMatchById(matchId);
+  if (!row || !match) return false;
+
+  const firstRound = isFirstKnockoutRoundV347(match);
+  const beforeMatch = {
+    homeTeam: match.homeTeam || "",
+    awayTeam: match.awayTeam || "",
+    homeScore: match.homeScore ?? null,
+    awayScore: match.awayScore ?? null,
+    matchDate: match.matchDate || "",
+    qualified: match.qualified || match.winnerTeam || match.winner || ""
+  };
+
+  if (firstRound) {
+    match.homeTeam = row.querySelector(".ko-home-team")?.value || "";
+    match.awayTeam = row.querySelector(".ko-away-team")?.value || "";
+    match.manualTeams = true;
+  }
+
+  match.matchDate = normalizeKnockoutMatchDateV243(row.querySelector(".ko-match-date-v243")?.value || match.matchDate || "");
+  match.date = match.matchDate;
+  match.kickoff = match.matchDate;
+  match.startAt = match.matchDate;
+  match.time = match.matchDate;
+
+  try { clearKnockoutApiFieldsV341?.(match); } catch {}
+
+  if (!match.homeTeam || !match.awayTeam) {
+    clearKnockoutResultOnlyV347(match);
+    match.updatedAt = new Date().toISOString();
+    propagateKnockoutWinnersV347(false);
+    try { syncKnockoutCalendarGameV259?.(match, { persist: false, removeIfIncomplete: true, reason: "fase final auto incompleta v347" }); } catch {}
+    markSettingsPending();
+    saveLocalData("fase final auto incompleta v347");
+    try { await saveSettingsFastToFirebase("fase final auto incompleta v347"); } catch { scheduleFullSync("fase final auto incompleta v347", 600); }
+    try { renderKnockout?.(); renderKnockoutAdmin?.(); renderCalendar?.(); } catch {}
+    if (sourceModal) closeKnockoutRecordModal();
+    toast(firstRound ? "16 avos guardados. Define as duas equipas para abrir resultado/apostas." : "Este jogo ainda espera vencedores anteriores.");
+    return true;
+  }
+
+  const homeScoreValue = row.querySelector(".ko-home-score")?.value ?? "";
+  const awayScoreValue = row.querySelector(".ko-away-score")?.value ?? "";
+  if ((homeScoreValue === "") !== (awayScoreValue === "")) {
+    toast("Preenche os dois campos do resultado ou deixa os dois vazios.");
+    return false;
+  }
+  if (homeScoreValue !== "") {
+    const homeNumber = Number(homeScoreValue);
+    const awayNumber = Number(awayScoreValue);
+    if (!Number.isFinite(homeNumber) || !Number.isFinite(awayNumber) || homeNumber < 0 || awayNumber < 0 || !Number.isInteger(homeNumber) || !Number.isInteger(awayNumber)) {
+      toast("O resultado tem de ter golos válidos.");
+      return false;
+    }
+  }
+
+  match.homeScore = homeScoreValue === "" ? null : Number(homeScoreValue);
+  match.awayScore = awayScoreValue === "" ? null : Number(awayScoreValue);
+  match.homePenalties = null;
+  match.awayPenalties = null;
+
+  const hasFullScore = match.homeScore !== null && match.awayScore !== null;
+  const qualifiedValue = row.querySelector(".ko-qualified-team-v247")?.value || "";
+  if (qualifiedValue) {
+    const normalizedQualified = normalizeComparable(qualifiedValue);
+    const validQualified = normalizedQualified === normalizeComparable(match.homeTeam) || normalizedQualified === normalizeComparable(match.awayTeam);
+    if (!validQualified) {
+      toast("Escolhe uma das duas equipas como qualificada.");
+      return false;
+    }
+    if (hasFullScore) {
+      const outcomeKey = koV267ScoreOutcome(match.homeScore, match.awayScore);
+      if (outcomeKey === "home" && normalizedQualified !== normalizeComparable(match.homeTeam)) { toast("A equipa qualificada não bate certo com o resultado."); return false; }
+      if (outcomeKey === "away" && normalizedQualified !== normalizeComparable(match.awayTeam)) { toast("A equipa qualificada não bate certo com o resultado."); return false; }
+    }
+    match.winner = qualifiedValue;
+    match.winnerTeam = qualifiedValue;
+    match.qualified = qualifiedValue;
+  } else if (hasFullScore) {
+    const outcomeKey = koV267ScoreOutcome(match.homeScore, match.awayScore);
+    if (outcomeKey === "home") match.qualified = match.winnerTeam = match.winner = match.homeTeam;
+    else if (outcomeKey === "away") match.qualified = match.winnerTeam = match.winner = match.awayTeam;
+    else {
+      match.qualified = "";
+      match.winnerTeam = "";
+      match.winner = "";
+      toast("Jogo empatado. Escolhe manualmente a equipa qualificada.");
+      return false;
+    }
+  } else {
+    match.winner = "";
+    match.winnerTeam = "";
+    match.qualified = "";
+  }
+
+  match.qualifiedTeam = match.qualified || match.winnerTeam || match.winner || "";
+  match.updatedAt = new Date().toISOString();
+
+  propagateKnockoutWinnersV347(false);
+
+  try { syncKnockoutCalendarGameV259?.(match, { persist: false, removeIfIncomplete: true, reason: "fase final vencedores auto v347" }); } catch {}
+  try { ensureKnockoutCalendarGamesV259?.({ persist: false, reason: "fase final vencedores auto v347" }); } catch {}
+
+  try {
+    addSystemLog("Jogo Fase Final guardado", `${knockoutRoundLabel(match.round)} ${match.index}: ${match.homeTeam} ${match.homeScore ?? "-"}-${match.awayScore ?? "-"} ${match.awayTeam}${match.qualified ? ` · qual. ${match.qualified}` : ""}`, {
+      matchId: match.id,
+      round: match.round,
+      index: match.index,
+      before: beforeMatch,
+      after: {
+        homeTeam: match.homeTeam || "",
+        awayTeam: match.awayTeam || "",
+        homeScore: match.homeScore ?? null,
+        awayScore: match.awayScore ?? null,
+        matchDate: match.matchDate || "",
+        qualified: match.qualified || ""
+      }
+    }, { sync: true });
+  } catch {}
+
+  markSettingsPending();
+  saveLocalData("fase final vencedores auto v347");
+  try { renderKnockout?.(); } catch {}
+  try { renderKnockoutAdmin?.(); } catch {}
+  try { renderCalendar?.(); } catch {}
+  if (sourceModal) closeKnockoutRecordModal();
+
+  try {
+    await saveSettingsFastToFirebase("fase final vencedores auto v347");
+    try { await awaitMaybeV265?.(ensureKnockoutCalendarGamesV259?.({ persist: true, reason: "fase final vencedores auto v347" })); } catch {}
+    setFirebaseStatus("success", "Firebase: Fase Final guardada e vencedores atualizados");
+  } catch (error) {
+    console.error("Falhou guardar Fase Final v347:", error);
+    scheduleFullSync("fase final vencedores auto v347", 600);
+    setFirebaseStatus("error", `Firebase: Fase Final pendente (${shortFirebaseError(error)})`);
+  }
+
+  toast(match.qualified ? "Jogo guardado. Vencedores atualizados nas rondas seguintes." : "Jogo guardado.");
+  return true;
+};
+window.saveKnockoutMatchFromAdmin = saveKnockoutMatchFromAdmin;
+
+function debugFaseFinalAutoV347() {
+  try { ensureKnockoutSettings?.(); } catch {}
+  try { propagateKnockoutWinnersV347(false); } catch {}
+  const matches = Array.isArray(appSettings?.knockout?.matches) ? appSettings.knockout.matches : [];
+  return {
+    version: APP_VERSION_V347_KO_WINNERS_AUTO,
+    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+    regra: "16 avos manuais; oitavos em diante recebem equipas pelos vencedores anteriores; API bloqueada na Fase Final.",
+    rondas: ["r32", "r16", "qf", "sf", "final"].map(round => ({
+      round,
+      jogos: matches
+        .filter(match => String(match.round || "").toLowerCase() === round)
+        .sort((a, b) => Number(a.index || 0) - Number(b.index || 0))
+        .map(match => ({
+          id: match.id,
+          index: match.index,
+          homeTeam: match.homeTeam || "",
+          awayTeam: match.awayTeam || "",
+          score: match.homeScore !== null && match.homeScore !== undefined && match.awayScore !== null && match.awayScore !== undefined ? `${match.homeScore}-${match.awayScore}` : "",
+          qualified: match.qualified || match.winnerTeam || match.winner || "",
+          nextMatchId: match.nextMatchId || "",
+          nextSlot: match.nextSlot || "",
+          manualTeams: isFirstKnockoutRoundV347(match),
+          autoTeamsFrom: match.autoTeamsFrom || ""
+        }))
+    }))
+  };
+}
+window.debugFaseFinalAutoV347 = debugFaseFinalAutoV347;
+
+setTimeout(() => {
+  try { disableKnockoutApiManualV341?.({ persist: false, reason: "arranque winners auto v347" }); } catch {}
+  try { propagateKnockoutWinnersV347?.(false); } catch {}
+  try { if (document.querySelector(".tab-panel.active")?.id === "knockoutTab") { renderKnockout?.(); renderKnockoutAdmin?.(); renderKnockoutMobileV121?.(); } } catch {}
+}, 1800);
