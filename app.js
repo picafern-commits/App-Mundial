@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v349";
+const APP_VERSION_LABEL = "v352";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -3850,8 +3850,10 @@ function ensureKnockoutSettings() {
     })
   };
 
-  propagateKnockoutWinners(false);
+  // v352: não recalcular/limpar a Fase Final ao arrancar/normalizar settings.
+  // A árvore só é recalculada quando o Dono/Admin guarda um jogo.
 }
+
 
 function knockoutMatches() {
   if (!appSettings.knockout || !Array.isArray(appSettings.knockout.matches) || !appSettings.knockout.matches.length) {
@@ -27323,7 +27325,7 @@ function showOwnerEditBetsModalV334(gameId) {
   body.innerHTML = `
     ${canEdit ? `
       <div class="ko-owner-edit-bar-v334">
-        <span>Dono: podes editar apostas deste jogo mesmo bloqueado, sem desbloquear para os users.</span>
+        <span>Dono: podes editar ou remover apostas deste jogo. Útil para limpar duplicadas sem mexer nas restantes.</span>
         <button type="button" class="primary" id="ownerAddEditBetV334" data-game-id="${escapeHtml(resolved.realGameId)}">Adicionar/editar aposta de jogador</button>
       </div>
     ` : ""}
@@ -27333,11 +27335,12 @@ function showOwnerEditBetsModalV334(gameId) {
         <span>Aposta</span>
         <span>Tipo</span>
         <span>Pontos</span>
-        ${canEdit ? "<span>Editar</span>" : ""}
+        ${canEdit ? "<span>Ações</span>" : ""}
       </div>
       <div class="bets-list">
         ${rows.map((bet, index) => {
           const playerId = ownerEditBetPlayerIdV334(bet);
+          const betRowId = ownerEditBetRowIdV350(bet, resolved);
           const typeClass = ownerEditBetResultClassV334(bet, resolved.match);
           const label = ownerEditBetResultLabelV334(bet, resolved.match);
           const points = ownerEditBetPointsV334(bet, resolved.match);
@@ -27351,13 +27354,23 @@ function showOwnerEditBetsModalV334(gameId) {
               <div class="bet-type-pill" data-label="Tipo">${escapeHtml(label)}</div>
               <b data-label="Pontos">${hasResult ? points : "-"}</b>
               ${canEdit ? `
-                <button
-                  type="button"
-                  class="ko-owner-edit-btn-v334"
-                  title="Editar aposta como Dono"
-                  data-game-id="${escapeHtml(resolved.realGameId)}"
-                  data-player-id="${escapeHtml(playerId)}"
-                >✏️</button>
+                <div class="ko-owner-actions-v350" data-label="Ações">
+                  <button
+                    type="button"
+                    class="ko-owner-edit-btn-v334"
+                    title="Editar aposta como Dono"
+                    data-game-id="${escapeHtml(resolved.realGameId)}"
+                    data-player-id="${escapeHtml(playerId)}"
+                  >✏️</button>
+                  <button
+                    type="button"
+                    class="ko-owner-remove-btn-v350"
+                    title="Remover esta aposta"
+                    data-game-id="${escapeHtml(resolved.realGameId)}"
+                    data-player-id="${escapeHtml(playerId)}"
+                    data-bet-id="${escapeHtml(betRowId)}"
+                  >🗑️</button>
+                </div>
               ` : ""}
             </article>
           `;
@@ -27582,6 +27595,18 @@ function installOwnerEditBets() {
     const openBets = event.target.closest?.("[data-bets-game]");
     if (openBets) ownerEditCurrentGameIdV334 = String(openBets.dataset.betsGame || "");
 
+    const removeBtn = event.target.closest?.(".ko-owner-remove-btn-v350");
+    if (removeBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      removeOwnerBetFromBetsModalV350(
+        removeBtn.dataset.gameId || ownerEditCurrentGameIdV334,
+        removeBtn.dataset.betId || "",
+        removeBtn.dataset.playerId || ""
+      );
+      return;
+    }
+
     const editBtn = event.target.closest?.(".ko-owner-edit-btn-v334");
     if (editBtn) {
       event.preventDefault();
@@ -27660,6 +27685,108 @@ window.debugOwnerEditBetsV348 = function debugOwnerEditBetsV348(gameId = "") {
     betsForGame: rows.length,
     duplicatePlayers: [...grouped.entries()].filter(([, list]) => list.length > 1).map(([player, list]) => ({ player, count: list.length, bets: list })),
     players: ownerEditPlayersV334().map(player => ({ id: player.id, name: player.name, email: player.email || "" })).slice(0, 80)
+  };
+};
+
+
+/* v350 — Remover apostas duplicadas diretamente no modal "Ver apostas".
+   Mantém a edição v348, mas permite ao Dono apagar uma linha específica sem tocar nas outras apostas. */
+const APP_VERSION_V350_REMOVE_BETS_FROM_MODAL = "350.0";
+
+function ownerEditBetRowIdV350(bet = {}, resolved = {}) {
+  const direct = String(bet?.id || "").trim();
+  if (direct) return direct;
+  try {
+    const gameId = resolved?.realGameId || ownerEditBetGameIdV334?.(bet) || bet?.gameId || bet?.matchId || "";
+    const playerId = ownerEditBetPlayerIdV334?.(bet) || bet?.playerId || bet?.playerName || "jogador";
+    return ownerEditedBetIdV334?.(gameId, playerId) || `${gameId}_${playerId}`;
+  } catch {
+    return `${bet?.gameId || "jogo"}_${bet?.playerId || bet?.playerName || "jogador"}`;
+  }
+}
+
+function ownerEditFindBetRowV350(resolved, betId = "", playerId = "") {
+  const wantedId = String(betId || "").trim();
+  const wantedPlayer = String(playerId || "").trim();
+  const rows = ownerEditBetsForGameV334?.(resolved) || [];
+
+  if (wantedId) {
+    const byId = rows.find(bet => String(ownerEditBetRowIdV350(bet, resolved)) === wantedId || String(bet?.id || "") === wantedId);
+    if (byId) return byId;
+  }
+
+  if (wantedPlayer) {
+    return rows.find(bet => String(ownerEditBetPlayerIdV334?.(bet) || "") === wantedPlayer) || null;
+  }
+
+  return null;
+}
+
+async function removeOwnerBetFromBetsModalV350(gameId = "", betId = "", playerId = "") {
+  if (!isOwnerForEditBetsV334?.()) return ownerToastV334?.("Só o Dono pode remover apostas.");
+
+  const resolved = ownerEditResolveGameV334?.(gameId || ownerEditCurrentGameIdV334 || document.getElementById("betsModal")?.dataset.ownerEditGameV334 || "");
+  if (!resolved?.match) return ownerToastV334?.("Jogo da Fase Final não encontrado.");
+
+  const target = ownerEditFindBetRowV350(resolved, betId, playerId);
+  if (!target) return ownerToastV334?.("Aposta não encontrada.");
+
+  const rowId = ownerEditBetRowIdV350(target, resolved);
+  const playerName = target.playerName || target.name || target.playerId || playerId || "Jogador";
+  const label = ownerEditBetDisplayV334?.(target) || `${target.homeGuess ?? "-"}-${target.awayGuess ?? "-"}`;
+  if (!confirm(`Remover esta aposta?\n\n${playerName}\n${label}\n\nIsto remove só esta linha e não mexe nas outras apostas.`)) return;
+
+  const before = (bets || []).length;
+  bets = (bets || []).filter(bet => {
+    if (!ownerEditBetMatchesGameV334?.(bet, resolved)) return true;
+    return String(ownerEditBetRowIdV350(bet, resolved)) !== String(rowId);
+  });
+  const removedLocal = before - (bets || []).length;
+
+  const deleteIds = rowId ? [rowId] : [];
+  try { if (deleteIds.length && typeof markBetsForDelete === "function") markBetsForDelete(deleteIds); } catch {}
+  try { saveLocalData?.("dono removeu aposta no modal Ver apostas v350"); } catch {}
+  try { scheduleFullSync?.("dono removeu aposta no modal Ver apostas v350", 150); } catch {}
+  try {
+    addSystemLog?.("Aposta removida pelo Dono", `${playerName} · ${resolved.realGameId}`, {
+      gameId: resolved.realGameId,
+      betId: rowId,
+      playerId,
+      removedLocal
+    }, { sync: true });
+  } catch {}
+
+  try { showGameBets?.(resolved.realGameId); } catch {}
+  try { renderCalendar?.(); } catch {}
+  try { renderKnockout?.(); } catch {}
+  try { renderScore?.(); } catch {}
+  ownerToastV334?.("Aposta removida.");
+}
+
+window.debugRemoveApostasV350 = function debugRemoveApostasV350(gameId = "") {
+  const gid = gameId || ownerEditCurrentGameIdV334 || document.getElementById("betsModal")?.dataset.ownerEditGameV334 || "";
+  const resolved = ownerEditResolveGameV334?.(gid);
+  const rows = resolved?.match ? ownerEditBetsForGameV334?.(resolved) || [] : [];
+  const grouped = new Map();
+  rows.forEach(bet => {
+    const key = ownerEditNormalizeTextV348?.(bet.playerName || bet.name || ownerEditBetPlayerIdV334?.(bet)) || ownerEditBetPlayerIdV334?.(bet) || "sem-player";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push({
+      id: ownerEditBetRowIdV350(bet, resolved),
+      playerId: ownerEditBetPlayerIdV334?.(bet),
+      playerName: bet.playerName,
+      display: ownerEditBetDisplayV334?.(bet)
+    });
+  });
+  return {
+    version: APP_VERSION_V350_REMOVE_BETS_FROM_MODAL,
+    requestedGameId: gid,
+    realGameId: resolved?.realGameId || "",
+    isOwner: Boolean(isOwnerForEditBetsV334?.()),
+    rows: rows.length,
+    removeButtons: document.querySelectorAll(".ko-owner-remove-btn-v350").length,
+    duplicatePlayers: [...grouped.entries()].filter(([, list]) => list.length > 1).map(([player, list]) => ({ player, count: list.length, bets: list })),
+    pendingDeleteBetIds: typeof pendingDeleteBetIds === "function" ? pendingDeleteBetIds() : []
   };
 };
 
@@ -28565,7 +28692,7 @@ saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminAutoWinner
   ensureKnockoutSettings();
   try { disableKnockoutApiManualV341?.({ persist: false, reason: "fase final API bloqueada v347" }); } catch {}
   try { applyCleanKnockoutIdsV338?.(); } catch {}
-  try { propagateKnockoutWinnersV347(false); } catch {}
+  // v352: não recalcular antes de ler o formulário, para não limpar rondas ao abrir/validar.
 
   const sourceModal = sourceElement?.closest("#knockoutRecordModal");
   const row = sourceElement?.closest(`[data-ko-admin="${CSS.escape(matchId)}"]`) || document.querySelector(`[data-ko-admin="${CSS.escape(matchId)}"]`);
@@ -28713,7 +28840,7 @@ window.saveKnockoutMatchFromAdmin = saveKnockoutMatchFromAdmin;
 
 function debugFaseFinalAutoV347() {
   try { ensureKnockoutSettings?.(); } catch {}
-  try { propagateKnockoutWinnersV347(false); } catch {}
+  // v352: debug não altera nem recalcula dados.
   const matches = Array.isArray(appSettings?.knockout?.matches) ? appSettings.knockout.matches : [];
   return {
     version: APP_VERSION_V347_KO_WINNERS_AUTO,
@@ -28742,8 +28869,8 @@ function debugFaseFinalAutoV347() {
 window.debugFaseFinalAutoV347 = debugFaseFinalAutoV347;
 
 setTimeout(() => {
-  try { disableKnockoutApiManualV341?.({ persist: false, reason: "arranque winners auto v347" }); } catch {}
-  try { propagateKnockoutWinnersV347?.(false); } catch {}
+  try { disableKnockoutApiManualV341?.({ persist: false, reason: "arranque winners auto v352 sem recalcular" }); } catch {}
+  // v352: não recalcular/limpar Fase Final no arranque. Só após Guardar jogo manual.
   try { if (document.querySelector(".tab-panel.active")?.id === "knockoutTab") { renderKnockout?.(); renderKnockoutAdmin?.(); renderKnockoutMobileV121?.(); } } catch {}
 }, 1800);
 
@@ -29040,3 +29167,367 @@ const APP_VERSION_V349_PAGE_PERFORMANCE = "349.0";
     };
   };
 })();
+
+
+/* v351 — Calendário mais rápido e leve.
+   Mantém a v350, mas remove o peso principal da página Calendário:
+   - indexa apostas por jogo em memória;
+   - evita render completo repetido quando nada mudou;
+   - aplica polimento visual do calendário de forma leve/debounced;
+   - adia renders pesados de Fase Final/Pontuação quando a ação é só editar/remover aposta no modal.
+*/
+const APP_VERSION_V351_CALENDAR_FAST = "351.0";
+
+(function installCalendarFastV351() {
+  if (window.__calendarFastV351) return;
+  window.__calendarFastV351 = true;
+
+  const metrics = window.__calendarFastMetricsV351 = {
+    version: APP_VERSION_V351_CALENDAR_FAST,
+    betIndexBuilds: 0,
+    betsForGameCalls: 0,
+    fastRenderCalls: 0,
+    fastRenderSkipped: 0,
+    lastRenderMs: 0,
+    maxRenderMs: 0,
+    deferredHeavyRenders: 0,
+    lastSignature: "",
+    lastReason: "",
+    lastVisibleGames: 0
+  };
+
+  const idleV351 = window.requestIdleCallback || function(cb) { return setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 80); };
+  const nowV351 = () => (window.performance && typeof performance.now === "function") ? performance.now() : Date.now();
+
+  let betIndexCacheV351 = {
+    ref: null,
+    length: -1,
+    lastId: "",
+    byGame: new Map(),
+    byAnyGame: new Map()
+  };
+
+  function normalizeIdV351(value) {
+    return String(value || "").trim();
+  }
+
+  function betGameKeysV351(bet = {}) {
+    const keys = new Set();
+    [bet.gameId, bet.matchId, bet.knockoutMatchId, bet.fixtureId, bet.apiFixtureId].forEach(value => {
+      const text = normalizeIdV351(value);
+      if (text) keys.add(text);
+    });
+    return [...keys];
+  }
+
+  function ensureBetIndexV351(force = false) {
+    const list = Array.isArray(bets) ? bets : [];
+    const last = list.length ? String(list[list.length - 1]?.id || list[list.length - 1]?.updatedAt || "") : "";
+    if (!force && betIndexCacheV351.ref === list && betIndexCacheV351.length === list.length && betIndexCacheV351.lastId === last) {
+      return betIndexCacheV351;
+    }
+
+    const byGame = new Map();
+    const byAnyGame = new Map();
+
+    list.forEach(bet => {
+      const direct = normalizeIdV351(bet?.gameId);
+      if (direct) {
+        if (!byGame.has(direct)) byGame.set(direct, []);
+        byGame.get(direct).push(bet);
+      }
+
+      betGameKeysV351(bet).forEach(key => {
+        if (!byAnyGame.has(key)) byAnyGame.set(key, []);
+        byAnyGame.get(key).push(bet);
+      });
+    });
+
+    betIndexCacheV351 = { ref: list, length: list.length, lastId: last, byGame, byAnyGame };
+    metrics.betIndexBuilds += 1;
+    return betIndexCacheV351;
+  }
+
+  function invalidateBetIndexV351() {
+    betIndexCacheV351.ref = null;
+  }
+  window.invalidateBetIndexV351 = invalidateBetIndexV351;
+
+  try {
+    const originalBetsForGameV351 = typeof betsForGame === "function" ? betsForGame : null;
+    if (originalBetsForGameV351 && !originalBetsForGameV351.__calendarFastV351) {
+      betsForGame = function betsForGameFastV351(gameId) {
+        metrics.betsForGameCalls += 1;
+        const id = normalizeIdV351(gameId);
+        if (!id) return [];
+        const index = ensureBetIndexV351();
+        const rows = index.byGame.get(id) || index.byAnyGame.get(id) || [];
+        return rows.slice();
+      };
+      betsForGame.__calendarFastV351 = true;
+      window.betsForGame = betsForGame;
+    }
+  } catch {}
+
+  // A função antiga do Dono pesquisava também a lista completa de apostas em cada abertura.
+  // Com o índice, o modal "Ver apostas" deixa de varrer tudo várias vezes.
+  try {
+    const originalOwnerRowsV351 = typeof ownerEditBetsForGameV334 === "function" ? ownerEditBetsForGameV334 : null;
+    if (originalOwnerRowsV351 && !originalOwnerRowsV351.__calendarFastV351) {
+      ownerEditBetsForGameV334 = function ownerEditBetsForGameFastV351(resolved = {}) {
+        try {
+          const ids = Array.isArray(resolved?.ids) ? resolved.ids.map(normalizeIdV351).filter(Boolean) : [];
+          const index = ensureBetIndexV351();
+          const seen = new Set();
+          const rows = [];
+
+          ids.forEach(id => {
+            const list = index.byAnyGame.get(id) || index.byGame.get(id) || [];
+            list.forEach(bet => {
+              const key = normalizeIdV351(bet?.id) || `${normalizeIdV351(bet?.gameId)}_${normalizeIdV351(bet?.playerId || bet?.playerName)}`;
+              if (seen.has(key)) return;
+              seen.add(key);
+              rows.push(bet);
+            });
+          });
+
+          // Segurança: se o índice não apanhou nada mas há resolved, usa a função antiga.
+          if (!rows.length && ids.length) return originalOwnerRowsV351.apply(this, arguments);
+          return rows;
+        } catch {
+          return originalOwnerRowsV351.apply(this, arguments);
+        }
+      };
+      ownerEditBetsForGameV334.__calendarFastV351 = true;
+      window.ownerEditBetsForGameV334 = ownerEditBetsForGameV334;
+    }
+  } catch {}
+
+  function filteredCalendarGamesFastV351() {
+    try { ensureKnockoutCalendarGamesV259?.({ persist: false, reason: "render calendário rápido v351" }); } catch {}
+    try { return typeof filteredGames === "function" ? filteredGames() : (Array.isArray(games) ? games.slice() : []); }
+    catch { return Array.isArray(games) ? games.slice() : []; }
+  }
+
+  function calendarSignatureFastV351(list) {
+    const index = ensureBetIndexV351();
+    const parts = [String(calendarViewMode || ""), String(searchText || ""), String(list.length), String(index.length)];
+    list.forEach(game => {
+      const id = normalizeIdV351(game?.id);
+      const count = (index.byGame.get(id) || index.byAnyGame.get(id) || []).length;
+      parts.push([
+        id,
+        game?.matchDate || game?.date || game?.data || game?.startTime || "",
+        game?.homeTeam || "",
+        game?.awayTeam || "",
+        game?.homeScore ?? "",
+        game?.awayScore ?? "",
+        game?.status || game?.footballDataStatus || "",
+        count
+      ].join("~"));
+    });
+    return parts.join("|");
+  }
+
+  let polishTimerV351 = null;
+  function polishCalendarLightV351() {
+    if (polishTimerV351) return;
+    polishTimerV351 = requestAnimationFrame(() => {
+      polishTimerV351 = null;
+      try { freezeCalendarCardsV302?.(); } catch {}
+      try { applyCalendarKoFilterColorsImmediatelyV305?.(); } catch {}
+      try { koV261ApplyRoundColors?.(); } catch {}
+      try { applyModernGlobalClassesV314?.(); } catch {}
+      try { applyModernCalendarClassesV314?.(); } catch {}
+      try { removeSearchButtonsFromGameCardsV315?.(); } catch {}
+    });
+  }
+
+  const originalRenderCalendarFinalV351 = typeof renderCalendar === "function" ? renderCalendar : null;
+  if (originalRenderCalendarFinalV351 && !originalRenderCalendarFinalV351.__calendarFastV351) {
+    renderCalendar = function renderCalendarFastV351(reason = "renderCalendar") {
+      const start = nowV351();
+      metrics.fastRenderCalls += 1;
+      metrics.lastReason = String(reason || "renderCalendar");
+
+      const container = document.getElementById("gamesList");
+      if (!container) {
+        return originalRenderCalendarFinalV351.apply(this, arguments);
+      }
+
+      const list = filteredCalendarGamesFastV351();
+      const signature = calendarSignatureFastV351(list);
+      const active = document.querySelector(".tab-panel.active")?.id === "calendarTab" || document.getElementById("calendarTab")?.classList.contains("active");
+
+      if (active && container.children.length && signature === metrics.lastSignature) {
+        metrics.fastRenderSkipped += 1;
+        try { renderCalendarFilterState?.(); } catch {}
+        polishCalendarLightV351();
+        return;
+      }
+
+      const groups = typeof groupByDate === "function" ? groupByDate(list) : list.reduce((map, game) => {
+        const key = typeof dateKey === "function" ? dateKey(game.matchDate) : String(game.matchDate || "Sem data");
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(game);
+        return map;
+      }, new Map());
+
+      const days = [...groups.entries()].sort((a, b) => {
+        if (String(calendarViewMode || "") === "played") return String(b[0]).localeCompare(String(a[0]));
+        return String(a[0]).localeCompare(String(b[0]));
+      });
+
+      if (!days.length) {
+        container.innerHTML = `<div class="empty">Não há jogos para mostrar neste filtro.</div>${typeof knockoutEntryButtonHtml === "function" ? knockoutEntryButtonHtml() : ""}`;
+      } else {
+        container.innerHTML = days.map(([, dayGames]) => `
+          <section class="day-block"><h3>${escapeHtml(dateHeader(dayGames[0].matchDate))}</h3><div class="match-list">${dayGames.map(renderMatchRow).join("")}</div></section>
+        `).join("") + (typeof knockoutEntryButtonHtml === "function" ? knockoutEntryButtonHtml() : "");
+      }
+
+      metrics.lastSignature = signature;
+      metrics.lastVisibleGames = list.length;
+      try { renderCalendarFilterState?.(); } catch {}
+      polishCalendarLightV351();
+
+      const elapsed = Math.round((nowV351() - start) * 10) / 10;
+      metrics.lastRenderMs = elapsed;
+      metrics.maxRenderMs = Math.max(metrics.maxRenderMs, elapsed);
+    };
+    renderCalendar.__calendarFastV351 = true;
+    window.renderCalendar = renderCalendar;
+  }
+
+  let deferredKnockoutRenderV351 = false;
+  let deferredScoreRenderV351 = false;
+  function scheduleDeferredHeavyRenderV351(kind) {
+    metrics.deferredHeavyRenders += 1;
+    if (kind === "knockout") {
+      if (deferredKnockoutRenderV351) return;
+      deferredKnockoutRenderV351 = true;
+      idleV351(() => {
+        deferredKnockoutRenderV351 = false;
+        try { originalRenderKnockoutV351?.(); } catch {}
+      });
+      return;
+    }
+    if (kind === "score") {
+      if (deferredScoreRenderV351) return;
+      deferredScoreRenderV351 = true;
+      idleV351(() => {
+        deferredScoreRenderV351 = false;
+        try { originalRenderScoreV351?.(); } catch {}
+      });
+    }
+  }
+
+  let ownerBetMutationDepthV351 = 0;
+  const originalRenderKnockoutV351 = typeof renderKnockout === "function" ? renderKnockout : null;
+  if (originalRenderKnockoutV351 && !originalRenderKnockoutV351.__calendarFastV351) {
+    renderKnockout = function renderKnockoutDeferredDuringCalendarBetV351() {
+      if (ownerBetMutationDepthV351 > 0) {
+        scheduleDeferredHeavyRenderV351("knockout");
+        return;
+      }
+      return originalRenderKnockoutV351.apply(this, arguments);
+    };
+    renderKnockout.__calendarFastV351 = true;
+    window.renderKnockout = renderKnockout;
+  }
+
+  const originalRenderScoreV351 = typeof renderScore === "function" ? renderScore : null;
+  if (originalRenderScoreV351 && !originalRenderScoreV351.__calendarFastV351) {
+    renderScore = function renderScoreDeferredDuringCalendarBetV351() {
+      if (ownerBetMutationDepthV351 > 0) {
+        scheduleDeferredHeavyRenderV351("score");
+        return;
+      }
+      return originalRenderScoreV351.apply(this, arguments);
+    };
+    renderScore.__calendarFastV351 = true;
+    window.renderScore = renderScore;
+  }
+
+  function wrapOwnerBetMutationV351(fnName) {
+    try {
+      const original = typeof window[fnName] === "function" ? window[fnName] : (typeof eval === "function" ? eval(`typeof ${fnName} === "function" ? ${fnName} : null`) : null);
+      if (!original || original.__calendarFastV351) return;
+      const wrapped = async function ownerBetMutationFastV351() {
+        invalidateBetIndexV351();
+        ownerBetMutationDepthV351 += 1;
+        try { return await original.apply(this, arguments); }
+        finally {
+          invalidateBetIndexV351();
+          setTimeout(() => { ownerBetMutationDepthV351 = Math.max(0, ownerBetMutationDepthV351 - 1); }, 0);
+        }
+      };
+      wrapped.__calendarFastV351 = true;
+      window[fnName] = wrapped;
+      try { eval(`${fnName} = window["${fnName}"];`); } catch {}
+    } catch {}
+  }
+
+  wrapOwnerBetMutationV351("saveOwnerEditedBet");
+  wrapOwnerBetMutationV351("deleteOwnerEditedBet");
+  wrapOwnerBetMutationV351("removeOwnerBetFromBetsModalV350");
+
+  // Limpa a assinatura quando há cliques que mudam filtro/pesquisa ou estado visual do calendário.
+  document.addEventListener("click", event => {
+    if (event.target.closest?.("#calendarTab button, [data-bets-game], [data-result-game], .ko-owner-remove-btn-v350, .ko-owner-edit-btn-v334")) {
+      metrics.lastSignature = "";
+      invalidateBetIndexV351();
+    }
+  }, true);
+
+  window.debugCalendarPerformanceV351 = function debugCalendarPerformanceV351() {
+    const index = ensureBetIndexV351();
+    return {
+      ...metrics,
+      activeTab: document.querySelector(".tab-panel.active")?.id || "",
+      games: Array.isArray(games) ? games.length : 0,
+      bets: Array.isArray(bets) ? bets.length : 0,
+      indexedGameIds: index.byAnyGame.size,
+      modalOpen: Boolean(document.getElementById("betsModal") && !document.getElementById("betsModal").classList.contains("hidden")),
+      visibleCalendarRows: document.querySelectorAll("#gamesList .match-row").length,
+      renderCalendarFastInstalled: Boolean(renderCalendar?.__calendarFastV351),
+      betsForGameFastInstalled: Boolean(betsForGame?.__calendarFastV351),
+      ownerRowsFastInstalled: Boolean(ownerEditBetsForGameV334?.__calendarFastV351)
+    };
+  };
+})();
+
+
+/* v352 — Proteção Fase Final: não limpar/recalcular no arranque.
+   A v351 ficou rápida, mas qualquer normalização/render podia chamar ensureKnockoutSettings
+   e isso recalculava a árvore, fazendo rondas já preenchidas desaparecerem visualmente.
+   Agora a árvore só é recalculada quando o Dono/Admin carrega em Guardar jogo manual. */
+const APP_VERSION_V352_FASE_FINAL_GUARD = "352.0";
+window.debugFaseFinalGuardV352 = function debugFaseFinalGuardV352() {
+  const matches = Array.isArray(appSettings?.knockout?.matches) ? appSettings.knockout.matches : [];
+  const byRound = {};
+  matches.forEach(match => {
+    const round = String(match.round || "sem_round");
+    if (!byRound[round]) byRound[round] = [];
+    byRound[round].push({
+      id: match.id,
+      index: match.index,
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      score: match.homeScore !== null && match.homeScore !== undefined && match.awayScore !== null && match.awayScore !== undefined ? `${match.homeScore}-${match.awayScore}` : "",
+      qualified: match.qualified || match.winnerTeam || match.winner || "",
+      nextMatchId: match.nextMatchId || "",
+      nextSlot: match.nextSlot || "",
+      autoTeamsFrom: match.autoTeamsFrom || ""
+    });
+  });
+  return {
+    version: APP_VERSION_V352_FASE_FINAL_GUARD,
+    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+    regra: "A Fase Final não recalcula no arranque/debug. Só recalcula quando Guardar jogo manual é carregado.",
+    totalMatches: matches.length,
+    byRound,
+    propagateInstalled: typeof propagateKnockoutWinnersV347 === "function",
+    ensureNaoRecalculaNoArranque: true
+  };
+};
