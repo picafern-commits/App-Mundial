@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v338";
+const APP_VERSION_LABEL = "v341";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -27846,3 +27846,387 @@ function debugCleanKnockoutIdsV338() {
 }
 
 applyCleanKnockoutIdsV338();
+
+// v341 — Fase Final 100% manual.
+// A API deixa de mexer em qualquer dado da Fase Final. Dono/Admin controlam equipas, datas,
+// resultados e qualificada manualmente em todas as rondas.
+const APP_VERSION_V341_MANUAL_KNOCKOUT = "341.0";
+
+function isKnockoutMatchV341(match = {}) {
+  const round = String(match?.round || "").toLowerCase();
+  const id = String(match?.id || "").toLowerCase();
+  return id.startsWith("ko_") || ["r32", "r16", "qf", "sf", "final"].includes(round);
+}
+
+function isKnockoutIdV341(id = "") {
+  const value = String(id || "").toLowerCase();
+  return value.startsWith("ko_");
+}
+
+function clearKnockoutApiFieldsV341(match = {}) {
+  if (!match || !isKnockoutMatchV341(match)) return false;
+  let changed = false;
+  [
+    "footballDataId", "externalId", "footballDataStatus", "footballDataStage", "footballDataGroup",
+    "footballDataUtcDate", "footballDataLocked", "footballDataUpdatedBy", "apiAutoMapped",
+    "liveHomeScore", "liveAwayScore", "liveUpdatedAt", "lastApiCheckAt", "lastApiStatus",
+    "lastSyncReason", "syncActive", "syncStartedAt", "lastApiError", "source"
+  ].forEach(key => {
+    const isLiveScore = key === "liveHomeScore" || key === "liveAwayScore";
+    if (isLiveScore) {
+      if (match[key] !== undefined && match[key] !== null && match[key] !== "") {
+        match[key] = null;
+        changed = true;
+      }
+      return;
+    }
+    if (match[key] !== undefined && match[key] !== "") {
+      match[key] = "";
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function disableKnockoutApiManualV341({ persist = false, reason = "fase final manual v341" } = {}) {
+  try { ensureKnockoutSettings?.(); } catch {}
+  const matches = typeof knockoutMatches === "function" ? knockoutMatches() : (appSettings?.knockout?.matches || []);
+  let changed = false;
+  (Array.isArray(matches) ? matches : []).forEach(match => {
+    changed = clearKnockoutApiFieldsV341(match) || changed;
+  });
+  if (changed) {
+    try { markSettingsPending?.(); } catch {}
+    try { saveLocalData?.(reason); } catch {}
+    if (persist) {
+      try { scheduleFullSync?.(reason, 450); } catch {}
+    }
+  }
+  return changed;
+}
+
+try {
+  isFirstKnockoutRound = function isFirstKnockoutRoundManualV341(match) {
+    return isKnockoutMatchV341(match);
+  };
+  window.isFirstKnockoutRound = isFirstKnockoutRound;
+} catch {}
+
+try {
+  isManualKnockoutRound = function isManualKnockoutRoundV341(match) {
+    return isKnockoutMatchV341(match);
+  };
+  window.isManualKnockoutRound = isManualKnockoutRound;
+} catch {}
+
+try {
+  propagateKnockoutWinners = function propagateKnockoutWinnersManualDisabledV341(shouldSave = false) {
+    // Modo manual total: nunca passa vencedores automaticamente nem limpa jogos seguintes.
+    if (shouldSave) {
+      try { markSettingsPending?.(); } catch {}
+      try { saveLocalData?.("fase final manual sem propagação v341"); } catch {}
+      try { scheduleFullSync?.("fase final manual sem propagação v341", 450); } catch {}
+    }
+    return false;
+  };
+  window.propagateKnockoutWinners = propagateKnockoutWinners;
+} catch {}
+
+try {
+  mergeFootballDataKnockoutV139 = function mergeFootballDataKnockoutManualDisabledV341() {
+    console.info("v341: API ignorada na Fase Final — modo manual total.");
+    return 0;
+  };
+  window.mergeFootballDataKnockoutV139 = mergeFootballDataKnockoutV139;
+} catch {}
+
+try {
+  if (typeof mergeFootballDataGameUpdatesV139 === "function" && !mergeFootballDataGameUpdatesV139.__manualKoV341) {
+    const originalMergeFootballDataGameUpdatesV341 = mergeFootballDataGameUpdatesV139;
+    mergeFootballDataGameUpdatesV139 = function mergeFootballDataGameUpdatesNoKnockoutV341(updatedGames = []) {
+      const safeUpdates = (Array.isArray(updatedGames) ? updatedGames : []).filter(update => !isKnockoutIdV341(update?.id || update?.matchId || update?.knockoutMatchId));
+      if (safeUpdates.length !== (Array.isArray(updatedGames) ? updatedGames.length : 0)) {
+        console.info("v341: resultado/live da API ignorado para jogo(s) da Fase Final.");
+      }
+      return originalMergeFootballDataGameUpdatesV341.call(this, safeUpdates);
+    };
+    mergeFootballDataGameUpdatesV139.__manualKoV341 = true;
+    window.mergeFootballDataGameUpdatesV139 = mergeFootballDataGameUpdatesV139;
+  }
+} catch {}
+
+try {
+  koV261ReconcileKnockoutCalendarResults = function koV261ReconcileKnockoutCalendarResultsManualDisabledV341() {
+    // Evita copiar resultados/datas da API/Calendário para a árvore da Fase Final.
+    return false;
+  };
+  window.koV261ReconcileKnockoutCalendarResults = koV261ReconcileKnockoutCalendarResults;
+} catch {}
+
+renderKnockoutRecordForm = function renderKnockoutRecordFormManualV341(match) {
+  const teamsReady = Boolean(match.homeTeam && match.awayTeam);
+  return `
+    <div class="ko-card-editor modal ko-manual-all-v341" data-ko-admin="${escapeHtml(match.id)}">
+      <div class="ko-card-editor-teams">
+        <select class="ko-home-team" aria-label="Equipa da casa">${knockoutTeamOptionsHtml(match.homeTeam)}</select>
+        <select class="ko-away-team" aria-label="Equipa visitante">${knockoutTeamOptionsHtml(match.awayTeam)}</select>
+      </div>
+      <label class="ko-match-date-label-v243">Data/hora do jogo
+        <input class="ko-match-date-v243" type="datetime-local" value="${escapeHtml(knockoutMatchDateInputValueV243(match))}" />
+      </label>
+      <div class="ko-card-editor-scores">
+        <label>Resultado aos 90 minutos + compensação
+          <span class="ko-score-pair">
+            <input class="ko-home-score" type="number" min="0" inputmode="numeric" value="${match.homeScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+            <em>-</em>
+            <input class="ko-away-score" type="number" min="0" inputmode="numeric" value="${match.awayScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+          </span>
+        </label>
+        ${renderKnockoutQualifiedControl(match)}
+      </div>
+      <button class="primary small ko-card-save" type="button" data-ko-save="${escapeHtml(match.id)}">Guardar jogo manual</button>
+    </div>
+  `;
+};
+window.renderKnockoutRecordForm = renderKnockoutRecordForm;
+
+renderKnockoutAdmin = function renderKnockoutAdminManualV341() {
+  ensureKnockoutSettings();
+  disableKnockoutApiManualV341({ persist: false, reason: "render admin fase final manual v341" });
+
+  const toggle = $("adminKnockoutUnlockedInput");
+  if (toggle) {
+    toggle.checked = Boolean(appSettings.knockout?.adminUnlocked);
+    try { updateKnockoutUnlockControlV230(toggle.checked); } catch {}
+  }
+
+  const panel = $("knockoutAdminPanel");
+  if (!panel) return;
+
+  panel.innerHTML = `
+    <div class="ko-admin-note manual-all-v341">
+      <strong>Regra da Fase Final:</strong> modo <strong>100% manual</strong>.
+      O Dono/Admin define equipas, data/hora, resultado e qualificada em todos os jogos. A API não altera a Fase Final.
+    </div>
+    <div class="ko-admin-list">
+      ${knockoutMatches().map(match => {
+        const canScore = Boolean(match.homeTeam && match.awayTeam);
+        return `
+          <div class="ko-admin-row ko-admin-row-penalties manual-round manual-all-v341" data-ko-admin="${escapeHtml(match.id)}">
+            <strong>${escapeHtml(knockoutRoundLabel(match.round))} ${match.index}</strong>
+            <select class="ko-home-team">${knockoutTeamOptionsHtml(match.homeTeam)}</select>
+            <span>vs</span>
+            <select class="ko-away-team">${knockoutTeamOptionsHtml(match.awayTeam)}</select>
+
+            <label class="ko-score-label ko-match-date-label-v243">Data/hora
+              <input class="ko-match-date-v243" type="datetime-local" value="${escapeHtml(knockoutMatchDateInputValueV243(match))}" />
+            </label>
+
+            <label class="ko-score-label">Resultado
+              <span class="ko-score-pair">
+                <input class="ko-home-score" type="number" min="0" inputmode="numeric" value="${match.homeScore ?? ""}" placeholder="0" ${canScore ? "" : "disabled"} />
+                <em>-</em>
+                <input class="ko-away-score" type="number" min="0" inputmode="numeric" value="${match.awayScore ?? ""}" placeholder="0" ${canScore ? "" : "disabled"} />
+              </span>
+            </label>
+
+            ${renderKnockoutQualifiedControl(match)}
+
+            <button class="primary small" type="button" data-ko-save="${escapeHtml(match.id)}">Guardar jogo manual</button>
+            <button class="secondary small ko-record-open-btn-v244" type="button" data-ko-record="${escapeHtml(match.id)}">${knockoutMatchHasResult(match) ? "Editar em modal" : "Adicionar em modal"}</button>
+          </div>
+        `;
+      }).join("")}
+    </div>`;
+};
+window.renderKnockoutAdmin = renderKnockoutAdmin;
+
+saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminManualV341(matchId, sourceElement = null) {
+  if (!hasPermission("editKnockout")) { toast("Sem permissão."); return false; }
+  ensureKnockoutSettings();
+  const sourceModal = sourceElement?.closest("#knockoutRecordModal");
+  const row = sourceElement?.closest(`[data-ko-admin="${CSS.escape(matchId)}"]`) || document.querySelector(`[data-ko-admin="${CSS.escape(matchId)}"]`);
+  const match = knockoutMatchById(matchId);
+  if (!row || !match) return false;
+
+  const beforeMatch = {
+    homeTeam: match.homeTeam || "",
+    awayTeam: match.awayTeam || "",
+    homeScore: match.homeScore ?? null,
+    awayScore: match.awayScore ?? null,
+    matchDate: match.matchDate || "",
+    qualified: match.qualified || match.winnerTeam || match.winner || ""
+  };
+
+  match.homeTeam = row.querySelector(".ko-home-team")?.value || "";
+  match.awayTeam = row.querySelector(".ko-away-team")?.value || "";
+  match.matchDate = normalizeKnockoutMatchDateV243(row.querySelector(".ko-match-date-v243")?.value || match.matchDate || "");
+  match.date = match.matchDate;
+  match.kickoff = match.matchDate;
+  match.startAt = match.matchDate;
+  match.time = match.matchDate;
+
+  clearKnockoutApiFieldsV341(match);
+
+  if (!match.homeTeam || !match.awayTeam) {
+    match.homeScore = null;
+    match.awayScore = null;
+    match.homePenalties = null;
+    match.awayPenalties = null;
+    match.winner = "";
+    match.winnerTeam = "";
+    match.qualified = "";
+    match.qualifiedTeam = "";
+    match.updatedAt = new Date().toISOString();
+    try { syncKnockoutCalendarGameV259?.(match, { persist: false, removeIfIncomplete: true, reason: "fase final manual incompleta v341" }); } catch {}
+    markSettingsPending();
+    saveLocalData("fase final manual incompleta v341");
+    try { await saveSettingsFastToFirebase("fase final manual incompleta v341"); } catch { scheduleFullSync("fase final manual incompleta v341", 600); }
+    renderKnockout();
+    renderKnockoutAdmin();
+    if (sourceModal) closeKnockoutRecordModal();
+    toast("Jogo manual guardado. Define as duas equipas para lançar resultado/apostas.");
+    return true;
+  }
+
+  const homeScoreValue = row.querySelector(".ko-home-score")?.value ?? "";
+  const awayScoreValue = row.querySelector(".ko-away-score")?.value ?? "";
+  if ((homeScoreValue === "") !== (awayScoreValue === "")) {
+    toast("Preenche os dois campos do resultado ou deixa os dois vazios.");
+    return false;
+  }
+  if (homeScoreValue !== "") {
+    const homeNumber = Number(homeScoreValue);
+    const awayNumber = Number(awayScoreValue);
+    if (!Number.isFinite(homeNumber) || !Number.isFinite(awayNumber) || homeNumber < 0 || awayNumber < 0 || !Number.isInteger(homeNumber) || !Number.isInteger(awayNumber)) {
+      toast("O resultado tem de ter golos válidos.");
+      return false;
+    }
+  }
+
+  match.homeScore = homeScoreValue === "" ? null : Number(homeScoreValue);
+  match.awayScore = awayScoreValue === "" ? null : Number(awayScoreValue);
+  match.homePenalties = null;
+  match.awayPenalties = null;
+
+  const hasFullScore = match.homeScore !== null && match.awayScore !== null;
+  const qualifiedValue = row.querySelector(".ko-qualified-team-v247")?.value || "";
+  if (qualifiedValue) {
+    const normalizedQualified = normalizeComparable(qualifiedValue);
+    const validQualified = normalizedQualified === normalizeComparable(match.homeTeam) || normalizedQualified === normalizeComparable(match.awayTeam);
+    if (!validQualified) {
+      toast("Escolhe uma das duas equipas como qualificada.");
+      return false;
+    }
+    if (hasFullScore) {
+      const outcomeKey = koV267ScoreOutcome(match.homeScore, match.awayScore);
+      if (outcomeKey === "home" && normalizedQualified !== normalizeComparable(match.homeTeam)) { toast("A equipa qualificada não bate certo com o resultado."); return false; }
+      if (outcomeKey === "away" && normalizedQualified !== normalizeComparable(match.awayTeam)) { toast("A equipa qualificada não bate certo com o resultado."); return false; }
+    }
+    match.winner = qualifiedValue;
+    match.winnerTeam = qualifiedValue;
+    match.qualified = qualifiedValue;
+  } else if (hasFullScore) {
+    const outcomeKey = koV267ScoreOutcome(match.homeScore, match.awayScore);
+    if (outcomeKey === "home") match.qualified = match.winnerTeam = match.winner = match.homeTeam;
+    else if (outcomeKey === "away") match.qualified = match.winnerTeam = match.winner = match.awayTeam;
+    else {
+      match.qualified = "";
+      match.winnerTeam = "";
+      match.winner = "";
+      toast("Jogo empatado. Escolhe manualmente a equipa qualificada.");
+      return false;
+    }
+  } else {
+    match.winner = "";
+    match.winnerTeam = "";
+    match.qualified = "";
+  }
+
+  match.qualifiedTeam = match.qualified || match.winnerTeam || match.winner || "";
+  match.updatedAt = new Date().toISOString();
+
+  try { syncKnockoutCalendarGameV259?.(match, { persist: false, removeIfIncomplete: true, reason: "fase final manual v341" }); } catch {}
+  try { ensureKnockoutCalendarGamesV259?.({ persist: false, reason: "fase final manual v341" }); } catch {}
+
+  try {
+    addSystemLog("Jogo Fase Final manual guardado", `${knockoutRoundLabel(match.round)} ${match.index}: ${match.homeTeam} ${match.homeScore ?? "-"}-${match.awayScore ?? "-"} ${match.awayTeam}${match.qualified ? ` · qual. ${match.qualified}` : ""}`, {
+      matchId: match.id,
+      round: match.round,
+      index: match.index,
+      before: beforeMatch,
+      after: {
+        homeTeam: match.homeTeam || "",
+        awayTeam: match.awayTeam || "",
+        homeScore: match.homeScore ?? null,
+        awayScore: match.awayScore ?? null,
+        matchDate: match.matchDate || "",
+        qualified: match.qualified || ""
+      }
+    }, { sync: true });
+  } catch {}
+
+  markSettingsPending();
+  saveLocalData("fase final 100 manual v341");
+  try { renderKnockout?.(); } catch {}
+  try { renderKnockoutAdmin?.(); } catch {}
+  try { renderCalendar?.(); } catch {}
+  if (sourceModal) closeKnockoutRecordModal();
+
+  try {
+    await saveSettingsFastToFirebase("fase final 100 manual v341");
+    try { await awaitMaybeV265?.(ensureKnockoutCalendarGamesV259?.({ persist: true, reason: "fase final 100 manual v341" })); } catch {}
+    setFirebaseStatus("success", "Firebase: Fase Final manual guardada");
+  } catch (error) {
+    console.error("Falhou guardar Fase Final manual:", error);
+    scheduleFullSync("fase final 100 manual v341", 600);
+    setFirebaseStatus("error", `Firebase: Fase Final pendente (${shortFirebaseError(error)})`);
+  }
+
+  toast(match.qualified ? "Jogo manual guardado. A qualificada ficou registada." : "Jogo manual guardado.");
+  return true;
+};
+window.saveKnockoutMatchFromAdmin = saveKnockoutMatchFromAdmin;
+
+function debugFaseFinalManualV341() {
+  try { ensureKnockoutSettings?.(); } catch {}
+  const matches = typeof knockoutMatches === "function" ? knockoutMatches() : (appSettings?.knockout?.matches || []);
+  const koGames = (Array.isArray(games) ? games : []).filter(game => isKnockoutIdV341(game?.id || game?.knockoutMatchId || ""));
+  return {
+    version: APP_VERSION_V341_MANUAL_KNOCKOUT,
+    modo: "Fase Final 100% manual",
+    apiFaseFinal: "desativada no front-end; functions também devem ser publicadas para bloquear no servidor",
+    propagacaoAutomatica: false,
+    jogosFaseFinal: (Array.isArray(matches) ? matches : []).map(match => ({
+      id: match.id,
+      round: match.round,
+      label: knockoutRoundLabel?.(match.round) || match.roundLabel || "Fase Final",
+      index: match.index,
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      matchDate: match.matchDate || match.date || match.kickoff || "",
+      score: knockoutMatchHasResult?.(match) ? `${match.homeScore}-${match.awayScore}` : "",
+      qualified: match.qualified || match.winnerTeam || match.winner || "",
+      apiFields: {
+        footballDataId: match.footballDataId || "",
+        status: match.footballDataStatus || "",
+        utcDate: match.footballDataUtcDate || "",
+        live: `${match.liveHomeScore ?? ""}-${match.liveAwayScore ?? ""}`
+      }
+    })),
+    jogosCalendarioFaseFinal: koGames.map(game => ({
+      id: game.id,
+      homeTeam: game.homeTeam || "",
+      awayTeam: game.awayTeam || "",
+      matchDate: game.matchDate || "",
+      score: game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined ? `${game.homeScore}-${game.awayScore}` : ""
+    }))
+  };
+}
+window.debugFaseFinalManualV341 = debugFaseFinalManualV341;
+
+setTimeout(() => {
+  try { disableKnockoutApiManualV341({ persist: false, reason: "arranque modo manual fase final v341" }); } catch {}
+  try { if (document.querySelector(".tab-panel.active")?.id === "knockoutTab") { renderKnockout?.(); renderKnockoutAdmin?.(); } } catch {}
+}, 1600);
+

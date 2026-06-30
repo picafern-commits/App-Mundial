@@ -18023,3 +18023,17 @@ html.app-modern-v314 .tab[aria-selected="true"]{
 }
 
 /* v338-fase-final-ids-limpos-sem-reset */
+
+/* v341 - Fase Final 100% manual */
+.ko-admin-note.manual-all-v341{
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:18px;
+  padding:14px 16px;
+  margin:0 0 14px;
+  background:rgba(255,255,255,.08);
+}
+.ko-admin-row.manual-all-v341 .ko-readonly-team{display:none!important;}
+.ko-manual-all-v341 select,
+.ko-admin-row.manual-all-v341 select{
+  min-height:40px;
+}

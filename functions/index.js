@@ -10,6 +10,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
+const FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 = true;
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
 const db = getFirestore();
@@ -1176,11 +1177,15 @@ async function footballSmartPrecheckV201({ actor, mode, competition, season } = 
     db.collection("settings").doc("main").get()
   ]);
 
-  const localGames = gamesSnap.docs.map(doc => ({ id: doc.id, collection: "games", ...(doc.data() || {}) }));
+  const localGames = gamesSnap.docs
+    .map(doc => ({ id: doc.id, collection: "games", ...(doc.data() || {}) }))
+    .filter(game => !(FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 && footballIsKnockoutCalendarDocV261(game)));
   const settings = settingsSnap.data() || {};
-  const knockoutMatches = Array.isArray(settings.knockout?.matches)
-    ? settings.knockout.matches.map(match => ({ ...match, collection: "knockout" }))
-    : [];
+  const knockoutMatches = FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341
+    ? []
+    : (Array.isArray(settings.knockout?.matches)
+      ? settings.knockout.matches.map(match => ({ ...match, collection: "knockout" }))
+      : []);
 
   const groupCandidates = localGames.map(game => {
     const check = footballSmartGameReasonV201(game, now, "games", knockoutMatches);
@@ -1355,12 +1360,15 @@ async function runFootballDataSyncCoreV151(options = {}) {
     .map(footballMatchSummary);
 
   const gamesSnap = await db.collection("games").get();
-  const localGames = gamesSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+  const localGames = gamesSnap.docs
+    .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
+    .filter(game => !(FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 && footballIsKnockoutCalendarDocV261(game)));
 
   const settingsRef = db.collection("settings").doc("main");
   const settingsSnap = await settingsRef.get();
   const settings = settingsSnap.data() || {};
-  const knockoutMatches = Array.isArray(settings.knockout?.matches) ? settings.knockout.matches : [];
+  const knockoutMatchesAllV341 = Array.isArray(settings.knockout?.matches) ? settings.knockout.matches : [];
+  const knockoutMatches = FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 ? [] : knockoutMatchesAllV341;
 
   const batch = db.batch();
   const updatedGames = [];
@@ -1372,7 +1380,9 @@ async function runFootballDataSyncCoreV151(options = {}) {
 
   // v271: antes de tentar casar por equipas, preencher a própria árvore da Fase Final
   // com os jogos eliminatórios que a API já conhece (ID, data/hora, status e equipas quando reais).
-  const knockoutApiScheduleV271 = footballApplyApiKnockoutScheduleV271(matches, knockoutMatches, actor);
+  const knockoutApiScheduleV271 = FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341
+    ? { checked: 0, updated: 0, withTeams: 0, withDate: 0, matched: [], manualDisabled: true }
+    : footballApplyApiKnockoutScheduleV271(matches, knockoutMatches, actor);
 
   const matchedGamesStatusV153 = [];
   const unmatchedApiMatchesV269 = [];
@@ -1384,7 +1394,7 @@ async function runFootballDataSyncCoreV151(options = {}) {
     const isFinished = footballIsFinishedV153(apiMatch);
     const isGroupStage = String(apiMatch.stage || "").toUpperCase() === "GROUP_STAGE";
     const groupTarget = footballFindLocalMatch(apiMatch, localGames);
-    const knockoutTarget = !isGroupStage ? footballFindLocalMatch(apiMatch, knockoutMatches) : null;
+    const knockoutTarget = (!FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 && !isGroupStage) ? footballFindLocalMatch(apiMatch, knockoutMatches) : null;
 
     diagnosticMatchesV269.push({
       api: footballMatchSummary(apiMatch),
@@ -1642,7 +1652,7 @@ async function runFootballDataSyncCoreV151(options = {}) {
       dryRun,
       apiMatches: matches.length,
       localCalendarGames: localGames.length,
-      localKnockoutMatches: knockoutMatches.length,
+      localKnockoutMatches: (FOOTBALL_DATA_KNOCKOUT_MANUAL_ONLY_V341 ? knockoutMatchesAllV341.length : knockoutMatches.length),
       matchedCalendar: matchedGamesStatusV153.length,
       matchedKnockout: updatedKnockoutMatches.length,
       knockoutApiSchedule: knockoutApiScheduleV271,
