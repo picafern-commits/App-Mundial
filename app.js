@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v337";
+const APP_VERSION_LABEL = "v338";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -4630,7 +4630,7 @@ function renderKnockoutMatch(match, layoutKey = "") {
 
   return `
     <article class="knockout-match ${winner ? "has-winner" : ""} ${waiting ? "waiting" : ""} ${editable ? "ko-match-clickable" : ""}" data-ko-admin="${escapeHtml(match.id)}"${editableAttrs} ${layoutKey ? `data-ko-layout="${escapeHtml(layoutKey)}" style="--ko-match-offset:${knockoutLayoutValue(layoutKey)}px"` : ""}>
-      <div class="knockout-match-title">${escapeHtml(match.roundLabel)} ${match.index}${match.matchNumber ? ` · Jogo ${escapeHtml(match.matchNumber)}` : ""}</div>
+      <div class="knockout-match-title">${escapeHtml(match.roundLabel)} ${match.index}</div>
 
       <div class="ko-team ${winner === match.homeTeam ? "winner" : ""}">
         <span>${escapeHtml(match.homeTeam || "A definir")}</span>
@@ -4718,7 +4718,7 @@ function renderKnockoutAdmin() {
 
         return `
           <div class="ko-admin-row ko-admin-row-penalties ${firstRound ? "manual-round" : "auto-round"}" data-ko-admin="${escapeHtml(match.id)}">
-            <strong>${escapeHtml(match.roundLabel)} ${match.index}${match.matchNumber ? ` · Jogo ${escapeHtml(match.matchNumber)}` : ""}</strong>
+            <strong>${escapeHtml(match.roundLabel)} ${match.index}</strong>
             ${homeControl}
             <span>vs</span>
             ${awayControl}
@@ -27562,467 +27562,11 @@ window.debugOwnerEditBetsV334 = function debugOwnerEditBetsV334(gameId = "") {
 };
 
 
-/* v335 — Esquema oficial da Fase Final 2026.
-   Corrige a ordem e os cruzamentos:
-   R32 M73-M88 → R16 M89-M96 → QF M97-M100 → SF M101-M102 → Final M104.
+/* v338 — Fase Final com IDs limpos por fase, sem resetar jogos guardados.
+   Base limpa: v334 + esta correção.
+   Não usa as camadas v335/v336/v337.
 */
-const OFFICIAL_KNOCKOUT_BRACKET_V335 = {
-  r32: [
-    { id: "ko_r32_01", matchNumber: 73, next: "ko_r16_01", slot: "homeTeam", displayOrder: 1 },
-    { id: "ko_r32_03", matchNumber: 75, next: "ko_r16_01", slot: "awayTeam", displayOrder: 2 },
-    { id: "ko_r32_02", matchNumber: 74, next: "ko_r16_02", slot: "homeTeam", displayOrder: 3 },
-    { id: "ko_r32_05", matchNumber: 77, next: "ko_r16_02", slot: "awayTeam", displayOrder: 4 },
-
-    { id: "ko_r32_11", matchNumber: 83, next: "ko_r16_05", slot: "homeTeam", displayOrder: 5 },
-    { id: "ko_r32_12", matchNumber: 84, next: "ko_r16_05", slot: "awayTeam", displayOrder: 6 },
-    { id: "ko_r32_09", matchNumber: 81, next: "ko_r16_06", slot: "homeTeam", displayOrder: 7 },
-    { id: "ko_r32_10", matchNumber: 82, next: "ko_r16_06", slot: "awayTeam", displayOrder: 8 },
-
-    { id: "ko_r32_04", matchNumber: 76, next: "ko_r16_03", slot: "homeTeam", displayOrder: 9 },
-    { id: "ko_r32_06", matchNumber: 78, next: "ko_r16_03", slot: "awayTeam", displayOrder: 10 },
-    { id: "ko_r32_07", matchNumber: 79, next: "ko_r16_04", slot: "homeTeam", displayOrder: 11 },
-    { id: "ko_r32_08", matchNumber: 80, next: "ko_r16_04", slot: "awayTeam", displayOrder: 12 },
-
-    { id: "ko_r32_14", matchNumber: 86, next: "ko_r16_07", slot: "homeTeam", displayOrder: 13 },
-    { id: "ko_r32_16", matchNumber: 88, next: "ko_r16_07", slot: "awayTeam", displayOrder: 14 },
-    { id: "ko_r32_13", matchNumber: 85, next: "ko_r16_08", slot: "homeTeam", displayOrder: 15 },
-    { id: "ko_r32_15", matchNumber: 87, next: "ko_r16_08", slot: "awayTeam", displayOrder: 16 }
-  ],
-  r16: [
-    { id: "ko_r16_01", matchNumber: 89, next: "ko_qf_01", slot: "homeTeam", displayOrder: 1 },
-    { id: "ko_r16_02", matchNumber: 90, next: "ko_qf_01", slot: "awayTeam", displayOrder: 2 },
-    { id: "ko_r16_05", matchNumber: 93, next: "ko_qf_02", slot: "homeTeam", displayOrder: 3 },
-    { id: "ko_r16_06", matchNumber: 94, next: "ko_qf_02", slot: "awayTeam", displayOrder: 4 },
-
-    { id: "ko_r16_03", matchNumber: 91, next: "ko_qf_03", slot: "homeTeam", displayOrder: 5 },
-    { id: "ko_r16_04", matchNumber: 92, next: "ko_qf_03", slot: "awayTeam", displayOrder: 6 },
-    { id: "ko_r16_07", matchNumber: 95, next: "ko_qf_04", slot: "homeTeam", displayOrder: 7 },
-    { id: "ko_r16_08", matchNumber: 96, next: "ko_qf_04", slot: "awayTeam", displayOrder: 8 }
-  ],
-  qf: [
-    { id: "ko_qf_01", matchNumber: 97, next: "ko_sf_01", slot: "homeTeam", displayOrder: 1 },
-    { id: "ko_qf_02", matchNumber: 98, next: "ko_sf_01", slot: "awayTeam", displayOrder: 2 },
-    { id: "ko_qf_03", matchNumber: 99, next: "ko_sf_02", slot: "homeTeam", displayOrder: 3 },
-    { id: "ko_qf_04", matchNumber: 100, next: "ko_sf_02", slot: "awayTeam", displayOrder: 4 }
-  ],
-  sf: [
-    { id: "ko_sf_01", matchNumber: 101, next: "ko_final_01", slot: "homeTeam", displayOrder: 1 },
-    { id: "ko_sf_02", matchNumber: 102, next: "ko_final_01", slot: "awayTeam", displayOrder: 2 }
-  ],
-  final: [
-    { id: "ko_final_01", matchNumber: 104, next: "", slot: "", displayOrder: 1 }
-  ]
-};
-
-function officialKnockoutEntryV335(matchOrId) {
-  const id = typeof matchOrId === "string" ? matchOrId : String(matchOrId?.id || "");
-  for (const entries of Object.values(OFFICIAL_KNOCKOUT_BRACKET_V335)) {
-    const found = entries.find(entry => entry.id === id);
-    if (found) return found;
-  }
-  return null;
-}
-
-function officialKnockoutOrderV335(match) {
-  const entry = officialKnockoutEntryV335(match);
-  if (entry) return entry.displayOrder;
-  return Number(match?.index || 999);
-}
-
-function officialKnockoutMatchNumberV335(match) {
-  return officialKnockoutEntryV335(match)?.matchNumber || match?.matchNumber || "";
-}
-
-function enforceOfficialKnockoutBracketV335() {
-  try {
-    if (!appSettings.knockout || !Array.isArray(appSettings.knockout.matches)) return;
-
-    const roundRank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5 };
-
-    appSettings.knockout.matches.forEach(match => {
-      const entry = officialKnockoutEntryV335(match);
-      if (!entry) return;
-
-      match.matchNumber = entry.matchNumber;
-      match.officialMatchNumber = entry.matchNumber;
-      match.officialOrder = entry.displayOrder;
-      match.nextMatchId = entry.next || "";
-      match.nextSlot = entry.slot || "";
-
-      if (entry.matchNumber) {
-        match.fifaMatchNumber = entry.matchNumber;
-      }
-    });
-
-    appSettings.knockout.matches.sort((a, b) =>
-      (roundRank[a.round] || 99) - (roundRank[b.round] || 99) ||
-      officialKnockoutOrderV335(a) - officialKnockoutOrderV335(b) ||
-      Number(a.index || 0) - Number(b.index || 0)
-    );
-  } catch (error) {
-    console.warn("Falhou aplicar esquema oficial da Fase Final v335:", error);
-  }
-}
-
-if (typeof ensureKnockoutSettings === "function" && !ensureKnockoutSettings.__officialBracketV335) {
-  const originalEnsureKnockoutSettingsV335 = ensureKnockoutSettings;
-  ensureKnockoutSettings = function ensureKnockoutSettingsOfficialBracketV335() {
-    const result = originalEnsureKnockoutSettingsV335.apply(this, arguments);
-    enforceOfficialKnockoutBracketV335();
-    try { propagateKnockoutWinners(false); } catch {}
-    return result;
-  };
-  ensureKnockoutSettings.__officialBracketV335 = true;
-}
-
-if (typeof buildKnockoutPhotoColumns === "function" && !window.__buildKnockoutPhotoColumnsV335) {
-  window.__buildKnockoutPhotoColumnsV335 = true;
-  buildKnockoutPhotoColumns = function buildKnockoutPhotoColumnsOfficialV335() {
-    const byRound = key => knockoutMatches()
-      .filter(match => match.round === key)
-      .sort((a, b) => officialKnockoutOrderV335(a) - officialKnockoutOrderV335(b));
-
-    const labels = {
-      r32: "16 avos de final",
-      r16: "Oitavos de final",
-      qf: "Quartos de final",
-      sf: "Meias-finais"
-    };
-
-    const split = key => {
-      const list = byRound(key);
-      const half = Math.ceil(list.length / 2);
-      return [list.slice(0, half), list.slice(half)];
-    };
-
-    const [r32Left, r32Right] = split("r32");
-    const [r16Left, r16Right] = split("r16");
-    const [qfLeft, qfRight] = split("qf");
-    const [sfLeft, sfRight] = split("sf");
-
-    return {
-      left: [
-        { key: "r32", side: "left", label: labels.r32, matches: r32Left },
-        { key: "r16", side: "left", label: labels.r16, matches: r16Left },
-        { key: "qf", side: "left", label: labels.qf, matches: qfLeft },
-        { key: "sf", side: "left", label: labels.sf, matches: sfLeft }
-      ],
-      right: [
-        { key: "sf", side: "right", label: labels.sf, matches: sfRight },
-        { key: "qf", side: "right", label: labels.qf, matches: qfRight },
-        { key: "r16", side: "right", label: labels.r16, matches: r16Right },
-        { key: "r32", side: "right", label: labels.r32, matches: r32Right }
-      ]
-    };
-  };
-}
-
-if (typeof knockoutRoundsForMobileV121 === "function" && !window.__knockoutRoundsForMobileV335) {
-  window.__knockoutRoundsForMobileV335 = true;
-  const originalKnockoutRoundsForMobileV335 = knockoutRoundsForMobileV121;
-  knockoutRoundsForMobileV121 = function knockoutRoundsForMobileOfficialV335() {
-    const rounds = originalKnockoutRoundsForMobileV335.apply(this, arguments);
-    return rounds.map(round => ({
-      ...round,
-      games: [...(round.games || [])].sort((a, b) => officialKnockoutOrderV335(a) - officialKnockoutOrderV335(b))
-    }));
-  };
-}
-
-const originalRenderKnockoutMatchV335 = typeof renderKnockoutMatch === "function" ? renderKnockoutMatch : null;
-if (originalRenderKnockoutMatchV335 && !window.__renderKnockoutMatchOfficialV335) {
-  window.__renderKnockoutMatchOfficialV335 = true;
-  renderKnockoutMatch = function renderKnockoutMatchOfficialNumberV335(match, layoutKey = "") {
-    enforceOfficialKnockoutBracketV335();
-    return originalRenderKnockoutMatchV335(match, layoutKey);
-  };
-}
-
-function debugOfficialKnockoutBracketV335() {
-  enforceOfficialKnockoutBracketV335();
-  return knockoutMatches().map(match => ({
-    id: match.id,
-    round: match.round,
-    index: match.index,
-    matchNumber: match.matchNumber,
-    displayOrder: match.officialOrder,
-    nextMatchId: match.nextMatchId,
-    nextSlot: match.nextSlot,
-    homeTeam: match.homeTeam,
-    awayTeam: match.awayTeam
-  }));
-}
-
-enforceOfficialKnockoutBracketV335();
-
-
-/* v336 — Ordem correta da Fase Final pelo esquema M61-M91 da app.
-   Corrige a ordem visual e a passagem dos vencedores usando os números M reais:
-   16 avos: 61,63,62,65,71,72,69,70,64,66,67,68,74,76,73,75
-   Oitavos: 77,78,81,82,79,80,83,84
-   Quartos: 85,86,87,88
-*/
-const KNOCKOUT_MATCH_ORDER_V336 = {
-  r32: [61, 63, 62, 65, 71, 72, 69, 70, 64, 66, 67, 68, 74, 76, 73, 75],
-  r16: [77, 78, 81, 82, 79, 80, 83, 84],
-  qf: [85, 86, 87, 88],
-  sf: [89, 90],
-  final: [91]
-};
-
-const KNOCKOUT_NEXT_BY_MATCH_NUMBER_V336 = {
-  61: { next: 77, slot: "homeTeam" },
-  63: { next: 77, slot: "awayTeam" },
-  62: { next: 78, slot: "homeTeam" },
-  65: { next: 78, slot: "awayTeam" },
-
-  71: { next: 81, slot: "homeTeam" },
-  72: { next: 81, slot: "awayTeam" },
-  69: { next: 82, slot: "homeTeam" },
-  70: { next: 82, slot: "awayTeam" },
-
-  64: { next: 79, slot: "homeTeam" },
-  66: { next: 79, slot: "awayTeam" },
-  67: { next: 80, slot: "homeTeam" },
-  68: { next: 80, slot: "awayTeam" },
-
-  74: { next: 83, slot: "homeTeam" },
-  76: { next: 83, slot: "awayTeam" },
-  73: { next: 84, slot: "homeTeam" },
-  75: { next: 84, slot: "awayTeam" },
-
-  77: { next: 85, slot: "homeTeam" },
-  78: { next: 85, slot: "awayTeam" },
-  81: { next: 86, slot: "homeTeam" },
-  82: { next: 86, slot: "awayTeam" },
-
-  79: { next: 87, slot: "homeTeam" },
-  80: { next: 87, slot: "awayTeam" },
-  83: { next: 88, slot: "homeTeam" },
-  84: { next: 88, slot: "awayTeam" },
-
-  85: { next: 89, slot: "homeTeam" },
-  86: { next: 89, slot: "awayTeam" },
-  87: { next: 90, slot: "homeTeam" },
-  88: { next: 90, slot: "awayTeam" },
-
-  89: { next: 91, slot: "homeTeam" },
-  90: { next: 91, slot: "awayTeam" }
-};
-
-function knockoutMatchNumberV336(match) {
-  const raw = match?.matchNumber ?? match?.fifaMatchNumber ?? match?.officialMatchNumber ?? match?.number ?? match?.matchNo ?? match?.gameNumber ?? "";
-  const direct = Number(String(raw).replace(/[^\d]/g, ""));
-  if (Number.isFinite(direct) && direct > 0) return direct;
-
-  const idText = String(match?.id || match?.gameId || match?.matchId || "");
-  const idNumber = Number((idText.match(/(?:m|match|jogo)?[_-]?(\d{2,3})$/i) || [])[1]);
-  if (Number.isFinite(idNumber) && idNumber > 0) return idNumber;
-
-  const labelText = String(`${match?.label || ""} ${match?.title || ""} ${match?.name || ""}`);
-  const labelNumber = Number((labelText.match(/\bM?(\d{2,3})\b/i) || [])[1]);
-  if (Number.isFinite(labelNumber) && labelNumber > 0) return labelNumber;
-
-  return 0;
-}
-
-function knockoutRoundKeyV336(match) {
-  const round = String(match?.round || match?.roundKey || match?.phase || match?.fase || "").toLowerCase();
-  if (round.includes("r32") || round.includes("32") || round.includes("16 avos") || round.includes("16avos")) return "r32";
-  if (round.includes("r16") || round.includes("oitav")) return "r16";
-  if (round.includes("qf") || round.includes("quart")) return "qf";
-  if (round.includes("sf") || round.includes("meia") || round.includes("semi")) return "sf";
-  if (round.includes("final")) return "final";
-  return match?.round || "";
-}
-
-function knockoutOrderIndexV336(match) {
-  const key = knockoutRoundKeyV336(match);
-  const number = knockoutMatchNumberV336(match);
-  const list = KNOCKOUT_MATCH_ORDER_V336[key] || [];
-  const idx = list.indexOf(number);
-  if (idx >= 0) return idx + 1;
-  return Number(match?.officialOrder || match?.index || 999);
-}
-
-function knockoutMatchByNumberV336(number) {
-  const n = Number(number);
-  try {
-    return knockoutMatches().find(match => knockoutMatchNumberV336(match) === n) || null;
-  } catch {
-    return null;
-  }
-}
-
-function enforceKnockoutOrderM61V336() {
-  try {
-    if (!appSettings.knockout || !Array.isArray(appSettings.knockout.matches)) return;
-
-    const roundRank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5 };
-
-    appSettings.knockout.matches.forEach(match => {
-      const number = knockoutMatchNumberV336(match);
-      const key = knockoutRoundKeyV336(match);
-      const list = KNOCKOUT_MATCH_ORDER_V336[key] || [];
-      const order = list.indexOf(number);
-
-      if (number) {
-        match.matchNumber = number;
-        match.fifaMatchNumber = number;
-        match.officialMatchNumber = number;
-      }
-
-      if (order >= 0) {
-        match.officialOrder = order + 1;
-        match.displayOrder = order + 1;
-      }
-
-      const nextInfo = KNOCKOUT_NEXT_BY_MATCH_NUMBER_V336[number];
-      if (nextInfo) {
-        const nextMatch = knockoutMatchByNumberV336(nextInfo.next);
-        if (nextMatch?.id) {
-          match.nextMatchId = nextMatch.id;
-          match.nextSlot = nextInfo.slot;
-          match.officialNextMatchNumber = nextInfo.next;
-        }
-      }
-    });
-
-    appSettings.knockout.matches.sort((a, b) => {
-      const ak = knockoutRoundKeyV336(a);
-      const bk = knockoutRoundKeyV336(b);
-      return (roundRank[ak] || 99) - (roundRank[bk] || 99) ||
-        knockoutOrderIndexV336(a) - knockoutOrderIndexV336(b) ||
-        knockoutMatchNumberV336(a) - knockoutMatchNumberV336(b);
-    });
-  } catch (error) {
-    console.warn("Falhou aplicar ordem M61 v336:", error);
-  }
-}
-
-if (typeof ensureKnockoutSettings === "function" && !ensureKnockoutSettings.__orderM61V336) {
-  const originalEnsureKnockoutSettingsV336 = ensureKnockoutSettings;
-  ensureKnockoutSettings = function ensureKnockoutSettingsOrderM61V336() {
-    const result = originalEnsureKnockoutSettingsV336.apply(this, arguments);
-    enforceKnockoutOrderM61V336();
-    try { propagateKnockoutWinners(false); } catch {}
-    return result;
-  };
-  ensureKnockoutSettings.__orderM61V336 = true;
-}
-
-if (typeof knockoutMatches === "function" && !knockoutMatches.__orderM61V336) {
-  const originalKnockoutMatchesV336 = knockoutMatches;
-  knockoutMatches = function knockoutMatchesOrderM61V336() {
-    const result = originalKnockoutMatchesV336.apply(this, arguments);
-    return [...(result || [])].sort((a, b) => {
-      const rank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5 };
-      return (rank[knockoutRoundKeyV336(a)] || 99) - (rank[knockoutRoundKeyV336(b)] || 99) ||
-        knockoutOrderIndexV336(a) - knockoutOrderIndexV336(b) ||
-        knockoutMatchNumberV336(a) - knockoutMatchNumberV336(b);
-    });
-  };
-  knockoutMatches.__orderM61V336 = true;
-}
-
-if (typeof officialKnockoutOrderV335 === "function") {
-  officialKnockoutOrderV335 = knockoutOrderIndexV336;
-}
-if (typeof officialKnockoutMatchNumberV335 === "function") {
-  officialKnockoutMatchNumberV335 = knockoutMatchNumberV336;
-}
-if (typeof enforceOfficialKnockoutBracketV335 === "function") {
-  enforceOfficialKnockoutBracketV335 = enforceKnockoutOrderM61V336;
-}
-
-if (typeof buildKnockoutPhotoColumns === "function" && !window.__buildKnockoutPhotoColumnsV336) {
-  window.__buildKnockoutPhotoColumnsV336 = true;
-  buildKnockoutPhotoColumns = function buildKnockoutPhotoColumnsM61V336() {
-    enforceKnockoutOrderM61V336();
-
-    const byRound = key => knockoutMatches()
-      .filter(match => knockoutRoundKeyV336(match) === key)
-      .sort((a, b) => knockoutOrderIndexV336(a) - knockoutOrderIndexV336(b));
-
-    const labels = {
-      r32: "16 avos de final",
-      r16: "Oitavos de final",
-      qf: "Quartos de final",
-      sf: "Meias-finais"
-    };
-
-    const split = key => {
-      const list = byRound(key);
-      const half = Math.ceil(list.length / 2);
-      return [list.slice(0, half), list.slice(half)];
-    };
-
-    const [r32Left, r32Right] = split("r32");
-    const [r16Left, r16Right] = split("r16");
-    const [qfLeft, qfRight] = split("qf");
-    const [sfLeft, sfRight] = split("sf");
-
-    return {
-      left: [
-        { key: "r32", side: "left", label: labels.r32, matches: r32Left },
-        { key: "r16", side: "left", label: labels.r16, matches: r16Left },
-        { key: "qf", side: "left", label: labels.qf, matches: qfLeft },
-        { key: "sf", side: "left", label: labels.sf, matches: sfLeft }
-      ],
-      right: [
-        { key: "sf", side: "right", label: labels.sf, matches: sfRight },
-        { key: "qf", side: "right", label: labels.qf, matches: qfRight },
-        { key: "r16", side: "right", label: labels.r16, matches: r16Right },
-        { key: "r32", side: "right", label: labels.r32, matches: r32Right }
-      ]
-    };
-  };
-}
-
-if (typeof knockoutRoundsForMobileV121 === "function" && !window.__knockoutRoundsForMobileM61V336) {
-  window.__knockoutRoundsForMobileM61V336 = true;
-  const originalKnockoutRoundsForMobileV336 = knockoutRoundsForMobileV121;
-  knockoutRoundsForMobileV121 = function knockoutRoundsForMobileM61V336() {
-    const rounds = originalKnockoutRoundsForMobileV336.apply(this, arguments);
-    return rounds.map(round => ({
-      ...round,
-      games: [...(round.games || [])].sort((a, b) => knockoutOrderIndexV336(a) - knockoutOrderIndexV336(b))
-    }));
-  };
-}
-
-function debugKnockoutOrderM61V336() {
-  enforceKnockoutOrderM61V336();
-  const grouped = {};
-  knockoutMatches().forEach(match => {
-    const key = knockoutRoundKeyV336(match);
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push({
-      id: match.id,
-      M: knockoutMatchNumberV336(match),
-      order: knockoutOrderIndexV336(match),
-      nextM: match.officialNextMatchNumber || "",
-      nextMatchId: match.nextMatchId || "",
-      nextSlot: match.nextSlot || "",
-      home: match.homeTeam || "",
-      away: match.awayTeam || ""
-    });
-  });
-  return grouped;
-}
-
-enforceKnockoutOrderM61V336();
-
-
-/* v337 — IDs limpos e ordem limpa da Fase Final.
-   Isto substitui qualquer esquema anterior v335/v336 na prática.
-   16 Avos: M61-M616
-   8 Avos: M71-M78
-   Quartos: M81-M84
-   Meias: M91-M92
-   Final: M101
-*/
-const CLEAN_KNOCKOUT_IDS_V337 = {
+const CLEAN_KNOCKOUT_IDS_V338 = {
   r32: ["M61","M62","M63","M64","M65","M66","M67","M68","M69","M610","M611","M612","M613","M614","M615","M616"],
   r16: ["M71","M72","M73","M74","M75","M76","M77","M78"],
   qf: ["M81","M82","M83","M84"],
@@ -28030,7 +27574,7 @@ const CLEAN_KNOCKOUT_IDS_V337 = {
   final: ["M101"]
 };
 
-const CLEAN_KNOCKOUT_NEXT_V337 = {
+const CLEAN_KNOCKOUT_NEXT_V338 = {
   M61: { next: "M71", slot: "homeTeam" },
   M62: { next: "M71", slot: "awayTeam" },
   M63: { next: "M72", slot: "homeTeam" },
@@ -28066,7 +27610,7 @@ const CLEAN_KNOCKOUT_NEXT_V337 = {
   M92: { next: "M101", slot: "awayTeam" }
 };
 
-function cleanKnockoutRoundV337(match) {
+function cleanKnockoutRoundV338(match) {
   const round = String(match?.round || match?.roundKey || match?.phase || match?.fase || "").toLowerCase();
   if (round.includes("r32") || round.includes("32") || round.includes("16 avos") || round.includes("16avos")) return "r32";
   if (round.includes("r16") || round.includes("oitav")) return "r16";
@@ -28076,71 +27620,70 @@ function cleanKnockoutRoundV337(match) {
   return String(match?.round || "");
 }
 
-function cleanKnockoutNumberFromCleanIdV337(cleanId) {
-  const id = String(cleanId || "").replace(/^M/i, "");
-  return Number(id) || 0;
+function cleanKnockoutNumberV338(cleanId) {
+  return Number(String(cleanId || "").replace(/^M/i, "")) || 0;
 }
 
-function cleanKnockoutIdFromMatchV337(match) {
-  const existing = String(match?.cleanId || match?.cleanMatchId || match?.publicId || "").trim().toUpperCase();
-  if (existing && /^M\d+$/i.test(existing)) return existing;
+function cleanKnockoutIdV338(match) {
+  if (!match) return "";
+  const existing = String(match.cleanId || match.cleanMatchId || match.publicId || "").trim().toUpperCase();
+  if (/^M\d+$/i.test(existing)) return existing;
 
-  const round = cleanKnockoutRoundV337(match);
-  const list = CLEAN_KNOCKOUT_IDS_V337[round] || [];
-  const index = Math.max(1, Number(match?.index || match?.officialOrder || match?.displayOrder || 1));
+  const round = cleanKnockoutRoundV338(match);
+  const list = CLEAN_KNOCKOUT_IDS_V338[round] || [];
+  const index = Math.max(1, Number(match.index || match.officialOrder || match.displayOrder || 1));
   return list[index - 1] || "";
 }
 
-function cleanKnockoutIndexV337(match) {
-  const round = cleanKnockoutRoundV337(match);
-  const id = cleanKnockoutIdFromMatchV337(match);
-  const list = CLEAN_KNOCKOUT_IDS_V337[round] || [];
-  const idx = list.indexOf(id);
-  return idx >= 0 ? idx + 1 : Number(match?.index || 999);
+function cleanKnockoutOrderV338(match) {
+  const round = cleanKnockoutRoundV338(match);
+  const list = CLEAN_KNOCKOUT_IDS_V338[round] || [];
+  const cleanId = cleanKnockoutIdV338(match);
+  const idx = list.indexOf(cleanId);
+  return idx >= 0 ? idx + 1 : Number(match.index || 999);
 }
 
-function cleanKnockoutMatchByCleanIdV337(cleanId) {
+function cleanKnockoutMatchByCleanIdV338(cleanId) {
   const wanted = String(cleanId || "").toUpperCase();
   try {
-    return knockoutMatches().find(match => cleanKnockoutIdFromMatchV337(match) === wanted) || null;
+    return (appSettings.knockout?.matches || []).find(match => cleanKnockoutIdV338(match) === wanted) || null;
   } catch {
     return null;
   }
 }
 
-function enforceCleanKnockoutIdsV337() {
+function applyCleanKnockoutIdsV338() {
   try {
     if (!appSettings.knockout || !Array.isArray(appSettings.knockout.matches)) return;
 
     const rank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5 };
 
-    // Primeiro atribui IDs limpos por fase e posição.
-    Object.keys(CLEAN_KNOCKOUT_IDS_V337).forEach(round => {
+    // Atribui IDs limpos sem trocar o match.id real, para não quebrar apostas existentes.
+    Object.keys(CLEAN_KNOCKOUT_IDS_V338).forEach(round => {
       const matches = appSettings.knockout.matches
-        .filter(match => cleanKnockoutRoundV337(match) === round)
+        .filter(match => cleanKnockoutRoundV338(match) === round)
         .sort((a, b) => Number(a.index || 0) - Number(b.index || 0));
 
       matches.forEach((match, index) => {
-        const cleanId = CLEAN_KNOCKOUT_IDS_V337[round][index] || "";
+        const cleanId = CLEAN_KNOCKOUT_IDS_V338[round][index];
         if (!cleanId) return;
 
         match.cleanId = cleanId;
         match.cleanMatchId = cleanId;
         match.publicId = cleanId;
-        match.matchNumber = cleanKnockoutNumberFromCleanIdV337(cleanId);
+        match.matchNumber = cleanKnockoutNumberV338(cleanId);
         match.fifaMatchNumber = match.matchNumber;
         match.officialMatchNumber = match.matchNumber;
         match.officialOrder = index + 1;
         match.displayOrder = index + 1;
-        match.index = index + 1;
+        // Não altero match.id. Não limpo equipas. Não limpo resultados.
       });
     });
 
-    // Depois liga as passagens pela ordem limpa.
+    // Liga as passagens pela árvore limpa.
     appSettings.knockout.matches.forEach(match => {
-      const cleanId = cleanKnockoutIdFromMatchV337(match);
-      const nextInfo = CLEAN_KNOCKOUT_NEXT_V337[cleanId];
-
+      const cleanId = cleanKnockoutIdV338(match);
+      const nextInfo = CLEAN_KNOCKOUT_NEXT_V338[cleanId];
       if (!nextInfo) {
         match.nextMatchId = "";
         match.nextSlot = "";
@@ -28148,89 +27691,65 @@ function enforceCleanKnockoutIdsV337() {
         return;
       }
 
-      const nextMatch = cleanKnockoutMatchByCleanIdV337(nextInfo.next);
-      if (nextMatch?.id) {
-        match.nextMatchId = nextMatch.id;
+      const next = cleanKnockoutMatchByCleanIdV338(nextInfo.next);
+      if (next?.id) {
+        match.nextMatchId = next.id;
         match.nextSlot = nextInfo.slot;
         match.nextCleanId = nextInfo.next;
       }
     });
 
+    // Ordem visual limpa, sem reconstruir dados.
     appSettings.knockout.matches.sort((a, b) =>
-      (rank[cleanKnockoutRoundV337(a)] || 99) - (rank[cleanKnockoutRoundV337(b)] || 99) ||
-      cleanKnockoutIndexV337(a) - cleanKnockoutIndexV337(b)
+      (rank[cleanKnockoutRoundV338(a)] || 99) - (rank[cleanKnockoutRoundV338(b)] || 99) ||
+      cleanKnockoutOrderV338(a) - cleanKnockoutOrderV338(b)
     );
   } catch (error) {
-    console.warn("Falhou aplicar IDs limpos Fase Final v337:", error);
+    console.warn("v338: falhou aplicar IDs limpos", error);
   }
 }
 
-function cleanKnockoutTitlePatchV337(html, match) {
-  const cleanId = cleanKnockoutIdFromMatchV337(match);
+function cleanKnockoutPatchTitleV338(html, match) {
+  const cleanId = cleanKnockoutIdV338(match);
   if (!cleanId) return html;
-  try {
-    return String(html).replace(/Jogo\s+M?\d+/gi, `Jogo ${cleanId}`).replace(/·\s*Jogo\s+M?\d+/gi, `· Jogo ${cleanId}`);
-  } catch {
-    return html;
-  }
+  return String(html)
+    .replace(/Jogo\s+M?\d+/gi, `Jogo ${cleanId}`)
+    .replace(/·\s*Jogo\s+M?\d+/gi, `· Jogo ${cleanId}`)
+    .replace(/(\b16 avos de final\s+\d+\b|\bOitavos de final\s+\d+\b|\bQuartos de final\s+\d+\b|\bMeias-finais\s+\d+\b|\bFinal\s+\d+\b)/gi, match.roundLabel ? `${match.roundLabel} · Jogo ${cleanId}` : `Jogo ${cleanId}`);
 }
 
-// Overrides de esquemas anteriores: deixam de mandar.
-if (typeof enforceOfficialKnockoutBracketV335 === "function") {
-  enforceOfficialKnockoutBracketV335 = enforceCleanKnockoutIdsV337;
-}
-if (typeof enforceKnockoutOrderM61V336 === "function") {
-  enforceKnockoutOrderM61V336 = enforceCleanKnockoutIdsV337;
-}
-if (typeof officialKnockoutOrderV335 === "function") {
-  officialKnockoutOrderV335 = cleanKnockoutIndexV337;
-}
-if (typeof officialKnockoutMatchNumberV335 === "function") {
-  officialKnockoutMatchNumberV335 = function officialKnockoutMatchNumberCleanV337(match) {
-    return cleanKnockoutNumberFromCleanIdV337(cleanKnockoutIdFromMatchV337(match));
-  };
-}
-if (typeof knockoutOrderIndexV336 === "function") {
-  knockoutOrderIndexV336 = cleanKnockoutIndexV337;
-}
-if (typeof knockoutMatchNumberV336 === "function") {
-  knockoutMatchNumberV336 = function knockoutMatchNumberCleanV337(match) {
-    return cleanKnockoutNumberFromCleanIdV337(cleanKnockoutIdFromMatchV337(match));
-  };
-}
-
-if (typeof ensureKnockoutSettings === "function" && !ensureKnockoutSettings.__cleanIdsV337) {
-  const originalEnsureKnockoutSettingsV337 = ensureKnockoutSettings;
-  ensureKnockoutSettings = function ensureKnockoutSettingsCleanIdsV337() {
-    const result = originalEnsureKnockoutSettingsV337.apply(this, arguments);
-    enforceCleanKnockoutIdsV337();
-    try { propagateKnockoutWinners(false); } catch {}
+// Só envolve uma vez. Importante: não chama propagate dentro do ensure, para evitar "guardar e voltar atrás".
+if (typeof ensureKnockoutSettings === "function" && !ensureKnockoutSettings.__cleanIdsV338) {
+  const originalEnsureKnockoutSettingsV338 = ensureKnockoutSettings;
+  ensureKnockoutSettings = function ensureKnockoutSettingsCleanIdsV338() {
+    const result = originalEnsureKnockoutSettingsV338.apply(this, arguments);
+    applyCleanKnockoutIdsV338();
     return result;
   };
-  ensureKnockoutSettings.__cleanIdsV337 = true;
+  ensureKnockoutSettings.__cleanIdsV338 = true;
 }
 
-if (typeof knockoutMatches === "function" && !knockoutMatches.__cleanIdsV337) {
-  const originalKnockoutMatchesV337 = knockoutMatches;
-  knockoutMatches = function knockoutMatchesCleanIdsV337() {
-    const result = originalKnockoutMatchesV337.apply(this, arguments);
+if (typeof knockoutMatches === "function" && !knockoutMatches.__cleanIdsV338) {
+  const originalKnockoutMatchesV338 = knockoutMatches;
+  knockoutMatches = function knockoutMatchesCleanIdsV338() {
+    const result = originalKnockoutMatchesV338.apply(this, arguments);
     return [...(result || [])].sort((a, b) => {
       const rank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5 };
-      return (rank[cleanKnockoutRoundV337(a)] || 99) - (rank[cleanKnockoutRoundV337(b)] || 99) ||
-        cleanKnockoutIndexV337(a) - cleanKnockoutIndexV337(b);
+      return (rank[cleanKnockoutRoundV338(a)] || 99) - (rank[cleanKnockoutRoundV338(b)] || 99) ||
+        cleanKnockoutOrderV338(a) - cleanKnockoutOrderV338(b);
     });
   };
-  knockoutMatches.__cleanIdsV337 = true;
+  knockoutMatches.__cleanIdsV338 = true;
 }
 
-if (typeof buildKnockoutPhotoColumns === "function" && !window.__buildKnockoutPhotoColumnsCleanV337) {
-  window.__buildKnockoutPhotoColumnsCleanV337 = true;
-  buildKnockoutPhotoColumns = function buildKnockoutPhotoColumnsCleanV337() {
-    enforceCleanKnockoutIdsV337();
+if (typeof buildKnockoutPhotoColumns === "function" && !window.__buildKnockoutPhotoColumnsCleanV338) {
+  window.__buildKnockoutPhotoColumnsCleanV338 = true;
+  buildKnockoutPhotoColumns = function buildKnockoutPhotoColumnsCleanV338() {
+    applyCleanKnockoutIdsV338();
 
     const byRound = key => knockoutMatches()
-      .filter(match => cleanKnockoutRoundV337(match) === key)
-      .sort((a, b) => cleanKnockoutIndexV337(a) - cleanKnockoutIndexV337(b));
+      .filter(match => cleanKnockoutRoundV338(match) === key)
+      .sort((a, b) => cleanKnockoutOrderV338(a) - cleanKnockoutOrderV338(b));
 
     const labels = {
       r32: "16 avos de final",
@@ -28267,45 +27786,63 @@ if (typeof buildKnockoutPhotoColumns === "function" && !window.__buildKnockoutPh
   };
 }
 
-if (typeof knockoutRoundsForMobileV121 === "function" && !window.__knockoutRoundsForMobileCleanV337) {
-  window.__knockoutRoundsForMobileCleanV337 = true;
-  const originalKnockoutRoundsForMobileV337 = knockoutRoundsForMobileV121;
-  knockoutRoundsForMobileV121 = function knockoutRoundsForMobileCleanV337() {
-    const rounds = originalKnockoutRoundsForMobileV337.apply(this, arguments);
+if (typeof knockoutRoundsForMobileV121 === "function" && !window.__knockoutRoundsForMobileCleanV338) {
+  window.__knockoutRoundsForMobileCleanV338 = true;
+  const originalKnockoutRoundsForMobileV338 = knockoutRoundsForMobileV121;
+  knockoutRoundsForMobileV121 = function knockoutRoundsForMobileCleanV338() {
+    const rounds = originalKnockoutRoundsForMobileV338.apply(this, arguments);
     return rounds.map(round => ({
       ...round,
-      games: [...(round.games || [])].sort((a, b) => cleanKnockoutIndexV337(a) - cleanKnockoutIndexV337(b))
+      games: [...(round.games || [])].sort((a, b) => cleanKnockoutOrderV338(a) - cleanKnockoutOrderV338(b))
     }));
   };
 }
 
-if (typeof renderKnockoutMatch === "function" && !window.__renderKnockoutMatchCleanIdsV337) {
-  window.__renderKnockoutMatchCleanIdsV337 = true;
-  const originalRenderKnockoutMatchV337 = renderKnockoutMatch;
-  renderKnockoutMatch = function renderKnockoutMatchCleanIdsV337(match, layoutKey = "") {
-    enforceCleanKnockoutIdsV337();
-    return cleanKnockoutTitlePatchV337(originalRenderKnockoutMatchV337(match, layoutKey), match);
+if (typeof renderKnockoutMatch === "function" && !window.__renderKnockoutMatchCleanV338) {
+  window.__renderKnockoutMatchCleanV338 = true;
+  const originalRenderKnockoutMatchV338 = renderKnockoutMatch;
+  renderKnockoutMatch = function renderKnockoutMatchCleanV338(match, layoutKey = "") {
+    applyCleanKnockoutIdsV338();
+    const html = originalRenderKnockoutMatchV338(match, layoutKey);
+    return cleanKnockoutPatchTitleV338(html, match);
   };
 }
 
-function debugCleanKnockoutIdsV337() {
-  enforceCleanKnockoutIdsV337();
+if (typeof saveKnockoutMatchFromAdmin === "function" && !window.__saveKnockoutMatchCleanIdsV338) {
+  window.__saveKnockoutMatchCleanIdsV338 = true;
+  const originalSaveKnockoutMatchFromAdminV338 = saveKnockoutMatchFromAdmin;
+  saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminCleanIdsV338(matchId, sourceElement = null) {
+    // Aplica antes de guardar para garantir nextMatchId/nextSlot certos.
+    applyCleanKnockoutIdsV338();
+    const result = await originalSaveKnockoutMatchFromAdminV338.apply(this, arguments);
+    // Aplica depois, mas sem reconstruir/limpar nada.
+    applyCleanKnockoutIdsV338();
+    try { markSettingsPending?.(); } catch {}
+    try { saveLocalData?.("fase final IDs limpos v338"); } catch {}
+    return result;
+  };
+}
+
+function debugCleanKnockoutIdsV338() {
+  applyCleanKnockoutIdsV338();
   const grouped = {};
   knockoutMatches().forEach(match => {
-    const round = cleanKnockoutRoundV337(match);
+    const round = cleanKnockoutRoundV338(match);
     if (!grouped[round]) grouped[round] = [];
     grouped[round].push({
-      id: match.id,
-      cleanId: cleanKnockoutIdFromMatchV337(match),
+      idReal: match.id,
+      cleanId: cleanKnockoutIdV338(match),
       index: match.index,
+      order: cleanKnockoutOrderV338(match),
       nextCleanId: match.nextCleanId || "",
       nextMatchId: match.nextMatchId || "",
       nextSlot: match.nextSlot || "",
       home: match.homeTeam || "",
-      away: match.awayTeam || ""
+      away: match.awayTeam || "",
+      score: `${match.homeScore ?? ""}-${match.awayScore ?? ""}`
     });
   });
   return grouped;
 }
 
-enforceCleanKnockoutIdsV337();
+applyCleanKnockoutIdsV338();
