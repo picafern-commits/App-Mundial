@@ -18348,73 +18348,32 @@ select option:disabled{
   color-scheme: dark!important;
 }
 
-/* v353 — religar apostas da Fase Final no modal Ver apostas */
-.ko-relink-bar-v353{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) minmax(320px,.95fr)!important;
-  gap:12px!important;
-  align-items:center!important;
-  margin:0 0 12px!important;
-  padding:12px!important;
-  border-radius:16px!important;
-  border:1px solid rgba(96,165,250,.30)!important;
-  background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(15,23,42,.72))!important;
-  color:#dbeafe!important;
+/* v355 — Cofre manual da Fase Final */
+.ko-vault-box-v355{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  margin:0 0 14px;
+  border-radius:18px;
+  border:1px solid rgba(250,204,21,.38);
+  background:linear-gradient(135deg, rgba(250,204,21,.12), rgba(37,99,235,.10));
+  box-shadow:0 14px 40px rgba(0,0,0,.18);
 }
-.ko-relink-info-v353{
-  display:grid!important;
-  gap:3px!important;
-  min-width:0!important;
+.ko-vault-box-v355 strong{
+  display:block;
+  color:#facc15;
+  font-size:14px;
+  margin-bottom:3px;
 }
-.ko-relink-info-v353 strong{
-  color:#bfdbfe!important;
-  font-weight:950!important;
+.ko-vault-box-v355 span{
+  display:block;
+  color:rgba(226,232,240,.84);
+  font-size:12px;
+  font-weight:800;
 }
-.ko-relink-info-v353 span{
-  color:rgba(219,234,254,.78)!important;
-  font-size:12px!important;
-  font-weight:800!important;
-  line-height:1.35!important;
-}
-.ko-relink-controls-v353{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
-  gap:8px!important;
-  align-items:center!important;
-}
-.ko-relink-controls-v353 select{
-  grid-column:1 / -1!important;
-  width:100%!important;
-  min-height:42px!important;
-  border-radius:14px!important;
-  border:1px solid rgba(148,163,184,.26)!important;
-  background:#111827!important;
-  color:#fff!important;
-  padding:0 12px!important;
-  font-weight:850!important;
-}
-.ko-relink-controls-v353 label{
-  display:flex!important;
-  align-items:center!important;
-  gap:7px!important;
-  color:rgba(219,234,254,.78)!important;
-  font-size:12px!important;
-  font-weight:850!important;
-  margin:0!important;
-}
-.ko-relink-controls-v353 input[type="checkbox"]{
-  width:16px!important;
-  height:16px!important;
-  accent-color:#3b82f6!important;
-}
-@media(max-width:900px){
-  .ko-relink-bar-v353{
-    grid-template-columns:1fr!important;
-  }
-  .ko-relink-controls-v353{
-    grid-template-columns:1fr!important;
-  }
-  .ko-relink-controls-v353 button{
-    width:100%!important;
-  }
+@media (max-width: 720px){
+  .ko-vault-box-v355{align-items:stretch; flex-direction:column;}
+  .ko-vault-box-v355 button{width:100%;}
 }

@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v355";
+const APP_VERSION_LABEL = "v352";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -988,7 +988,6 @@ async function loadData(options = {}) {
       const remoteGames = gamesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
       const remoteBets = betsSnap.docs.map(item => ({ id: item.id, ...item.data() }));
       const mainSettingsDoc = settingsSnap.docs.find(item => item.id === "main");
-      const knockoutManualDocV355 = settingsSnap.docs.find(item => item.id === "knockoutManual");
 
       if (remoteGames.length) {
         localGames.forEach(localGame => {
@@ -1008,9 +1007,6 @@ async function loadData(options = {}) {
 
       bets = normalizeBets(remoteBets.length ? remoteBets : localBets);
       appSettings = mergeSettings(mainSettingsDoc ? mainSettingsDoc.data() : localSettings);
-      if (knockoutManualDocV355) {
-        try { applyKnockoutVaultDocToSettingsV355(knockoutManualDocV355.data() || {}, "loadData firebase"); } catch (error) { console.warn("Cofre Fase Final v355 não aplicado no loadData:", error); }
-      }
       ensureKnockoutSettings();
 
       storageMode = "firebase";
@@ -1100,24 +1096,9 @@ function setupRealtimeSync() {
       renderSystemLogs();
       return;
     }
-    const protectedKnockoutV355 = (typeof getKnockoutVaultProtectedKnockoutV355 === "function") ? getKnockoutVaultProtectedKnockoutV355() : null;
     appSettings = mergeSettings(remoteSettings);
-    if (protectedKnockoutV355) {
-      appSettings.knockout = protectedKnockoutV355;
-      try { noteKnockoutVaultEventV355?.("settings/main ignorado para Fase Final", "preserved-vault-after-main"); } catch {}
-    }
     queueRealtimeRender("firebase realtime configurações");
   }, error => console.warn("Realtime configurações falhou:", error)));
-
-  realtimeUnsubscribers.push(onSnapshot(doc(db, "settings", "knockoutManual"), snap => {
-    if (!snap.exists()) return;
-    try {
-      applyKnockoutVaultDocToSettingsV355(snap.data() || {}, "firebase realtime cofre fase final");
-      queueRealtimeRender("firebase realtime cofre fase final");
-    } catch (error) {
-      console.warn("Realtime cofre Fase Final falhou:", error);
-    }
-  }, error => console.warn("Realtime cofre Fase Final falhou:", error)));
 
   realtimeUnsubscribers.push(onSnapshot(doc(db, "users", normalizeEmail(currentUser.email)), async snap => {
     if (!snap.exists()) return;
@@ -1511,13 +1492,7 @@ async function saveSettingsFastToFirebase(reason = "settings") {
   if (!db || !firebaseApi || storageMode !== "firebase") return false;
 
   const { doc, setDoc } = firebaseApi;
-  const mainPayloadV355 = (typeof settingsMainPayloadV355 === "function") ? settingsMainPayloadV355(appSettings) : appSettings;
-  const shouldSaveVaultV355 = (typeof shouldSaveKnockoutVaultForReasonV355 === "function") ? shouldSaveKnockoutVaultForReasonV355(reason) : false;
-  if (shouldSaveVaultV355 && typeof markKnockoutVaultPendingV355 === "function") markKnockoutVaultPendingV355(reason);
-  await withTimeout(setDoc(doc(db, "settings", "main"), mainPayloadV355, { merge: true }), 12000, reason);
-  if (shouldSaveVaultV355 && typeof saveKnockoutVaultToFirebaseV355 === "function") {
-    await saveKnockoutVaultToFirebaseV355(reason, { source: knockoutVaultSourceFromReasonV355?.(reason) || "manual-modal", status: false });
-  }
+  await withTimeout(setDoc(doc(db, "settings", "main"), appSettings, { merge: true }), 12000, reason);
   clearSettingsPending();
   saveLocalData(`${reason} firebase-ok`);
   return true;
@@ -1562,7 +1537,7 @@ async function saveUserBetsFastToFirebase(playerId, previousBetIds, playerBets, 
   playerBets.forEach(bet => {
     batch.set(doc(db, "bets", bet.id), bet, { merge: true });
   });
-  batch.set(doc(db, "settings", "main"), (typeof settingsMainPayloadV355 === "function" ? settingsMainPayloadV355(appSettings) : appSettings), { merge: true });
+  batch.set(doc(db, "settings", "main"), appSettings, { merge: true });
 
   await withTimeout(batch.commit(), 30000, reason);
   clearPendingBets(playerBets.map(bet => bet.id));
@@ -1603,11 +1578,7 @@ async function syncFirebaseFull(reason = "") {
   });
 
   if (hasSettingsPending()) {
-    operations.push(batch => batch.set(doc(db, "settings", "main"), (typeof settingsMainPayloadV355 === "function" ? settingsMainPayloadV355(appSettings) : appSettings), { merge: true }));
-  }
-
-  if (typeof hasKnockoutVaultPendingV355 === "function" && hasKnockoutVaultPendingV355()) {
-    operations.push(batch => batch.set(doc(db, "settings", "knockoutManual"), buildKnockoutVaultPayloadV355(reason || "syncFirebaseFull", { source: "full-sync" }), { merge: true }));
+    operations.push(batch => batch.set(doc(db, "settings", "main"), appSettings, { merge: true }));
   }
 
   const deleteBetIds = pendingDeleteBetIds();
@@ -1620,7 +1591,6 @@ async function syncFirebaseFull(reason = "") {
   clearPendingBets(syncBetIds);
   clearPendingDeleteBets(deleteBetIds);
   clearSettingsPending();
-  try { clearKnockoutVaultPendingV355?.(); } catch {}
   saveLocalData(`${reason} firebase-full-ok`);
   setFirebaseStatus("success", "Firebase: dados guardados e sincronizados");
   return true;
@@ -29561,290 +29531,3 @@ window.debugFaseFinalGuardV352 = function debugFaseFinalGuardV352() {
     ensureNaoRecalculaNoArranque: true
   };
 };
-
-
-/* v355 — Cofre manual da Fase Final.
-   A Fase Final deixa de depender de settings/main.knockout.matches como fonte principal.
-   Fonte segura: settings/knockoutManual. Só o Guardar jogo manual / Fixar Fase Final Manual escreve aí. */
-const APP_VERSION_V355_KNOCKOUT_VAULT = "355.0";
-const KNOCKOUT_VAULT_DOC_ID_V355 = "knockoutManual";
-const KNOCKOUT_VAULT_PENDING_KEY_V355 = `${STORAGE_KEY}_knockout_vault_pending_v355`;
-window.__knockoutVaultStateV355 = window.__knockoutVaultStateV355 || {
-  loaded: false,
-  exists: false,
-  lastAppliedAt: "",
-  lastAppliedReason: "",
-  lastSavedAt: "",
-  lastSavedReason: "",
-  lastSaveSource: "",
-  lastWriteMeta: null,
-  events: []
-};
-
-function noteKnockoutVaultEventV355(message = "", reason = "") {
-  const state = window.__knockoutVaultStateV355 || (window.__knockoutVaultStateV355 = { events: [] });
-  state.events = [{ at: new Date().toISOString(), message: String(message || ""), reason: String(reason || "") }, ...(state.events || [])].slice(0, 20);
-  return state;
-}
-
-function cloneKnockoutForVaultV355(knockout = appSettings?.knockout || {}) {
-  const base = {
-    adminUnlocked: Boolean(knockout?.adminUnlocked),
-    layout: { ...defaultKnockoutLayout(), ...(knockout?.layout || {}) },
-    matches: Array.isArray(knockout?.matches) ? knockout.matches.map(match => ({ ...match })) : []
-  };
-  return base;
-}
-
-function getKnockoutVaultProtectedKnockoutV355() {
-  const state = window.__knockoutVaultStateV355;
-  if (!state?.loaded || !state?.exists || !state?.knockout?.matches?.length) return null;
-  return cloneKnockoutForVaultV355(state.knockout);
-}
-
-function applyKnockoutVaultDocToSettingsV355(data = {}, reason = "") {
-  if (!data || typeof data !== "object") return false;
-  const sourceKnockout = data.knockout && typeof data.knockout === "object"
-    ? data.knockout
-    : { adminUnlocked: data.adminUnlocked, layout: data.layout, matches: data.matches };
-  const matches = Array.isArray(sourceKnockout.matches) ? sourceKnockout.matches : [];
-  if (!matches.length) return false;
-
-  const current = appSettings?.knockout || {};
-  const nextKnockout = {
-    adminUnlocked: sourceKnockout.adminUnlocked ?? current.adminUnlocked ?? false,
-    layout: { ...defaultKnockoutLayout(), ...(current.layout || {}), ...(sourceKnockout.layout || {}) },
-    matches: matches.map(match => ({ ...match }))
-  };
-
-  appSettings.knockout = nextKnockout;
-  try { ensureKnockoutSettings?.(); } catch {}
-
-  const state = window.__knockoutVaultStateV355 || (window.__knockoutVaultStateV355 = { events: [] });
-  state.loaded = true;
-  state.exists = true;
-  state.knockout = cloneKnockoutForVaultV355(appSettings.knockout);
-  state.lastAppliedAt = new Date().toISOString();
-  state.lastAppliedReason = String(reason || "");
-  state.lastWriteMeta = data.lastKnockoutWrite || data.lastWrite || data.meta || null;
-  noteKnockoutVaultEventV355("Cofre aplicado à Fase Final", reason);
-  return true;
-}
-
-function settingsMainPayloadV355(settings = appSettings) {
-  const payload = { ...(settings || {}) };
-  const knockout = { ...(payload.knockout || {}) };
-  delete knockout.matches;
-  payload.knockout = knockout;
-  payload.knockoutManualSource = "settings/knockoutManual";
-  payload.knockoutManualProtectedV355 = true;
-  payload.knockoutManualLastKnownWrite = window.__knockoutVaultStateV355?.lastWriteMeta || null;
-  return payload;
-}
-
-function normalizeReasonTextV355(reason = "") {
-  return String(reason || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function shouldSaveKnockoutVaultForReasonV355(reason = "") {
-  const text = normalizeReasonTextV355(reason);
-  return text.includes("fase final") || text.includes("knockout") || text.includes("16 avos") || text.includes("posicoes fase final") || text.includes("repor posicoes fase final");
-}
-
-function knockoutVaultSourceFromReasonV355(reason = "") {
-  const text = normalizeReasonTextV355(reason);
-  if (text.includes("fixar")) return "manual-lock-button";
-  if (text.includes("posicoes")) return "layout-admin";
-  if (text.includes("syncfirebasefull")) return "full-sync";
-  return "manual-modal";
-}
-
-function markKnockoutVaultPendingV355(reason = "") {
-  try { localStorage.setItem(KNOCKOUT_VAULT_PENDING_KEY_V355, JSON.stringify({ at: new Date().toISOString(), reason: String(reason || "") })); } catch {}
-}
-function hasKnockoutVaultPendingV355() {
-  try { return Boolean(localStorage.getItem(KNOCKOUT_VAULT_PENDING_KEY_V355)); } catch { return false; }
-}
-function clearKnockoutVaultPendingV355() {
-  try { localStorage.removeItem(KNOCKOUT_VAULT_PENDING_KEY_V355); } catch {}
-}
-
-function buildKnockoutVaultPayloadV355(reason = "", options = {}) {
-  try { ensureKnockoutSettings?.(); } catch {}
-  const actor = logActor?.() || { name: "Sistema", email: "" };
-  const nowIso = new Date().toISOString();
-  const source = options.source || knockoutVaultSourceFromReasonV355(reason) || "manual-modal";
-  return {
-    version: APP_VERSION_V355_KNOCKOUT_VAULT,
-    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
-    protected: true,
-    source,
-    updatedAt: nowIso,
-    updatedBy: actor.email || "",
-    updatedByName: actor.name || "",
-    reason: String(reason || ""),
-    knockout: cloneKnockoutForVaultV355(appSettings.knockout || {}),
-    lastKnockoutWrite: {
-      source,
-      reason: String(reason || ""),
-      user: actor.name || "",
-      email: actor.email || "",
-      version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : APP_VERSION_V355_KNOCKOUT_VAULT,
-      at: nowIso
-    }
-  };
-}
-
-async function saveKnockoutVaultToFirebaseV355(reason = "fase final manual v355", options = {}) {
-  markKnockoutVaultPendingV355(reason);
-  saveLocalData(`${reason} cofre-local`);
-
-  if (!db || !firebaseApi || storageMode !== "firebase") {
-    noteKnockoutVaultEventV355("Cofre pendente; Firebase indisponível", reason);
-    return false;
-  }
-
-  const { doc, setDoc } = firebaseApi;
-  const payload = buildKnockoutVaultPayloadV355(reason, options);
-  if (options.status !== false) setFirebaseStatus("loading", "Firebase: a guardar cofre da Fase Final...");
-  await withTimeout(setDoc(doc(db, "settings", KNOCKOUT_VAULT_DOC_ID_V355), payload, { merge: true }), 16000, `cofre Fase Final ${reason}`);
-
-  const state = window.__knockoutVaultStateV355 || (window.__knockoutVaultStateV355 = { events: [] });
-  state.loaded = true;
-  state.exists = true;
-  state.knockout = cloneKnockoutForVaultV355(payload.knockout);
-  state.lastSavedAt = payload.updatedAt;
-  state.lastSavedReason = String(reason || "");
-  state.lastSaveSource = payload.source;
-  state.lastWriteMeta = payload.lastKnockoutWrite;
-  clearKnockoutVaultPendingV355();
-  noteKnockoutVaultEventV355("Cofre guardado na Firebase", reason);
-  if (options.status !== false) setFirebaseStatus("success", "Firebase: cofre da Fase Final guardado");
-  return true;
-}
-
-async function fixarFaseFinalManualV355() {
-  if (!hasPermission?.("editKnockout")) { toast("Sem permissão."); return false; }
-  if (!confirm("Fixar a Fase Final atual como versão manual protegida? A app nova passa a ler este cofre e ignora a árvore antiga em settings/main.")) return false;
-  try {
-    await saveKnockoutVaultToFirebaseV355("fixar fase final manual v355", { source: "manual-lock-button" });
-    try { await saveSettingsFastToFirebase?.("marcar cofre protegido v355"); } catch {}
-    toast("Fase Final fixada no cofre manual.");
-    try { renderKnockout?.(); renderKnockoutAdmin?.(); renderCalendar?.(); } catch {}
-    return true;
-  } catch (error) {
-    console.error("Falhou fixar cofre da Fase Final:", error);
-    setFirebaseStatus("error", `Firebase: cofre pendente (${shortFirebaseError(error)})`);
-    scheduleFullSync?.("fixar fase final manual v355", 600);
-    toast("Não consegui guardar o cofre agora. Ficou pendente para sincronizar.");
-    return false;
-  }
-}
-window.fixarFaseFinalManualV355 = fixarFaseFinalManualV355;
-
-(function installKnockoutVaultUiV355() {
-  if (window.__knockoutVaultUiInstalledV355) return;
-  window.__knockoutVaultUiInstalledV355 = true;
-  const previousRenderAdmin = typeof renderKnockoutAdmin === "function" ? renderKnockoutAdmin : null;
-  if (previousRenderAdmin && !previousRenderAdmin.__vaultV355) {
-    renderKnockoutAdmin = function renderKnockoutAdminVaultV355() {
-      const result = previousRenderAdmin.apply(this, arguments);
-      try {
-        const panel = document.getElementById("knockoutAdminPanel");
-        if (panel && hasPermission?.("editKnockout") && !panel.querySelector("[data-ko-vault-fix-v355]")) {
-          const state = window.__knockoutVaultStateV355 || {};
-          const box = document.createElement("div");
-          box.className = "ko-vault-box-v355";
-          box.innerHTML = `
-            <div>
-              <strong>🔒 Cofre manual da Fase Final</strong>
-              <span>${state.exists ? `Ativo · última gravação: ${escapeHtml(state.lastSavedAt || state.lastAppliedAt || "")}` : "Ainda não fixado. Clica para proteger a árvore atual."}</span>
-            </div>
-            <button class="primary small" type="button" data-ko-vault-fix-v355>Fixar Fase Final Manual</button>
-          `;
-          panel.prepend(box);
-        }
-      } catch (error) { console.warn("UI cofre fase final v355 falhou:", error); }
-      return result;
-    };
-    renderKnockoutAdmin.__vaultV355 = true;
-    window.renderKnockoutAdmin = renderKnockoutAdmin;
-  }
-
-  document.addEventListener("click", event => {
-    const btn = event.target.closest?.("[data-ko-vault-fix-v355]");
-    if (!btn) return;
-    event.preventDefault();
-    event.stopPropagation();
-    fixarFaseFinalManualV355();
-  }, true);
-})();
-
-window.debugCofreFaseFinalV355 = function debugCofreFaseFinalV355() {
-  const state = window.__knockoutVaultStateV355 || {};
-  const matches = Array.isArray(appSettings?.knockout?.matches) ? appSettings.knockout.matches : [];
-  const byRound = {};
-  matches.forEach(match => {
-    const round = String(match.round || "sem_round");
-    if (!byRound[round]) byRound[round] = [];
-    byRound[round].push({
-      id: match.id,
-      index: match.index,
-      homeTeam: match.homeTeam || "",
-      awayTeam: match.awayTeam || "",
-      score: match.homeScore !== null && match.homeScore !== undefined && match.awayScore !== null && match.awayScore !== undefined ? `${match.homeScore}-${match.awayScore}` : "",
-      qualified: match.qualified || match.winnerTeam || match.winner || "",
-      matchDate: match.matchDate || match.date || "",
-      nextMatchId: match.nextMatchId || "",
-      nextSlot: match.nextSlot || ""
-    });
-  });
-  return {
-    version: APP_VERSION_V355_KNOCKOUT_VAULT,
-    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
-    fontePrincipal: "settings/knockoutManual",
-    settingsMainProtegido: true,
-    firebaseLigada: Boolean(db && firebaseApi && storageMode === "firebase"),
-    pendingVault: hasKnockoutVaultPendingV355(),
-    vaultLoaded: Boolean(state.loaded),
-    vaultExists: Boolean(state.exists),
-    lastAppliedAt: state.lastAppliedAt || "",
-    lastAppliedReason: state.lastAppliedReason || "",
-    lastSavedAt: state.lastSavedAt || "",
-    lastSavedReason: state.lastSavedReason || "",
-    lastSaveSource: state.lastSaveSource || "",
-    lastWriteMeta: state.lastWriteMeta || null,
-    events: state.events || [],
-    totalMatches: matches.length,
-    byRound
-  };
-};
-
-setTimeout(() => {
-  try {
-    if (db && firebaseApi && storageMode === "firebase" && !window.__knockoutVaultStateV355?.exists) {
-      loadKnockoutVaultFromFirebaseV355?.({ render: true, reason: "arranque tardio v355" });
-    }
-  } catch {}
-}, 2200);
-
-async function loadKnockoutVaultFromFirebaseV355(options = {}) {
-  if (!db || !firebaseApi || storageMode !== "firebase") return false;
-  const { doc, getDoc } = firebaseApi;
-  if (typeof getDoc !== "function") return false;
-  const snap = await withTimeout(getDoc(doc(db, "settings", KNOCKOUT_VAULT_DOC_ID_V355)), 12000, "ler cofre Fase Final");
-  if (!snap.exists()) {
-    const state = window.__knockoutVaultStateV355 || (window.__knockoutVaultStateV355 = { events: [] });
-    state.loaded = true;
-    state.exists = false;
-    noteKnockoutVaultEventV355("Cofre ainda não existe", options.reason || "load");
-    return false;
-  }
-  const applied = applyKnockoutVaultDocToSettingsV355(snap.data() || {}, options.reason || "loadKnockoutVaultFromFirebaseV355");
-  if (applied) {
-    saveLocalData("cofre fase final carregado v355");
-    if (options.render) { try { renderAll?.(); } catch {} }
-  }
-  return applied;
-}
-window.loadKnockoutVaultFromFirebaseV355 = loadKnockoutVaultFromFirebaseV355;
