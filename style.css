@@ -18021,3 +18021,9 @@ html.app-modern-v314 .tab[aria-selected="true"]{
     align-items:stretch!important;
   }
 }
+
+
+/* v335-esquema-fase-final-oficial */
+.knockout-match-title{
+  letter-spacing:.01em;
+}
