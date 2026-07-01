@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v364";
+const APP_VERSION_LABEL = "v365";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -32076,5 +32076,229 @@ window.debugFirebaseBackupV364 = function debugFirebaseBackupV364() {
     ultimoRestore: window.__lastFirebaseRestoreV364 || null
   };
   console.log("debugFirebaseBackupV364", debug);
+  return debug;
+};
+
+
+/* v365 — Apostas especiais dos jogadores. */
+const SPECIAL_BETS_VERSION_V365 = "v365";
+
+function specialBetsCanEditV365() {
+  try { return hasPermission("editPoints") || hasPermission("admin") || isOwnerProfile?.() || isAdminProfile?.(); }
+  catch { return false; }
+}
+
+function specialBetsPlayersV365() {
+  const names = new Set();
+  try { (appSettings.users || []).forEach(name => { if (String(name || "").trim()) names.add(String(name).trim()); }); } catch {}
+  try { bets.forEach(bet => { if (String(bet?.playerName || "").trim()) names.add(String(bet.playerName).trim()); }); } catch {}
+  try { Object.keys(appSettings.extraPredictions || {}).forEach(name => { if (String(name || "").trim()) names.add(String(name).trim()); }); } catch {}
+  try { Object.keys(appSettings.importedPoints || {}).forEach(name => { if (String(name || "").trim()) names.add(String(name).trim()); }); } catch {}
+  return [...names].sort((a, b) => a.localeCompare(b, "pt-PT"));
+}
+
+function specialBetPredictionForPlayerV365(playerName) {
+  const all = appSettings.extraPredictions || {};
+  if (all[playerName]) return all[playerName] || {};
+  const key = normalizeComparable(playerName);
+  const found = Object.keys(all).find(name => normalizeComparable(name) === key);
+  return found ? (all[found] || {}) : {};
+}
+
+function specialBetsRowsHtmlV365(players) {
+  if (!players.length) {
+    return `<div class="empty-state small">Ainda não há jogadores. Adiciona users ou importa apostas primeiro.</div>`;
+  }
+
+  return `
+    <div class="special-bets-table-wrap-v365">
+      <table class="special-bets-table-v365">
+        <thead>
+          <tr>
+            <th>Jogador</th>
+            <th>MVP</th>
+            <th>Melhor marcador</th>
+            <th>Equipa vencedora final</th>
+            <th>Pontos atuais</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${players.map(playerName => {
+            const prediction = specialBetPredictionForPlayerV365(playerName);
+            const extras = extraPointsForPlayer(playerName);
+            const key = escapeHtml(playerName);
+            return `
+              <tr data-special-bet-row-v365="${key}">
+                <td class="special-bets-player-v365">${key}</td>
+                <td><input data-special-bet-v365="mvp" data-player-name="${key}" type="text" value="${escapeHtml(prediction.mvp || "")}" placeholder="Ex: Vitinha" /></td>
+                <td><input data-special-bet-v365="topScorer" data-player-name="${key}" type="text" value="${escapeHtml(prediction.topScorer || "")}" placeholder="Ex: Ronaldo" /></td>
+                <td><input data-special-bet-v365="champion" data-player-name="${key}" type="text" value="${escapeHtml(prediction.champion || "")}" placeholder="Ex: Portugal" /></td>
+                <td class="special-bets-points-v365">${Number(extras.total) || 0}</td>
+              </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderSpecialBetsEditorV365() {
+  const box = document.getElementById("specialBetsEditorV365");
+  if (!box) return;
+  const visible = specialBetsCanEditV365();
+  const card = document.getElementById("specialBetsAdminCardV365");
+  if (card) card.classList.toggle("hidden", !visible);
+  if (!visible) return;
+
+  const players = specialBetsPlayersV365();
+  const results = appSettings.extraResults || {};
+  box.innerHTML = `
+    <div class="special-bets-current-results-v365">
+      <span><strong>Resultados finais:</strong></span>
+      <span>MVP: ${escapeHtml(results.mvp || "-")}</span>
+      <span>Marcador: ${escapeHtml(results.topScorer || "-")}</span>
+      <span>Campeão: ${escapeHtml(results.champion || "-")}</span>
+    </div>
+    ${specialBetsRowsHtmlV365(players)}
+  `;
+}
+
+function collectSpecialBetsFromEditorV365() {
+  const predictions = { ...(appSettings.extraPredictions || {}) };
+  const rows = document.querySelectorAll("#specialBetsEditorV365 [data-special-bet-row-v365]");
+  rows.forEach(row => {
+    const playerName = row.getAttribute("data-special-bet-row-v365") || row.querySelector("[data-player-name]")?.getAttribute("data-player-name") || "";
+    if (!playerName.trim()) return;
+    const current = { ...(specialBetPredictionForPlayerV365(playerName) || {}) };
+    row.querySelectorAll("[data-special-bet-v365]").forEach(input => {
+      current[input.getAttribute("data-special-bet-v365")] = input.value.trim();
+    });
+    const hasAny = Boolean(current.mvp || current.topScorer || current.champion);
+    if (hasAny) predictions[playerName] = current;
+    else delete predictions[playerName];
+  });
+  return predictions;
+}
+
+async function saveSpecialBetsV365() {
+  if (!specialBetsCanEditV365()) return toast("Sem permissão para guardar apostas especiais.");
+  const btn = document.getElementById("saveSpecialBetsBtnV365");
+  const old = btn?.textContent || "Guardar apostas especiais";
+  if (btn) { btn.disabled = true; btn.textContent = "A guardar..."; }
+  try {
+    appSettings.extraPredictions = collectSpecialBetsFromEditorV365();
+    addSystemLog("Apostas especiais guardadas", `${Object.keys(appSettings.extraPredictions || {}).length} jogadores com apostas especiais.`, { extraPredictions: appSettings.extraPredictions });
+    await persistSettings();
+    renderAll();
+    toast("Apostas especiais guardadas.");
+  } catch (error) {
+    console.error("Erro ao guardar apostas especiais v365", error);
+    toast(`Erro ao guardar apostas especiais: ${error?.message || error}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = old; }
+  }
+}
+
+function downloadSpecialBetsJsonV365() {
+  if (!specialBetsCanEditV365()) return toast("Sem permissão para exportar apostas especiais.");
+  const payload = {
+    type: "mundial-pontos-2026-special-bets",
+    version: SPECIAL_BETS_VERSION_V365,
+    exportedAt: new Date().toISOString(),
+    appVersion: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : SPECIAL_BETS_VERSION_V365,
+    extraPredictions: appSettings.extraPredictions || {},
+    extraResults: appSettings.extraResults || {},
+    points: appSettings.points || {}
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Apostas_Especiais_Mundial_2026_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast("Apostas especiais exportadas.");
+}
+
+function openImportSpecialBetsV365() {
+  if (!specialBetsCanEditV365()) return toast("Sem permissão para importar apostas especiais.");
+  document.getElementById("importSpecialBetsInputV365")?.click();
+}
+
+async function handleImportSpecialBetsV365(file) {
+  if (!file) return;
+  if (!specialBetsCanEditV365()) return toast("Sem permissão para importar apostas especiais.");
+  try {
+    const payload = JSON.parse(await file.text());
+    const data = payload.extraPredictions || payload.specialBets || payload;
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Ficheiro inválido.");
+    const count = Object.keys(data).length;
+    const ok = confirm(`Importar apostas especiais de ${count} jogadores? Isto substitui/atualiza as apostas especiais atuais.`);
+    if (!ok) return;
+    appSettings.extraPredictions = { ...(appSettings.extraPredictions || {}), ...data };
+    addSystemLog("Apostas especiais importadas", `${count} jogadores importados de JSON.`, { count });
+    await persistSettings();
+    renderAll();
+    toast("Apostas especiais importadas.");
+  } catch (error) {
+    console.error("Erro ao importar apostas especiais v365", error);
+    toast(`Erro ao importar especiais: ${error?.message || error}`);
+  } finally {
+    const input = document.getElementById("importSpecialBetsInputV365");
+    if (input) input.value = "";
+  }
+}
+
+function bindSpecialBetsV365() {
+  const saveBtn = document.getElementById("saveSpecialBetsBtnV365");
+  const exportBtn = document.getElementById("exportSpecialBetsBtnV365");
+  const importBtn = document.getElementById("importSpecialBetsBtnV365");
+  const importInput = document.getElementById("importSpecialBetsInputV365");
+  if (saveBtn && !saveBtn.__specialBetsV365) { saveBtn.__specialBetsV365 = true; saveBtn.addEventListener("click", saveSpecialBetsV365); }
+  if (exportBtn && !exportBtn.__specialBetsV365) { exportBtn.__specialBetsV365 = true; exportBtn.addEventListener("click", downloadSpecialBetsJsonV365); }
+  if (importBtn && !importBtn.__specialBetsV365) { importBtn.__specialBetsV365 = true; importBtn.addEventListener("click", openImportSpecialBetsV365); }
+  if (importInput && !importInput.__specialBetsV365) { importInput.__specialBetsV365 = true; importInput.addEventListener("change", event => handleImportSpecialBetsV365(event.target.files?.[0])); }
+}
+
+const renderAdminStateBeforeSpecialBetsV365 = typeof renderAdminState === "function" ? renderAdminState : null;
+if (renderAdminStateBeforeSpecialBetsV365 && !renderAdminStateBeforeSpecialBetsV365.__specialBetsV365) {
+  renderAdminState = function renderAdminStateSpecialBetsV365() {
+    const result = renderAdminStateBeforeSpecialBetsV365.apply(this, arguments);
+    try { renderSpecialBetsEditorV365(); bindSpecialBetsV365(); } catch (error) { console.warn("Render apostas especiais v365 falhou:", error); }
+    return result;
+  };
+  renderAdminState.__specialBetsV365 = true;
+}
+
+const renderAllBeforeSpecialBetsV365 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeSpecialBetsV365 && !renderAllBeforeSpecialBetsV365.__specialBetsV365) {
+  renderAll = function renderAllSpecialBetsV365() {
+    const result = renderAllBeforeSpecialBetsV365.apply(this, arguments);
+    setTimeout(() => { try { renderSpecialBetsEditorV365(); bindSpecialBetsV365(); } catch {} }, 0);
+    return result;
+  };
+  renderAll.__specialBetsV365 = true;
+}
+
+document.addEventListener("DOMContentLoaded", () => { bindSpecialBetsV365(); renderSpecialBetsEditorV365(); });
+setTimeout(() => { bindSpecialBetsV365(); renderSpecialBetsEditorV365(); }, 800);
+
+window.saveSpecialBetsV365 = saveSpecialBetsV365;
+window.debugApostasEspeciaisV365 = function debugApostasEspeciaisV365() {
+  const players = specialBetsPlayersV365();
+  const rows = players.map(playerName => ({
+    playerName,
+    prediction: specialBetPredictionForPlayerV365(playerName),
+    points: extraPointsForPlayer(playerName)
+  }));
+  const debug = {
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : SPECIAL_BETS_VERSION_V365,
+    jogadores: players.length,
+    resultadosEspeciais: appSettings.extraResults || {},
+    pontosEspeciais: appSettings.points || {},
+    apostasEspeciais: rows
+  };
+  console.log("debugApostasEspeciaisV365", debug);
   return debug;
 };

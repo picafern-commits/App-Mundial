@@ -18445,3 +18445,76 @@ select option:disabled{
   background: rgba(96, 165, 250, .12);
   color: #bfdbfe;
 }
+
+/* v365 — Apostas especiais dos jogadores */
+.special-bets-help-v365{
+  margin:10px 0 14px;
+  color:var(--muted,#aab7cc);
+  font-size:.92rem;
+}
+.special-bets-current-results-v365{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:10px 0 12px;
+}
+.special-bets-current-results-v365 span{
+  padding:8px 10px;
+  border:1px solid var(--line,rgba(255,255,255,.12));
+  border-radius:12px;
+  background:rgba(255,255,255,.045);
+  color:var(--text,#f7fbff);
+}
+.special-bets-table-wrap-v365{
+  overflow:auto;
+  max-height:560px;
+  border:1px solid var(--line,rgba(255,255,255,.12));
+  border-radius:16px;
+  background:rgba(255,255,255,.025);
+}
+.special-bets-table-v365{
+  width:100%;
+  min-width:820px;
+  border-collapse:separate;
+  border-spacing:0;
+}
+.special-bets-table-v365 th,
+.special-bets-table-v365 td{
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:left;
+  vertical-align:middle;
+}
+.special-bets-table-v365 th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:rgba(15,24,43,.98);
+  color:var(--muted,#aab7cc);
+  font-size:.78rem;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.special-bets-table-v365 tr:last-child td{ border-bottom:0; }
+.special-bets-table-v365 input{
+  width:100%;
+  min-width:150px;
+}
+.special-bets-player-v365{
+  font-weight:900;
+  white-space:nowrap;
+  color:var(--text,#f7fbff);
+}
+.special-bets-points-v365{
+  font-weight:950;
+  color:var(--yellow,#ffd84d);
+  text-align:center;
+}
+.special-bets-actions-v365{
+  gap:8px;
+  flex-wrap:wrap;
+}
+@media (max-width: 720px){
+  .special-bets-table-wrap-v365{ max-height:70vh; }
+  .special-bets-table-v365{ min-width:760px; }
+}
