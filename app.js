@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v365";
+const APP_VERSION_LABEL = "v366";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -6721,15 +6721,116 @@ async function addUser() {
   toast("User adicionado.");
 }
 
+function playerNameKeyV366(value) {
+  return normalizeComparable(value || "");
+}
+
+function playerMatchesNameV366(value, targetName) {
+  const valueText = String(value || "").trim();
+  const targetText = String(targetName || "").trim();
+  if (!valueText || !targetText) return false;
+  return playerNameKeyV366(valueText) === playerNameKeyV366(targetText) ||
+    playerIdFromName(valueText) === playerIdFromName(targetText);
+}
+
+function betBelongsToPlayerNameV366(bet, targetName) {
+  if (!bet || !targetName) return false;
+  return playerMatchesNameV366(bet.playerName, targetName) ||
+    playerMatchesNameV366(bet.playerId, targetName);
+}
+
+function removePlayerKeyedEntriesV366(store, targetName) {
+  const removed = [];
+  if (!store || typeof store !== "object") return removed;
+  Object.keys(store).forEach(key => {
+    if (playerMatchesNameV366(key, targetName)) {
+      removed.push(key);
+      delete store[key];
+    }
+  });
+  return removed;
+}
+
+async function saveRemovedUserToFirebaseV366(name, betIds, reason = "remover user do jogo v366") {
+  saveLocalData(`${reason} local`);
+  if (!db || !firebaseApi || storageMode !== "firebase") {
+    scheduleFullSync(reason, 500);
+    return false;
+  }
+
+  const { doc, writeBatch } = firebaseApi;
+  const batch = writeBatch(db);
+  betIds.forEach(id => batch.delete(doc(db, "bets", id)));
+  batch.set(doc(db, "settings", "main"), (typeof settingsMainPayloadV355 === "function" ? settingsMainPayloadV355(appSettings) : appSettings), { merge: true });
+  await withTimeout(batch.commit(), 30000, reason);
+  clearPendingBets(betIds);
+  clearPendingDeleteBets(betIds);
+  clearSettingsPending();
+  saveLocalData(`${reason} firebase-ok`);
+  return true;
+}
+
 async function removeUser(name) {
   if (!hasPermission("editUsers")) { toast("Sem permissão."); return; }
 
-  if (!confirm(`Remover ${name} da lista de users? As apostas importadas não são apagadas.`)) return;
-  appSettings.users = (appSettings.users || []).filter(user => user !== name);
-  addSystemLog("User removido", `${name} foi removido da lista de users.`, { name });
-  await persistSettings();
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return;
+
+  const playerBets = bets.filter(bet => betBelongsToPlayerNameV366(bet, cleanName));
+  const hasManualUser = (appSettings.users || []).some(user => playerMatchesNameV366(user, cleanName));
+  const hasExtras = Object.keys(appSettings.extraPredictions || {}).some(key => playerMatchesNameV366(key, cleanName));
+  const hasImportedPoints = Object.keys(appSettings.importedPoints || {}).some(key => playerMatchesNameV366(key, cleanName));
+
+  const warning = [
+    `Remover ${cleanName} do jogo?`,
+    "",
+    `Isto vai remover da lista de users e apagar ${playerBets.length} aposta(s) desse jogador.`,
+    hasExtras ? "Também remove as apostas especiais desse jogador." : "",
+    hasImportedPoints ? "Também remove pontos importados desse jogador." : "",
+    "",
+    "Não apaga a conta/login da Firebase Auth."
+  ].filter(Boolean).join("\n");
+
+  if (!hasManualUser && !playerBets.length && !hasExtras && !hasImportedPoints) {
+    toast("Este user já não tem dados no jogo.");
+    renderAll();
+    return;
+  }
+
+  if (!confirm(warning)) return;
+
+  const removedBetIds = playerBets.map(bet => bet.id).filter(Boolean);
+  appSettings.users = (appSettings.users || []).filter(user => !playerMatchesNameV366(user, cleanName));
+  removePlayerKeyedEntriesV366(appSettings.extraPredictions || {}, cleanName);
+  removePlayerKeyedEntriesV366(appSettings.importedPoints || {}, cleanName);
+  bets = bets.filter(bet => !betBelongsToPlayerNameV366(bet, cleanName));
+
+  clearPendingBets(removedBetIds);
+  markBetsForDelete(removedBetIds);
+  markSettingsPending();
+  addSystemLog("User removido do jogo", `${cleanName} foi removido com ${removedBetIds.length} aposta(s) apagada(s).`, { name: cleanName, removedBets: removedBetIds.length });
+
+  saveLocalData("remover user v366 local");
   renderAll();
-  toast("User removido da lista.");
+  toast(`A remover ${cleanName}...`);
+
+  try {
+    const saved = await saveRemovedUserToFirebaseV366(cleanName, removedBetIds);
+    if (saved) {
+      setFirebaseStatus("success", `Firebase: ${cleanName} removido do jogo`);
+      toast(`${cleanName} removido do jogo.`);
+    } else {
+      setFirebaseStatus("error", "Firebase: offline - remoção guardada localmente");
+      toast(`${cleanName} removido localmente. Vai sincronizar quando a Firebase voltar.`);
+    }
+  } catch (error) {
+    console.error("Falhou remover user na Firebase:", error);
+    markBetsForDelete(removedBetIds);
+    markSettingsPending();
+    scheduleFullSync("remover user v366", 1000);
+    setFirebaseStatus("error", `Firebase: erro ao remover user (${shortFirebaseError(error)})`);
+    toast("User removido localmente. Erro Firebase: vou tentar sincronizar.");
+  }
 }
 
 function renderUsers() {
@@ -6748,10 +6849,31 @@ function renderUsers() {
         <strong>${escapeHtml(name)}</strong>
         <small>${stats.points} pts · ${stats.totalBets} apostas${isManual ? " · user manual" : " · via Excel"}</small>
       </div>
-      <button class="secondary small" type="button" onclick="window.removeUserFromUI('${escapeHtml(name).replace(/'/g, "\\'")}')">Remover</button>
+      <button class="secondary small danger-user-remove-v366" type="button" title="Remove o user, apostas normais, especiais e pontos importados" onclick="window.removeUserFromUI('${escapeHtml(name).replace(/'/g, "\\'")}')">Remover</button>
     </div>`;
   }).join("");
 }
+
+window.removeUserFromUI = removeUser;
+window.debugRemoverUserV366 = function debugRemoverUserV366(name = "") {
+  const target = String(name || "").trim();
+  const players = allPlayers();
+  const rows = (target ? [target] : players).map(playerName => ({
+    playerName,
+    inUsers: (appSettings.users || []).filter(user => playerMatchesNameV366(user, playerName)),
+    bets: bets.filter(bet => betBelongsToPlayerNameV366(bet, playerName)).map(bet => ({ id: bet.id, gameId: bet.gameId, matchId: bet.matchId, knockoutMatchId: bet.knockoutMatchId, aposta: `${bet.homeGuess}-${bet.awayGuess}`, qualifiedTeam: bet.qualifiedTeam || bet.qualified || "" })),
+    extraPredictionKeys: Object.keys(appSettings.extraPredictions || {}).filter(key => playerMatchesNameV366(key, playerName)),
+    importedPointKeys: Object.keys(appSettings.importedPoints || {}).filter(key => playerMatchesNameV366(key, playerName))
+  }));
+  console.table(rows.map(row => ({
+    jogador: row.playerName,
+    users: row.inUsers.length,
+    apostas: row.bets.length,
+    especiais: row.extraPredictionKeys.length,
+    pontosImportados: row.importedPointKeys.length
+  })));
+  return { version: APP_VERSION_LABEL, pendingDeleteBets: pendingDeleteBetIds(), rows };
+};
 
 
 
