@@ -1,14 +1,14 @@
-const CACHE_NAME = "mundial-pontos-2026-v362-backup-apostas-excel";
+const CACHE_NAME = "mundial-pontos-2026-v364-backup-firebase-recuperacao";
 const APP_VERSION_SW_V298_USER_NOTIFICATIONS = "298.0";
 let userNotificationsEnabledSwV298 = true;
 const APP_VERSION_SW_V311_CLEAN_AUDIT = "311.0";
 
 const APP_SHELL = [
   "./",
-  "./index.html?v=362",
-  "./style.css?v=362",
-  "./app.js?v=362",
-  "./config.js?v=362",
+  "./index.html?v=364",
+  "./style.css?v=364",
+  "./app.js?v=364",
+  "./config.js?v=364",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -165,7 +165,7 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then(cached => cached || caches.match("./index.html?v=362")))
+        .catch(() => caches.match(request).then(cached => cached || caches.match("./index.html?v=364")))
     );
     return;
   }

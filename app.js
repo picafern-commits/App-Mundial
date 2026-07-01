@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v362";
+const APP_VERSION_LABEL = "v364";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -6882,7 +6882,8 @@ function exportPontosExcel() {
   toast("Excel Pontos exportado.");
 }
 
-function safeBackupCellV362(value) {
+
+function safeBackupCellV363(value) {
   if (value === undefined || value === null) return "";
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "object") {
@@ -6891,19 +6892,121 @@ function safeBackupCellV362(value) {
   return value;
 }
 
-function betQualifiedForBackupV362(bet) {
-  return bet?.qualifiedTeam || bet?.winner || bet?.winnerTeam || bet?.predictedWinner || bet?.teamWinner || "";
+function betQualifiedForBackupV363(bet) {
+  return bet?.qualifiedTeam || bet?.qualified || bet?.winner || bet?.winnerTeam || bet?.predictedWinner || bet?.teamWinner || bet?.champion || "";
 }
 
-function gameForBetBackupV362(bet) {
-  const ids = [bet?.gameId, bet?.matchId, bet?.knockoutMatchId, bet?.match_id, bet?.game_id].filter(Boolean).map(String);
-  return games.find(game => ids.includes(String(game.id))) || null;
-}
-
-function backupFileDateV362() {
+function backupFileDateV363() {
   const now = new Date();
   const pad = n => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+}
+
+function backupLocalBetsV363() {
+  try {
+    const local = typeof loadLocalData === "function" ? loadLocalData() : null;
+    return Array.isArray(local?.bets) ? local.bets : [];
+  } catch {
+    return [];
+  }
+}
+
+function collectEveryBetForBackupV363() {
+  const rows = [];
+  const seen = new Set();
+  const add = (bet, source) => {
+    if (!bet) return;
+    const id = bet.id ? String(bet.id) : "";
+    const fingerprint = id ? `id:${id}` : `raw:${JSON.stringify(bet)}`;
+    if (seen.has(fingerprint)) return;
+    seen.add(fingerprint);
+    rows.push({ ...bet, __backupSource: source });
+  };
+  (Array.isArray(bets) ? bets : []).forEach(bet => add(bet, "memória/app"));
+  backupLocalBetsV363().forEach(bet => add(bet, "localStorage"));
+  return rows;
+}
+
+function allBackupGamesV363() {
+  const byId = new Map();
+  (Array.isArray(games) ? games : []).forEach(game => {
+    if (!game?.id) return;
+    byId.set(String(game.id), { ...game, __backupType: "calendario" });
+  });
+  (appSettings?.knockout?.matches || []).forEach(match => {
+    if (!match?.id || byId.has(String(match.id))) return;
+    byId.set(String(match.id), {
+      id: match.id,
+      group: match.round || match.phase || "Fase Final",
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
+      matchDate: match.matchDate || match.date || "",
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      status: match.status || "",
+      __backupType: "fase-final"
+    });
+  });
+  return [...byId.values()];
+}
+
+function gameForBetBackupV363(bet, gamesById) {
+  const ids = [
+    bet?.gameId, bet?.matchId, bet?.knockoutMatchId,
+    bet?.match_id, bet?.game_id, bet?.fixtureId, bet?.apiFixtureId
+  ].filter(Boolean).map(String);
+  for (const id of ids) {
+    if (gamesById.has(id)) return gamesById.get(id);
+    try {
+      const ko = typeof knockoutMatchById === "function" ? knockoutMatchById(id) : null;
+      if (ko) return {
+        id: ko.id,
+        group: ko.round || ko.phase || "Fase Final",
+        homeTeam: ko.homeTeam || "",
+        awayTeam: ko.awayTeam || "",
+        matchDate: ko.matchDate || ko.date || "",
+        homeScore: ko.homeScore,
+        awayScore: ko.awayScore,
+        status: ko.status || "",
+        __backupType: "fase-final"
+      };
+    } catch {}
+  }
+  return null;
+}
+
+function backupGameLabelV363(game) {
+  if (!game) return "Jogo não encontrado";
+  return `${game.homeTeam || ""} - ${game.awayTeam || ""}`.trim();
+}
+
+function backupGameDateV363(game) {
+  if (!game?.matchDate) return "";
+  try { return `${dateHeader(game.matchDate)} ${timePortugal(game.matchDate)}`.trim(); } catch { return String(game.matchDate || ""); }
+}
+
+function backupResultV363(game) {
+  if (!game) return "";
+  const hasScore = game.homeScore !== null && game.homeScore !== undefined && game.homeScore !== "" &&
+    game.awayScore !== null && game.awayScore !== undefined && game.awayScore !== "";
+  return hasScore ? `${game.homeScore}-${game.awayScore}` : "";
+}
+
+function backupPointsForBetV363(bet, game) {
+  if (!bet || !game) return "";
+  try {
+    if (game.__backupType === "fase-final" && typeof pointsForKnockoutBet === "function") {
+      const ko = typeof knockoutMatchById === "function" ? knockoutMatchById(game.id) : null;
+      return pointsForKnockoutBet(bet, ko || game);
+    }
+    return typeof pointsForBet === "function" ? pointsForBet(bet, game) : "";
+  } catch {
+    return "";
+  }
+}
+
+function backupPlayerKeyV363(bet) {
+  return String(bet?.playerId || bet?.playerName || "").trim().toLowerCase();
 }
 
 function exportApostasBackupExcelV362() {
@@ -6918,103 +7021,212 @@ function exportApostasBackupExcelV362() {
 
   const exportedAt = new Date().toISOString();
   const wb = XLSX.utils.book_new();
-  const normalizedBets = normalizeBets(bets || []);
+  const allBetRows = collectEveryBetForBackupV363();
+  const backupGames = allBackupGamesV363();
+  const gamesById = new Map(backupGames.map(game => [String(game.id), game]));
   const players = allPlayers();
-  const gamesById = new Map((games || []).map(game => [String(game.id), game]));
+  const uniquePlayerNames = [...new Set([
+    ...players,
+    ...allBetRows.map(b => b.playerName || b.playerId).filter(Boolean)
+  ])].sort((a, b) => String(a).localeCompare(String(b), "pt"));
 
   const resumoRows = [
     ["Backup Apostas Mundial 2026"],
     ["Versão app", typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : ""],
+    ["Backup", "v363 — completo por aposta/jogador"],
     ["Exportado em", new Date(exportedAt).toLocaleString("pt-PT")],
-    ["Total apostas", normalizedBets.length],
-    ["Jogadores", players.length],
-    ["Jogos", (games || []).length],
+    ["Total registos de apostas", allBetRows.length],
+    ["Jogadores", uniquePlayerNames.length],
+    ["Jogos", backupGames.length],
     ["Firebase", storageMode === "firebase" ? "Ligada" : "Local/Indisponível"],
     [],
     ["Notas"],
-    ["Este ficheiro é um backup das apostas. Guarda IDs internos para recuperação futura."],
-    ["Não altera dados da app; apenas descarrega uma cópia em Excel."]
+    ["A folha 'Apostas Detalhadas' tem 1 linha por cada aposta real guardada."],
+    ["A folha 'Matriz Jogador x Jogo' mostra também jogos sem aposta, para conferência."],
+    ["A folha 'Duplicadas' mostra várias apostas do mesmo jogador no mesmo jogo."],
+    ["A folha 'RAW' guarda o JSON completo de cada aposta para recuperação futura."]
   ];
   const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
-  wsResumo["!cols"] = [{ wch: 28 }, { wch: 42 }];
+  wsResumo["!cols"] = [{ wch: 34 }, { wch: 56 }];
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
 
-  const apostaRows = [[
-    "Exportado em", "ID Aposta", "Game ID", "Match ID", "Knockout Match ID",
-    "Jogador", "Player ID", "Grupo/Fase", "Jogo", "Data Portugal",
-    "Equipa Casa", "Equipa Fora", "Aposta Casa", "Aposta Fora", "Qualificada",
-    "Resultado Real", "Pontos Atuais", "Fonte", "Criado em", "Atualizado em", "Pendente Sync"
+  const detailedRows = [[
+    "Nº", "Exportado em", "Origem Backup", "ID Aposta", "Game ID", "Match ID", "Knockout Match ID",
+    "Jogador", "Player ID", "Grupo/Fase", "Tipo Jogo", "Jogo", "Data Portugal",
+    "Equipa Casa", "Equipa Fora", "Aposta Casa", "Aposta Fora", "Aposta", "Qualificada",
+    "Resultado Real", "Pontos Atuais", "Fonte Aposta", "Criado em", "Atualizado em", "Pendente Sync", "JSON"
   ]];
 
-  normalizedBets
+  allBetRows
     .slice()
-    .sort((a, b) => String(a.playerName || "").localeCompare(String(b.playerName || ""), "pt") || String(a.gameId || "").localeCompare(String(b.gameId || "")))
-    .forEach(bet => {
-      const game = gameForBetBackupV362(bet);
-      const gameLabel = game ? `${game.homeTeam || ""} - ${game.awayTeam || ""}` : "Jogo não encontrado";
-      const result = game && hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "";
-      apostaRows.push([
+    .sort((a, b) => String(a.playerName || a.playerId || "").localeCompare(String(b.playerName || b.playerId || ""), "pt") || String(a.gameId || a.matchId || a.knockoutMatchId || "").localeCompare(String(b.gameId || b.matchId || b.knockoutMatchId || "")))
+    .forEach((bet, index) => {
+      const game = gameForBetBackupV363(bet, gamesById);
+      const homeGuess = Number.isFinite(Number(bet.homeGuess)) ? Number(bet.homeGuess) : "";
+      const awayGuess = Number.isFinite(Number(bet.awayGuess)) ? Number(bet.awayGuess) : "";
+      const betLabel = homeGuess !== "" && awayGuess !== "" ? `${homeGuess}-${awayGuess}` : "";
+      detailedRows.push([
+        index + 1,
         exportedAt,
-        safeBackupCellV362(bet.id),
-        safeBackupCellV362(bet.gameId),
-        safeBackupCellV362(bet.matchId),
-        safeBackupCellV362(bet.knockoutMatchId),
-        safeBackupCellV362(bet.playerName),
-        safeBackupCellV362(bet.playerId),
-        game ? safeBackupCellV362(game.group) : "",
-        gameLabel,
-        game ? `${dateHeader(game.matchDate)} ${timePortugal(game.matchDate)}` : "",
-        game ? safeBackupCellV362(game.homeTeam) : "",
-        game ? safeBackupCellV362(game.awayTeam) : "",
-        Number.isFinite(Number(bet.homeGuess)) ? Number(bet.homeGuess) : "",
-        Number.isFinite(Number(bet.awayGuess)) ? Number(bet.awayGuess) : "",
-        safeBackupCellV362(betQualifiedForBackupV362(bet)),
-        result,
-        game ? pointsForBet(bet, game) : "",
-        safeBackupCellV362(bet.source),
-        safeBackupCellV362(bet.createdAt),
-        safeBackupCellV362(bet.updatedAt),
-        (() => { try { return pendingBetIds?.().includes(bet.id) ? "Sim" : ""; } catch { return ""; } })()
+        safeBackupCellV363(bet.__backupSource),
+        safeBackupCellV363(bet.id),
+        safeBackupCellV363(bet.gameId),
+        safeBackupCellV363(bet.matchId),
+        safeBackupCellV363(bet.knockoutMatchId),
+        safeBackupCellV363(bet.playerName),
+        safeBackupCellV363(bet.playerId),
+        game ? safeBackupCellV363(game.group) : "",
+        game ? safeBackupCellV363(game.__backupType) : "",
+        backupGameLabelV363(game),
+        backupGameDateV363(game),
+        game ? safeBackupCellV363(game.homeTeam) : "",
+        game ? safeBackupCellV363(game.awayTeam) : "",
+        homeGuess,
+        awayGuess,
+        betLabel,
+        safeBackupCellV363(betQualifiedForBackupV363(bet)),
+        backupResultV363(game),
+        backupPointsForBetV363(bet, game),
+        safeBackupCellV363(bet.source),
+        safeBackupCellV363(bet.createdAt),
+        safeBackupCellV363(bet.updatedAt),
+        (() => { try { return pendingBetIds?.().includes(bet.id) ? "Sim" : ""; } catch { return ""; } })(),
+        JSON.stringify(bet)
       ]);
     });
 
-  const wsApostas = XLSX.utils.aoa_to_sheet(apostaRows);
-  wsApostas["!cols"] = [
-    { wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
-    { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 34 }, { wch: 18 },
-    { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
-    { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 14 }
+  const wsDetalhadas = XLSX.utils.aoa_to_sheet(detailedRows);
+  wsDetalhadas["!cols"] = [
+    { wch: 6 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
+    { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 36 }, { wch: 18 },
+    { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+    { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 100 }
   ];
-  wsApostas["!freeze"] = { xSplit: 0, ySplit: 1 };
-  XLSX.utils.book_append_sheet(wb, wsApostas, "Apostas");
+  wsDetalhadas["!freeze"] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsDetalhadas, "Apostas Detalhadas");
 
-  const porJogoRows = [["Game ID", "Grupo/Fase", "Jogo", "Data Portugal", "Resultado", "Total apostas", "Jogadores com aposta"]];
-  (games || []).forEach(game => {
-    const gameBets = normalizedBets.filter(bet => [bet.gameId, bet.matchId, bet.knockoutMatchId].map(v => String(v || "")).includes(String(game.id)));
+  const matrixRows = [[
+    "Jogador", "Player ID", "Game ID", "Match ID", "Knockout Match ID", "Grupo/Fase", "Tipo Jogo", "Jogo",
+    "Data Portugal", "Tem Aposta", "ID Aposta", "Aposta Casa", "Aposta Fora", "Aposta", "Qualificada", "Resultado Real", "Pontos"
+  ]];
+  const betGroups = new Map();
+  allBetRows.forEach(bet => {
+    const gameId = String(bet.gameId || bet.matchId || bet.knockoutMatchId || "");
+    const playerKey = backupPlayerKeyV363(bet);
+    if (!gameId || !playerKey) return;
+    const key = `${playerKey}__${gameId}`;
+    if (!betGroups.has(key)) betGroups.set(key, []);
+    betGroups.get(key).push(bet);
+  });
+  uniquePlayerNames.forEach(playerName => {
+    const playerId = playerIdFromName?.(playerName) || "";
+    const playerKey = String(playerId || playerName).toLowerCase();
+    backupGames.forEach(game => {
+      const key = `${playerKey}__${String(game.id)}`;
+      const group = betGroups.get(key) || [];
+      if (!group.length) {
+        matrixRows.push([playerName, playerId, game.id, "", "", game.group || "", game.__backupType || "", backupGameLabelV363(game), backupGameDateV363(game), "Não", "", "", "", "", "", backupResultV363(game), ""]);
+        return;
+      }
+      group.forEach(bet => {
+        const homeGuess = Number.isFinite(Number(bet.homeGuess)) ? Number(bet.homeGuess) : "";
+        const awayGuess = Number.isFinite(Number(bet.awayGuess)) ? Number(bet.awayGuess) : "";
+        matrixRows.push([
+          playerName,
+          bet.playerId || playerId,
+          game.id,
+          bet.matchId || "",
+          bet.knockoutMatchId || "",
+          game.group || "",
+          game.__backupType || "",
+          backupGameLabelV363(game),
+          backupGameDateV363(game),
+          "Sim",
+          bet.id || "",
+          homeGuess,
+          awayGuess,
+          homeGuess !== "" && awayGuess !== "" ? `${homeGuess}-${awayGuess}` : "",
+          betQualifiedForBackupV363(bet),
+          backupResultV363(game),
+          backupPointsForBetV363(bet, game)
+        ]);
+      });
+    });
+  });
+  const wsMatrix = XLSX.utils.aoa_to_sheet(matrixRows);
+  wsMatrix["!cols"] = [
+    { wch: 24 }, { wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 36 }, { wch: 18 },
+    { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 10 }
+  ];
+  wsMatrix["!freeze"] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsMatrix, "Matriz Jogador x Jogo");
+
+  const porJogadorRows = [["Jogador", "Player ID", "Total Apostas", "Jogos Diferentes", "Duplicadas", "Pontos atuais"]];
+  uniquePlayerNames.forEach(playerName => {
+    const playerKey = String(playerIdFromName?.(playerName) || playerName).toLowerCase();
+    const playerBets = allBetRows.filter(b => backupPlayerKeyV363(b) === playerKey || String(b.playerName || "") === String(playerName));
+    const differentGames = new Set(playerBets.map(b => String(b.gameId || b.matchId || b.knockoutMatchId || "")).filter(Boolean));
+    const duplicateCount = playerBets.length - differentGames.size;
+    let points = "";
+    try { points = typeof playerStats === "function" ? playerStats(playerName).points : ""; } catch {}
+    porJogadorRows.push([playerName, playerIdFromName?.(playerName) || "", playerBets.length, differentGames.size, Math.max(0, duplicateCount), points]);
+  });
+  const wsPorJogador = XLSX.utils.aoa_to_sheet(porJogadorRows);
+  wsPorJogador["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsPorJogador, "Por Jogador");
+
+  const porJogoRows = [["Game ID", "Grupo/Fase", "Tipo Jogo", "Jogo", "Data Portugal", "Resultado", "Total apostas", "Jogadores com aposta"]];
+  backupGames.forEach(game => {
+    const gameBets = allBetRows.filter(bet => [bet.gameId, bet.matchId, bet.knockoutMatchId].map(v => String(v || "")).includes(String(game.id)));
     if (!gameBets.length) return;
     porJogoRows.push([
       game.id,
       game.group || "",
-      `${game.homeTeam || ""} - ${game.awayTeam || ""}`,
-      `${dateHeader(game.matchDate)} ${timePortugal(game.matchDate)}`,
-      hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "",
+      game.__backupType || "",
+      backupGameLabelV363(game),
+      backupGameDateV363(game),
+      backupResultV363(game),
       gameBets.length,
-      gameBets.map(bet => bet.playerName).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt")).join(", ")
+      gameBets.map(bet => bet.playerName || bet.playerId).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "pt")).join(", ")
     ]);
   });
   const wsPorJogo = XLSX.utils.aoa_to_sheet(porJogoRows);
-  wsPorJogo["!cols"] = [{ wch: 18 }, { wch: 16 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 80 }];
+  wsPorJogo["!cols"] = [{ wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 36 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 80 }];
   XLSX.utils.book_append_sheet(wb, wsPorJogo, "Por Jogo");
 
-  const rawRows = [["ID Aposta", "JSON completo"]];
-  normalizedBets.forEach(bet => rawRows.push([safeBackupCellV362(bet.id), JSON.stringify(bet)]));
+  const dupRows = [["Jogador", "Player ID", "Game ID", "Jogo", "Quantidade", "IDs das apostas"]];
+  const duplicates = new Map();
+  allBetRows.forEach(bet => {
+    const game = gameForBetBackupV363(bet, gamesById);
+    const gameId = String(game?.id || bet.gameId || bet.matchId || bet.knockoutMatchId || "");
+    const key = `${backupPlayerKeyV363(bet)}__${gameId}`;
+    if (!gameId || !backupPlayerKeyV363(bet)) return;
+    if (!duplicates.has(key)) duplicates.set(key, { bet, game, items: [] });
+    duplicates.get(key).items.push(bet);
+  });
+  [...duplicates.values()].filter(item => item.items.length > 1).forEach(item => {
+    dupRows.push([
+      item.bet.playerName || "",
+      item.bet.playerId || "",
+      item.game?.id || item.bet.gameId || item.bet.matchId || item.bet.knockoutMatchId || "",
+      backupGameLabelV363(item.game),
+      item.items.length,
+      item.items.map(b => b.id || "sem_id").join(", ")
+    ]);
+  });
+  const wsDup = XLSX.utils.aoa_to_sheet(dupRows);
+  wsDup["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 18 }, { wch: 36 }, { wch: 12 }, { wch: 100 }];
+  XLSX.utils.book_append_sheet(wb, wsDup, "Duplicadas");
+
+  const rawRows = [["Nº", "ID Aposta", "Origem Backup", "JSON completo"]];
+  allBetRows.forEach((bet, index) => rawRows.push([index + 1, safeBackupCellV363(bet.id), safeBackupCellV363(bet.__backupSource), JSON.stringify(bet)]));
   const wsRaw = XLSX.utils.aoa_to_sheet(rawRows);
-  wsRaw["!cols"] = [{ wch: 28 }, { wch: 120 }];
+  wsRaw["!cols"] = [{ wch: 6 }, { wch: 28 }, { wch: 16 }, { wch: 140 }];
   XLSX.utils.book_append_sheet(wb, wsRaw, "RAW");
 
-  const filename = `Backup_Apostas_Mundial_2026_${backupFileDateV362()}.xlsx`;
+  const filename = `Backup_Apostas_Completo_Mundial_2026_${backupFileDateV363()}.xlsx`;
   XLSX.writeFile(wb, filename);
-  toast(`Backup Excel exportado: ${normalizedBets.length} apostas.`);
+  toast(`Backup completo exportado: ${allBetRows.length} registo(s) de aposta.`);
 }
 
 
@@ -31546,8 +31758,8 @@ window.debugResultadoFirebaseV361 = function debugResultadoFirebaseV361(gameId =
 };
 
 
-/* v362 — Backup Excel das apostas. */
-window.debugBackupApostasV362 = function debugBackupApostasV362() {
+/* v363 — Backup Excel completo das apostas. */
+window.debugBackupApostasV363 = function debugBackupApostasV363() {
   const byGame = {};
   try {
     (bets || []).forEach(bet => {
@@ -31556,7 +31768,7 @@ window.debugBackupApostasV362 = function debugBackupApostasV362() {
     });
   } catch {}
   const debug = {
-    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "v362",
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "v363",
     totalApostas: Array.isArray(bets) ? bets.length : 0,
     totalJogos: Array.isArray(games) ? games.length : 0,
     jogadores: typeof allPlayers === "function" ? allPlayers().length : 0,
@@ -31564,6 +31776,305 @@ window.debugBackupApostasV362 = function debugBackupApostasV362() {
     xlsxDisponivel: Boolean(window.XLSX),
     porJogo: byGame
   };
-  console.log("debugBackupApostasV362", debug);
+  console.log("debugBackupApostasV363", debug);
+  return debug;
+};
+
+
+/* v364 — Backup Firebase JSON com recuperação. */
+const FIREBASE_BACKUP_VERSION_V364 = "v364";
+const FIREBASE_BACKUP_COLLECTIONS_V364 = [
+  "games",
+  "bets",
+  "settings",
+  "users",
+  "systemLogs",
+  "chatMessages",
+  "chatAdminMessages",
+  "chatSettings",
+  "notificationTests"
+];
+
+function canUseFirebaseBackupV364() {
+  try {
+    return Boolean((normalizeRole(currentProfile?.role) === "owner") || isAdminProfile?.() || hasPermission?.("admin"));
+  } catch {
+    return Boolean(isAdmin);
+  }
+}
+
+function firebaseBackupDateV364() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+}
+
+function serializableFirestoreDataV364(value) {
+  if (value === undefined) return null;
+  if (value === null) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value?.toDate === "function") {
+    try { return value.toDate().toISOString(); } catch { return String(value); }
+  }
+  if (Array.isArray(value)) return value.map(serializableFirestoreDataV364);
+  if (typeof value === "object") {
+    const output = {};
+    Object.keys(value).forEach(key => { output[key] = serializableFirestoreDataV364(value[key]); });
+    return output;
+  }
+  return value;
+}
+
+async function readCollectionForFirebaseBackupV364(collectionName) {
+  if (!db || !firebaseApi?.collection || !firebaseApi?.getDocs) throw new Error("Firebase indisponível");
+  const { collection, getDocs } = firebaseApi;
+  const snap = await withTimeout(getDocs(collection(db, collectionName)), 25000, `backup ${collectionName}`);
+  const docs = [];
+  snap.forEach(docSnap => {
+    docs.push({ id: docSnap.id, data: serializableFirestoreDataV364(docSnap.data() || {}) });
+  });
+  return docs;
+}
+
+function downloadJsonBackupV364(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { URL.revokeObjectURL(url); } catch {}
+    try { a.remove(); } catch {}
+  }, 500);
+}
+
+async function exportFirebaseBackupV364() {
+  if (!canUseFirebaseBackupV364()) return toast("Só o Dono/Admin pode fazer backup da Firebase.");
+  if (!db || !firebaseApi?.collection || !firebaseApi?.getDocs) return toast("Firebase não está ligada. Não dá para fazer backup online.");
+
+  const btn = document.getElementById("exportFirebaseBackupBtnV364");
+  const oldText = btn?.textContent || "Backup Firebase JSON";
+  if (btn) { btn.disabled = true; btn.textContent = "A criar backup..."; }
+
+  try {
+    const exportedAt = new Date().toISOString();
+    const collections = {};
+    for (const name of FIREBASE_BACKUP_COLLECTIONS_V364) {
+      try {
+        collections[name] = await readCollectionForFirebaseBackupV364(name);
+      } catch (error) {
+        console.warn(`Backup Firebase v364: falhou coleção ${name}`, error);
+        collections[name] = { __error: String(error?.message || error) };
+      }
+    }
+
+    const backup = {
+      type: "mundial-pontos-2026-firebase-backup",
+      backupVersion: FIREBASE_BACKUP_VERSION_V364,
+      appVersion: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+      exportedAt,
+      projectId: APP_CONFIG?.firebase?.projectId || "",
+      exportedBy: {
+        uid: currentUser?.uid || "",
+        email: currentUser?.email || "",
+        name: currentProfile?.name || currentUser?.displayName || ""
+      },
+      notes: [
+        "Backup JSON para recuperação da Firebase.",
+        "Inclui documentos críticos da app: games, bets, settings, users e logs/chat se existirem.",
+        "A recuperação repõe/merge documentos, não apaga automaticamente documentos extra que não estejam no backup."
+      ],
+      collections
+    };
+
+    downloadJsonBackupV364(`Backup_Firebase_Mundial_2026_${firebaseBackupDateV364()}.json`, backup);
+    window.__lastFirebaseBackupV364 = backup;
+    toast("Backup Firebase JSON criado.");
+  } catch (error) {
+    console.error("Erro no backup Firebase v364", error);
+    toast(`Erro ao criar backup Firebase: ${shortFirebaseError?.(error) || error.message || error}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  }
+}
+
+function validateFirebaseBackupV364(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("Ficheiro inválido.");
+  if (payload.type !== "mundial-pontos-2026-firebase-backup") throw new Error("Este JSON não parece ser backup desta app.");
+  if (!payload.collections || typeof payload.collections !== "object") throw new Error("Backup sem coleções.");
+  return true;
+}
+
+async function restoreDocsFromFirebaseBackupV364(collectionName, docs) {
+  if (!Array.isArray(docs) || !docs.length) return { written: 0, skipped: 0 };
+  const { doc, writeBatch, setDoc } = firebaseApi || {};
+  if (!doc || (!writeBatch && !setDoc)) throw new Error("Firebase sem métodos de escrita.");
+  let written = 0;
+  let skipped = 0;
+  const cleanDocs = docs.filter(item => item && item.id && item.data && typeof item.data === "object");
+  for (let i = 0; i < cleanDocs.length; i += 400) {
+    const chunk = cleanDocs.slice(i, i + 400);
+    if (writeBatch) {
+      const batch = writeBatch(db);
+      chunk.forEach(item => {
+        batch.set(doc(db, collectionName, String(item.id)), item.data, { merge: true });
+        written += 1;
+      });
+      await withTimeout(batch.commit(), 30000, `restaurar ${collectionName}`);
+    } else {
+      for (const item of chunk) {
+        await withTimeout(setDoc(doc(db, collectionName, String(item.id)), item.data, { merge: true }), 30000, `restaurar ${collectionName}/${item.id}`);
+        written += 1;
+      }
+    }
+  }
+  skipped = docs.length - cleanDocs.length;
+  return { written, skipped };
+}
+
+async function applyFirebaseBackupPayloadV364(payload) {
+  validateFirebaseBackupV364(payload);
+  if (!canUseFirebaseBackupV364()) throw new Error("Só o Dono/Admin pode restaurar backup.");
+  if (!db || !firebaseApi?.doc || (!firebaseApi?.writeBatch && !firebaseApi?.setDoc)) throw new Error("Firebase não está ligada para restaurar.");
+
+  const sourceProject = payload.projectId || "desconhecido";
+  const currentProject = APP_CONFIG?.firebase?.projectId || "desconhecido";
+  const totalDocs = Object.values(payload.collections || {}).reduce((sum, docs) => sum + (Array.isArray(docs) ? docs.length : 0), 0);
+  const msg = [
+    "Vais restaurar um backup Firebase.",
+    "Isto vai gravar documentos na Firebase atual.",
+    "Não apaga automaticamente documentos extra, mas pode sobrescrever campos existentes.",
+    "",
+    `Projeto do backup: ${sourceProject}`,
+    `Projeto atual: ${currentProject}`,
+    `Documentos no backup: ${totalDocs}`,
+    "",
+    "Escreve RESTAURAR para confirmar."
+  ].join("\n");
+  const confirmation = prompt(msg);
+  if (confirmation !== "RESTAURAR") {
+    toast("Restauro cancelado.");
+    return { cancelled: true };
+  }
+
+  const btn = document.getElementById("restoreFirebaseBackupBtnV364");
+  const oldText = btn?.textContent || "Restaurar Backup Firebase";
+  if (btn) { btn.disabled = true; btn.textContent = "A restaurar..."; }
+
+  const summary = { restoredAt: new Date().toISOString(), collections: {}, totalWritten: 0, totalSkipped: 0 };
+  try {
+    for (const collectionName of Object.keys(payload.collections || {})) {
+      const docs = payload.collections[collectionName];
+      if (!Array.isArray(docs)) {
+        summary.collections[collectionName] = { written: 0, skipped: 0, error: "coleção não incluída ou erro no backup" };
+        continue;
+      }
+      const result = await restoreDocsFromFirebaseBackupV364(collectionName, docs);
+      summary.collections[collectionName] = result;
+      summary.totalWritten += result.written || 0;
+      summary.totalSkipped += result.skipped || 0;
+    }
+
+    try {
+      const { doc, setDoc } = firebaseApi;
+      await setDoc(doc(db, "settings", "lastRestore"), {
+        restoredAt: summary.restoredAt,
+        restoredBy: currentUser?.email || "",
+        appVersion: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+        sourceProject,
+        currentProject,
+        totalWritten: summary.totalWritten,
+        collections: summary.collections
+      }, { merge: true });
+    } catch (error) {
+      console.warn("v364: não conseguiu escrever settings/lastRestore", error);
+    }
+
+    window.__lastFirebaseRestoreV364 = summary;
+    toast(`Backup restaurado: ${summary.totalWritten} documento(s).`);
+    try { if (typeof loadData === "function") await loadData({ force: true }); } catch {}
+    try { renderAll?.(); } catch {}
+    return summary;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  }
+}
+
+function openRestoreFirebaseBackupV364() {
+  if (!canUseFirebaseBackupV364()) return toast("Só o Dono/Admin pode restaurar backups.");
+  if (!db) return toast("Firebase não está ligada.");
+  document.getElementById("restoreFirebaseBackupInputV364")?.click();
+}
+
+async function handleRestoreFirebaseBackupFileV364(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    await applyFirebaseBackupPayloadV364(payload);
+  } catch (error) {
+    console.error("Erro ao restaurar backup Firebase v364", error);
+    toast(`Erro ao restaurar backup: ${error?.message || error}`);
+  } finally {
+    const input = document.getElementById("restoreFirebaseBackupInputV364");
+    if (input) input.value = "";
+  }
+}
+
+function bindFirebaseBackupButtonsV364() {
+  const exportBtn = document.getElementById("exportFirebaseBackupBtnV364");
+  const restoreBtn = document.getElementById("restoreFirebaseBackupBtnV364");
+  const input = document.getElementById("restoreFirebaseBackupInputV364");
+  if (exportBtn && !exportBtn.__backupV364) {
+    exportBtn.__backupV364 = true;
+    exportBtn.addEventListener("click", exportFirebaseBackupV364);
+  }
+  if (restoreBtn && !restoreBtn.__backupV364) {
+    restoreBtn.__backupV364 = true;
+    restoreBtn.addEventListener("click", openRestoreFirebaseBackupV364);
+  }
+  if (input && !input.__backupV364) {
+    input.__backupV364 = true;
+    input.addEventListener("change", event => handleRestoreFirebaseBackupFileV364(event.target.files?.[0]));
+  }
+}
+
+document.addEventListener("DOMContentLoaded", bindFirebaseBackupButtonsV364);
+setTimeout(bindFirebaseBackupButtonsV364, 500);
+setTimeout(bindFirebaseBackupButtonsV364, 1800);
+
+const renderAdminStateBeforeBackupV364 = typeof renderAdminState === "function" ? renderAdminState : null;
+if (renderAdminStateBeforeBackupV364 && !renderAdminStateBeforeBackupV364.__backupV364) {
+  renderAdminState = function renderAdminStateBackupV364() {
+    const result = renderAdminStateBeforeBackupV364.apply(this, arguments);
+    try {
+      bindFirebaseBackupButtonsV364();
+      const visible = canUseFirebaseBackupV364();
+      document.getElementById("exportFirebaseBackupBtnV364")?.classList.toggle("hidden", !visible);
+      document.getElementById("restoreFirebaseBackupBtnV364")?.classList.toggle("hidden", !visible);
+    } catch {}
+    return result;
+  };
+  renderAdminState.__backupV364 = true;
+}
+
+window.exportFirebaseBackupV364 = exportFirebaseBackupV364;
+window.applyFirebaseBackupPayloadV364 = applyFirebaseBackupPayloadV364;
+window.debugFirebaseBackupV364 = function debugFirebaseBackupV364() {
+  const debug = {
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : FIREBASE_BACKUP_VERSION_V364,
+    firebaseLigada: Boolean(db && firebaseApi && storageMode === "firebase"),
+    projectId: APP_CONFIG?.firebase?.projectId || "",
+    podeUsar: canUseFirebaseBackupV364(),
+    colecoes: FIREBASE_BACKUP_COLLECTIONS_V364,
+    ultimoBackup: window.__lastFirebaseBackupV364 ? {
+      exportedAt: window.__lastFirebaseBackupV364.exportedAt,
+      counts: Object.fromEntries(Object.entries(window.__lastFirebaseBackupV364.collections || {}).map(([name, docs]) => [name, Array.isArray(docs) ? docs.length : "erro"]))
+    } : null,
+    ultimoRestore: window.__lastFirebaseRestoreV364 || null
+  };
+  console.log("debugFirebaseBackupV364", debug);
   return debug;
 };

@@ -23,7 +23,7 @@
     .hidden,#appShell.auth-hidden,.tab-panel:not(.active){display:none!important}
     body{margin:0;background:#070b13}
   </style>
-  <link rel="stylesheet" href="style.css?v=362" />
+  <link rel="stylesheet" href="style.css?v=364" />
 </head>
 <body class="desktop-fullscreen-instant-v148 pc-fullscreen-instant-v168">
 
@@ -339,6 +339,9 @@
             <div class="collapse-actions">
               <button id="exportPontosBtn" class="primary" type="button">Exportar Pontos Excel</button>
               <button id="exportApostasBackupBtn" class="secondary" type="button">Backup Excel Apostas</button>
+              <button id="exportFirebaseBackupBtnV364" class="secondary" type="button">Backup Firebase JSON</button>
+              <button id="restoreFirebaseBackupBtnV364" class="secondary danger-soft" type="button">Restaurar Backup Firebase</button>
+              <input id="restoreFirebaseBackupInputV364" class="hidden" type="file" accept="application/json,.json" />
             </div>
           </details>
 
@@ -615,9 +618,9 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script src="config.js?v=362"></script>
+  <script src="config.js?v=364"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script type="module" src="app.js?v=362"></script>
+  <script type="module" src="app.js?v=364"></script>
 
       <div id="chatPanel" class="chat-panel hidden">
         <div class="chat-header">
