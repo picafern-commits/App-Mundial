@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v361";
+const APP_VERSION_LABEL = "v362";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -2139,6 +2139,7 @@ function applyPermissionsToUi() {
 
   $("openExcelModalBtn")?.classList.toggle("hidden", !hasPermission("importExcel"));
   $("exportResultadosBtn")?.classList.toggle("hidden", !hasPermission("importExcel"));
+  $("exportApostasBackupBtn")?.classList.toggle("hidden", !hasPermission("importExcel") && !hasPermission("admin"));
   $("syncFootballDataBtn")?.classList.toggle("hidden", !hasPermission("editResults"));
   $("addUserBtn")?.classList.toggle("hidden", !hasPermission("editUsers"));
   $("savePointsSettingsBtn")?.classList.toggle("hidden", !hasPermission("editPoints"));
@@ -6881,6 +6882,141 @@ function exportPontosExcel() {
   toast("Excel Pontos exportado.");
 }
 
+function safeBackupCellV362(value) {
+  if (value === undefined || value === null) return "";
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") {
+    try { return JSON.stringify(value); } catch { return String(value); }
+  }
+  return value;
+}
+
+function betQualifiedForBackupV362(bet) {
+  return bet?.qualifiedTeam || bet?.winner || bet?.winnerTeam || bet?.predictedWinner || bet?.teamWinner || "";
+}
+
+function gameForBetBackupV362(bet) {
+  const ids = [bet?.gameId, bet?.matchId, bet?.knockoutMatchId, bet?.match_id, bet?.game_id].filter(Boolean).map(String);
+  return games.find(game => ids.includes(String(game.id))) || null;
+}
+
+function backupFileDateV362() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+}
+
+function exportApostasBackupExcelV362() {
+  if (!hasPermission("importExcel") && !hasPermission("admin")) {
+    toast("Sem permissão para exportar backup.");
+    return;
+  }
+  if (!window.XLSX) {
+    toast("Biblioteca Excel ainda não carregou.");
+    return;
+  }
+
+  const exportedAt = new Date().toISOString();
+  const wb = XLSX.utils.book_new();
+  const normalizedBets = normalizeBets(bets || []);
+  const players = allPlayers();
+  const gamesById = new Map((games || []).map(game => [String(game.id), game]));
+
+  const resumoRows = [
+    ["Backup Apostas Mundial 2026"],
+    ["Versão app", typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : ""],
+    ["Exportado em", new Date(exportedAt).toLocaleString("pt-PT")],
+    ["Total apostas", normalizedBets.length],
+    ["Jogadores", players.length],
+    ["Jogos", (games || []).length],
+    ["Firebase", storageMode === "firebase" ? "Ligada" : "Local/Indisponível"],
+    [],
+    ["Notas"],
+    ["Este ficheiro é um backup das apostas. Guarda IDs internos para recuperação futura."],
+    ["Não altera dados da app; apenas descarrega uma cópia em Excel."]
+  ];
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
+  wsResumo["!cols"] = [{ wch: 28 }, { wch: 42 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+
+  const apostaRows = [[
+    "Exportado em", "ID Aposta", "Game ID", "Match ID", "Knockout Match ID",
+    "Jogador", "Player ID", "Grupo/Fase", "Jogo", "Data Portugal",
+    "Equipa Casa", "Equipa Fora", "Aposta Casa", "Aposta Fora", "Qualificada",
+    "Resultado Real", "Pontos Atuais", "Fonte", "Criado em", "Atualizado em", "Pendente Sync"
+  ]];
+
+  normalizedBets
+    .slice()
+    .sort((a, b) => String(a.playerName || "").localeCompare(String(b.playerName || ""), "pt") || String(a.gameId || "").localeCompare(String(b.gameId || "")))
+    .forEach(bet => {
+      const game = gameForBetBackupV362(bet);
+      const gameLabel = game ? `${game.homeTeam || ""} - ${game.awayTeam || ""}` : "Jogo não encontrado";
+      const result = game && hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "";
+      apostaRows.push([
+        exportedAt,
+        safeBackupCellV362(bet.id),
+        safeBackupCellV362(bet.gameId),
+        safeBackupCellV362(bet.matchId),
+        safeBackupCellV362(bet.knockoutMatchId),
+        safeBackupCellV362(bet.playerName),
+        safeBackupCellV362(bet.playerId),
+        game ? safeBackupCellV362(game.group) : "",
+        gameLabel,
+        game ? `${dateHeader(game.matchDate)} ${timePortugal(game.matchDate)}` : "",
+        game ? safeBackupCellV362(game.homeTeam) : "",
+        game ? safeBackupCellV362(game.awayTeam) : "",
+        Number.isFinite(Number(bet.homeGuess)) ? Number(bet.homeGuess) : "",
+        Number.isFinite(Number(bet.awayGuess)) ? Number(bet.awayGuess) : "",
+        safeBackupCellV362(betQualifiedForBackupV362(bet)),
+        result,
+        game ? pointsForBet(bet, game) : "",
+        safeBackupCellV362(bet.source),
+        safeBackupCellV362(bet.createdAt),
+        safeBackupCellV362(bet.updatedAt),
+        (() => { try { return pendingBetIds?.().includes(bet.id) ? "Sim" : ""; } catch { return ""; } })()
+      ]);
+    });
+
+  const wsApostas = XLSX.utils.aoa_to_sheet(apostaRows);
+  wsApostas["!cols"] = [
+    { wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
+    { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 34 }, { wch: 18 },
+    { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+    { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 14 }
+  ];
+  wsApostas["!freeze"] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsApostas, "Apostas");
+
+  const porJogoRows = [["Game ID", "Grupo/Fase", "Jogo", "Data Portugal", "Resultado", "Total apostas", "Jogadores com aposta"]];
+  (games || []).forEach(game => {
+    const gameBets = normalizedBets.filter(bet => [bet.gameId, bet.matchId, bet.knockoutMatchId].map(v => String(v || "")).includes(String(game.id)));
+    if (!gameBets.length) return;
+    porJogoRows.push([
+      game.id,
+      game.group || "",
+      `${game.homeTeam || ""} - ${game.awayTeam || ""}`,
+      `${dateHeader(game.matchDate)} ${timePortugal(game.matchDate)}`,
+      hasResult(game) ? `${game.homeScore}-${game.awayScore}` : "",
+      gameBets.length,
+      gameBets.map(bet => bet.playerName).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt")).join(", ")
+    ]);
+  });
+  const wsPorJogo = XLSX.utils.aoa_to_sheet(porJogoRows);
+  wsPorJogo["!cols"] = [{ wch: 18 }, { wch: 16 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, wsPorJogo, "Por Jogo");
+
+  const rawRows = [["ID Aposta", "JSON completo"]];
+  normalizedBets.forEach(bet => rawRows.push([safeBackupCellV362(bet.id), JSON.stringify(bet)]));
+  const wsRaw = XLSX.utils.aoa_to_sheet(rawRows);
+  wsRaw["!cols"] = [{ wch: 28 }, { wch: 120 }];
+  XLSX.utils.book_append_sheet(wb, wsRaw, "RAW");
+
+  const filename = `Backup_Apostas_Mundial_2026_${backupFileDateV362()}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast(`Backup Excel exportado: ${normalizedBets.length} apostas.`);
+}
+
 
 function gameBetTypeLabel(bet, game) {
   if (!game || !hasResult(game)) return "Por jogar";
@@ -7230,6 +7366,7 @@ $("confirmExcelImportBtn")?.addEventListener("click", confirmExcelImport);
 $("savePointsSettingsBtn")?.addEventListener("click", savePointsSettings);
 $("saveExtraResultsBtn")?.addEventListener("click", saveExtraResults);
 $("exportPontosBtn")?.addEventListener("click", exportPontosExcel);
+$("exportApostasBackupBtn")?.addEventListener("click", exportApostasBackupExcelV362);
 $("exportLogsBtn")?.addEventListener("click", exportSystemLogsCsv);
 $("clearLogsBtn")?.addEventListener("click", clearSystemLogs);
 $("unlockLogsBtn")?.addEventListener("click", unlockLogsTab);
@@ -31405,5 +31542,28 @@ window.debugResultadoFirebaseV361 = function debugResultadoFirebaseV361(gameId =
   console.table(debug.jogo ? [debug.jogo] : []);
   if (debug.faseFinalMatch) console.table([debug.faseFinalMatch]);
   console.log("debugResultadoFirebaseV361", debug);
+  return debug;
+};
+
+
+/* v362 — Backup Excel das apostas. */
+window.debugBackupApostasV362 = function debugBackupApostasV362() {
+  const byGame = {};
+  try {
+    (bets || []).forEach(bet => {
+      const key = String(bet.gameId || bet.matchId || bet.knockoutMatchId || "sem_jogo");
+      byGame[key] = (byGame[key] || 0) + 1;
+    });
+  } catch {}
+  const debug = {
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "v362",
+    totalApostas: Array.isArray(bets) ? bets.length : 0,
+    totalJogos: Array.isArray(games) ? games.length : 0,
+    jogadores: typeof allPlayers === "function" ? allPlayers().length : 0,
+    firebase: storageMode === "firebase",
+    xlsxDisponivel: Boolean(window.XLSX),
+    porJogo: byGame
+  };
+  console.log("debugBackupApostasV362", debug);
   return debug;
 };
