@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v366";
+const APP_VERSION_LABEL = "v370";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -32308,12 +32308,22 @@ async function saveSpecialBetsV365() {
   if (btn) { btn.disabled = true; btn.textContent = "A guardar..."; }
   try {
     appSettings.extraPredictions = collectSpecialBetsFromEditorV365();
+    Object.keys(appSettings.extraPredictions || {}).forEach(playerName => {
+      if (typeof specialBetsCleanPredictionV370 === "function") {
+        appSettings.extraPredictions[playerName] = specialBetsCleanPredictionV370({
+          ...(appSettings.extraPredictions[playerName] || {}),
+          source: (appSettings.extraPredictions[playerName] || {}).source || "manual"
+        });
+      }
+    });
     addSystemLog("Apostas especiais guardadas", `${Object.keys(appSettings.extraPredictions || {}).length} jogadores com apostas especiais.`, { extraPredictions: appSettings.extraPredictions });
-    await persistSettings();
+    const firebaseOk = typeof saveSpecialBetsToDatabaseV370 === "function"
+      ? await saveSpecialBetsToDatabaseV370("guardar apostas especiais v370")
+      : (await persistSettings(), false);
     renderAll();
-    toast("Apostas especiais guardadas.");
+    toast(firebaseOk ? "Apostas especiais guardadas na Firebase." : "Apostas especiais guardadas localmente; sync Firebase pendente.");
   } catch (error) {
-    console.error("Erro ao guardar apostas especiais v365", error);
+    console.error("Erro ao guardar apostas especiais", error);
     toast(`Erro ao guardar apostas especiais: ${error?.message || error}`);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = old; }
@@ -32422,5 +32432,276 @@ window.debugApostasEspeciaisV365 = function debugApostasEspeciaisV365() {
     apostasEspeciais: rows
   };
   console.log("debugApostasEspeciaisV365", debug);
+  return debug;
+};
+
+
+/* v370 — Excel import/export para apostas especiais + gravação Firebase imediata. */
+const SPECIAL_BETS_EXCEL_VERSION_V370 = "v370";
+
+function specialBetsFirebaseReadyV370() {
+  try { return Boolean(db && firebaseApi && storageMode === "firebase"); } catch { return false; }
+}
+
+function specialBetsCleanPredictionV370(prediction = {}) {
+  return {
+    mvp: String(prediction.mvp || "").trim(),
+    topScorer: String(prediction.topScorer || prediction.melhorMarcador || prediction.scorer || "").trim(),
+    champion: String(prediction.champion || prediction.campeao || prediction.equipaVencedora || "").trim(),
+    updatedAt: prediction.updatedAt || new Date().toISOString(),
+    source: prediction.source || "manual"
+  };
+}
+
+function specialBetsNormalizeHeaderV370(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function specialBetsHeaderIndexV370(headers = []) {
+  const normalized = headers.map(specialBetsNormalizeHeaderV370);
+  function find(candidates) {
+    return normalized.findIndex(header => candidates.some(candidate => header === candidate || header.includes(candidate)));
+  }
+  return {
+    player: find(["jogador", "player", "nome"]),
+    mvp: find(["mvp"]),
+    topScorer: find(["melhor marcador", "marcador", "top scorer", "topscorer"]),
+    champion: find(["equipa vencedora final", "equipa vencedora", "campeao", "campea", "champion", "vencedora final"])
+  };
+}
+
+function specialBetsPredictionRowsV370() {
+  const players = typeof specialBetsPlayersV365 === "function" ? specialBetsPlayersV365() : [];
+  const currentFromEditor = (() => {
+    try {
+      const editor = document.getElementById("specialBetsEditorV365");
+      if (editor && typeof collectSpecialBetsFromEditorV365 === "function") return collectSpecialBetsFromEditorV365();
+    } catch {}
+    return appSettings.extraPredictions || {};
+  })();
+
+  return players.map(playerName => {
+    const prediction = currentFromEditor[playerName] || (typeof specialBetPredictionForPlayerV365 === "function" ? specialBetPredictionForPlayerV365(playerName) : {}) || {};
+    const points = typeof extraPointsForPlayer === "function" ? extraPointsForPlayer(playerName) : { total: 0 };
+    return {
+      playerName,
+      mvp: prediction.mvp || "",
+      topScorer: prediction.topScorer || "",
+      champion: prediction.champion || "",
+      points: Number(points?.total) || 0
+    };
+  });
+}
+
+function exportSpecialBetsExcelV370() {
+  if (typeof specialBetsCanEditV365 === "function" && !specialBetsCanEditV365()) return toast("Sem permissão para exportar apostas especiais.");
+  if (!window.XLSX) return toast("Biblioteca Excel ainda não carregou. Tenta novamente dentro de alguns segundos.");
+
+  const rows = specialBetsPredictionRowsV370();
+  const results = appSettings.extraResults || {};
+  const points = appSettings.points || {};
+  const now = new Date().toISOString();
+
+  const resumo = [
+    ["Backup", "Apostas especiais dos jogadores"],
+    ["Versão", typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : SPECIAL_BETS_EXCEL_VERSION_V370],
+    ["Data", now],
+    ["Total jogadores", rows.length],
+    ["MVP final", results.mvp || ""],
+    ["Melhor marcador final", results.topScorer || ""],
+    ["Equipa vencedora final", results.champion || ""],
+    ["Pontos MVP", Number(points.mvp) || 5],
+    ["Pontos melhor marcador", Number(points.topScorer) || 5],
+    ["Pontos equipa vencedora final", Number(points.champion) || 10]
+  ];
+
+  const detalhes = [
+    ["Jogador", "MVP", "Melhor Marcador", "Equipa Vencedora Final", "Pontos Atuais"]
+  ];
+  rows.forEach(row => detalhes.push([row.playerName, row.mvp, row.topScorer, row.champion, row.points]));
+
+  const raw = [
+    ["Jogador", "JSON"]
+  ];
+  rows.forEach(row => raw.push([row.playerName, JSON.stringify({ mvp: row.mvp, topScorer: row.topScorer, champion: row.champion })]));
+
+  const wb = XLSX.utils.book_new();
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumo);
+  const wsDetalhes = XLSX.utils.aoa_to_sheet(detalhes);
+  const wsRaw = XLSX.utils.aoa_to_sheet(raw);
+
+  wsResumo["!cols"] = [{ wch: 28 }, { wch: 45 }];
+  wsDetalhes["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 28 }, { wch: 14 }];
+  wsRaw["!cols"] = [{ wch: 24 }, { wch: 80 }];
+
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+  XLSX.utils.book_append_sheet(wb, wsDetalhes, "Apostas Especiais");
+  XLSX.utils.book_append_sheet(wb, wsRaw, "RAW");
+  XLSX.writeFile(wb, `Apostas_Especiais_Mundial_2026_${now.slice(0, 10)}.xlsx`);
+  toast("Apostas especiais exportadas em Excel.");
+}
+
+function openImportSpecialBetsExcelV370() {
+  if (typeof specialBetsCanEditV365 === "function" && !specialBetsCanEditV365()) return toast("Sem permissão para importar apostas especiais.");
+  document.getElementById("importSpecialBetsExcelInputV370")?.click();
+}
+
+async function parseSpecialBetsExcelV370(file) {
+  if (!window.XLSX) throw new Error("Biblioteca Excel ainda não carregou.");
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: "array" });
+  const sheetName = wb.SheetNames.find(name => specialBetsNormalizeHeaderV370(name).includes("apostas")) || wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, blankrows: false });
+  if (!data.length) throw new Error("Excel vazio.");
+
+  let headerRowIndex = data.findIndex(row => {
+    const idx = specialBetsHeaderIndexV370(row || []);
+    return idx.player >= 0 && (idx.mvp >= 0 || idx.topScorer >= 0 || idx.champion >= 0);
+  });
+  if (headerRowIndex < 0) throw new Error("Não encontrei cabeçalhos. Usa colunas: Jogador, MVP, Melhor Marcador, Equipa Vencedora Final.");
+
+  const headers = data[headerRowIndex] || [];
+  const idx = specialBetsHeaderIndexV370(headers);
+  const predictions = {};
+
+  for (const row of data.slice(headerRowIndex + 1)) {
+    if (!row || !row.length) continue;
+    const playerName = String(row[idx.player] || "").trim();
+    if (!playerName || specialBetsNormalizeHeaderV370(playerName) === "jogador") continue;
+    const item = specialBetsCleanPredictionV370({
+      mvp: idx.mvp >= 0 ? row[idx.mvp] : "",
+      topScorer: idx.topScorer >= 0 ? row[idx.topScorer] : "",
+      champion: idx.champion >= 0 ? row[idx.champion] : "",
+      source: `Excel ${file.name || "importado"}`
+    });
+    if (item.mvp || item.topScorer || item.champion) predictions[playerName] = item;
+  }
+  return predictions;
+}
+
+async function saveSpecialBetsToDatabaseV370(reason = "guardar apostas especiais") {
+  markSettingsPending?.();
+  saveLocalData?.(`${reason} local`);
+
+  if (specialBetsFirebaseReadyV370()) {
+    await syncFirebaseFull(reason);
+    return true;
+  }
+
+  scheduleFullSync?.(reason, 300);
+  return false;
+}
+
+async function importSpecialBetsExcelV370(file) {
+  if (!file) return;
+  if (typeof specialBetsCanEditV365 === "function" && !specialBetsCanEditV365()) return toast("Sem permissão para importar apostas especiais.");
+  const input = document.getElementById("importSpecialBetsExcelInputV370");
+  try {
+    const imported = await parseSpecialBetsExcelV370(file);
+    const count = Object.keys(imported).length;
+    if (!count) throw new Error("Não encontrei apostas especiais preenchidas no Excel.");
+    const ok = confirm(`Importar ${count} apostas especiais do Excel e guardar na Firebase?`);
+    if (!ok) return;
+    appSettings.extraPredictions = { ...(appSettings.extraPredictions || {}), ...imported };
+    addSystemLog?.("Apostas especiais importadas Excel", `${count} jogadores importados de Excel.`, { count });
+    const firebaseOk = await saveSpecialBetsToDatabaseV370("importar apostas especiais Excel v370");
+    renderAll?.();
+    toast(firebaseOk ? "Apostas especiais importadas e guardadas na Firebase." : "Apostas especiais importadas localmente; sync Firebase pendente.");
+  } catch (error) {
+    console.error("Erro ao importar apostas especiais Excel v370", error);
+    toast(`Erro ao importar Excel: ${error?.message || error}`);
+  } finally {
+    if (input) input.value = "";
+  }
+}
+
+function ensureSpecialBetsExcelControlsV370() {
+  const actions = document.querySelector(".special-bets-actions-v365");
+  if (!actions) return;
+  if (!document.getElementById("exportSpecialBetsExcelBtnV370")) {
+    const btn = document.createElement("button");
+    btn.id = "exportSpecialBetsExcelBtnV370";
+    btn.className = "secondary";
+    btn.type = "button";
+    btn.textContent = "Exportar especiais Excel";
+    actions.insertBefore(btn, actions.querySelector("#exportSpecialBetsBtnV365") || actions.firstChild);
+  }
+  if (!document.getElementById("importSpecialBetsExcelBtnV370")) {
+    const btn = document.createElement("button");
+    btn.id = "importSpecialBetsExcelBtnV370";
+    btn.className = "secondary";
+    btn.type = "button";
+    btn.textContent = "Importar especiais Excel";
+    const jsonExport = actions.querySelector("#exportSpecialBetsBtnV365");
+    actions.insertBefore(btn, jsonExport || actions.firstChild);
+  }
+  if (!document.getElementById("importSpecialBetsExcelInputV370")) {
+    const input = document.createElement("input");
+    input.id = "importSpecialBetsExcelInputV370";
+    input.className = "hidden";
+    input.type = "file";
+    input.accept = ".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+    actions.appendChild(input);
+  }
+}
+
+function bindSpecialBetsExcelV370() {
+  ensureSpecialBetsExcelControlsV370();
+  const exportExcelBtn = document.getElementById("exportSpecialBetsExcelBtnV370");
+  const importExcelBtn = document.getElementById("importSpecialBetsExcelBtnV370");
+  const importExcelInput = document.getElementById("importSpecialBetsExcelInputV370");
+  if (exportExcelBtn && !exportExcelBtn.__specialBetsExcelV370) { exportExcelBtn.__specialBetsExcelV370 = true; exportExcelBtn.addEventListener("click", exportSpecialBetsExcelV370); }
+  if (importExcelBtn && !importExcelBtn.__specialBetsExcelV370) { importExcelBtn.__specialBetsExcelV370 = true; importExcelBtn.addEventListener("click", openImportSpecialBetsExcelV370); }
+  if (importExcelInput && !importExcelInput.__specialBetsExcelV370) { importExcelInput.__specialBetsExcelV370 = true; importExcelInput.addEventListener("change", event => importSpecialBetsExcelV370(event.target.files?.[0])); }
+}
+
+const renderAdminStateBeforeSpecialBetsExcelV370 = typeof renderAdminState === "function" ? renderAdminState : null;
+if (renderAdminStateBeforeSpecialBetsExcelV370 && !renderAdminStateBeforeSpecialBetsExcelV370.__specialBetsExcelV370) {
+  renderAdminState = function renderAdminStateSpecialBetsExcelV370() {
+    const result = renderAdminStateBeforeSpecialBetsExcelV370.apply(this, arguments);
+    try { bindSpecialBetsExcelV370(); } catch (error) { console.warn("bind especiais Excel v370 falhou:", error); }
+    return result;
+  };
+  renderAdminState.__specialBetsExcelV370 = true;
+}
+
+const renderAllBeforeSpecialBetsExcelV370 = typeof renderAll === "function" ? renderAll : null;
+if (renderAllBeforeSpecialBetsExcelV370 && !renderAllBeforeSpecialBetsExcelV370.__specialBetsExcelV370) {
+  renderAll = function renderAllSpecialBetsExcelV370() {
+    const result = renderAllBeforeSpecialBetsExcelV370.apply(this, arguments);
+    setTimeout(() => { try { bindSpecialBetsExcelV370(); } catch {} }, 0);
+    return result;
+  };
+  renderAll.__specialBetsExcelV370 = true;
+}
+
+document.addEventListener("DOMContentLoaded", () => { setTimeout(bindSpecialBetsExcelV370, 0); });
+setTimeout(bindSpecialBetsExcelV370, 900);
+
+window.exportSpecialBetsExcelV370 = exportSpecialBetsExcelV370;
+window.importSpecialBetsExcelV370 = importSpecialBetsExcelV370;
+window.saveSpecialBetsV365 = saveSpecialBetsV365;
+window.debugApostasEspeciaisExcelV370 = function debugApostasEspeciaisExcelV370() {
+  const debug = {
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : SPECIAL_BETS_EXCEL_VERSION_V370,
+    xlsxDisponivel: Boolean(window.XLSX),
+    firebaseLigada: specialBetsFirebaseReadyV370(),
+    jogadores: specialBetsPlayersV365?.().length || 0,
+    apostasEspeciais: appSettings.extraPredictions || {},
+    pendenteSettings: typeof hasSettingsPending === "function" ? hasSettingsPending() : null,
+    botoes: {
+      exportExcel: Boolean(document.getElementById("exportSpecialBetsExcelBtnV370")),
+      importExcel: Boolean(document.getElementById("importSpecialBetsExcelBtnV370")),
+      save: Boolean(document.getElementById("saveSpecialBetsBtnV365"))
+    }
+  };
+  console.log("debugApostasEspeciaisExcelV370", debug);
   return debug;
 };

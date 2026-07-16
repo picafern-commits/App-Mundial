@@ -23,7 +23,7 @@
     .hidden,#appShell.auth-hidden,.tab-panel:not(.active){display:none!important}
     body{margin:0;background:#070b13}
   </style>
-  <link rel="stylesheet" href="style.css?v=366" />
+  <link rel="stylesheet" href="style.css?v=370" />
 </head>
 <body class="desktop-fullscreen-instant-v148 pc-fullscreen-instant-v168">
 
@@ -468,9 +468,12 @@
             </summary>
             <div class="collapse-actions special-bets-actions-v365">
               <button id="saveSpecialBetsBtnV365" class="primary" type="button">Guardar apostas especiais</button>
+              <button id="exportSpecialBetsExcelBtnV370" class="secondary" type="button">Exportar especiais Excel</button>
+              <button id="importSpecialBetsExcelBtnV370" class="secondary" type="button">Importar especiais Excel</button>
               <button id="exportSpecialBetsBtnV365" class="secondary" type="button">Exportar especiais JSON</button>
               <button id="importSpecialBetsBtnV365" class="secondary" type="button">Importar especiais JSON</button>
               <input id="importSpecialBetsInputV365" class="hidden" type="file" accept="application/json,.json" />
+              <input id="importSpecialBetsExcelInputV370" class="hidden" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" />
             </div>
             <p class="special-bets-help-v365">Uma linha por jogador. Estes valores são comparados com os Resultados especiais para somar pontos extra.</p>
             <div id="specialBetsEditorV365" class="special-bets-editor-v365"></div>
@@ -638,9 +641,9 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script src="config.js?v=366"></script>
+  <script src="config.js?v=370"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script type="module" src="app.js?v=366"></script>
+  <script type="module" src="app.js?v=370"></script>
 
       <div id="chatPanel" class="chat-panel hidden">
         <div class="chat-header">

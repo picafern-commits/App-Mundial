@@ -1,14 +1,14 @@
-const CACHE_NAME = "mundial-pontos-2026-v366-remover-user-jogo";
+const CACHE_NAME = "mundial-pontos-2026-v370-especiais-excel-firebase";
 const APP_VERSION_SW_V298_USER_NOTIFICATIONS = "298.0";
 let userNotificationsEnabledSwV298 = true;
 const APP_VERSION_SW_V311_CLEAN_AUDIT = "311.0";
 
 const APP_SHELL = [
   "./",
-  "./index.html?v=366",
-  "./style.css?v=366",
-  "./app.js?v=366",
-  "./config.js?v=366",
+  "./index.html?v=370",
+  "./style.css?v=370",
+  "./app.js?v=370",
+  "./config.js?v=370",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -165,7 +165,7 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then(cached => cached || caches.match("./index.html?v=366")))
+        .catch(() => caches.match(request).then(cached => cached || caches.match("./index.html?v=370")))
     );
     return;
   }
