@@ -18518,3 +18518,29 @@ select option:disabled{
   .special-bets-table-wrap-v365{ max-height:70vh; }
   .special-bets-table-v365{ min-width:760px; }
 }
+
+/* v371 — card manual do 3.º/4.º lugar */
+.ko-road-third-v371 {
+  margin-top: 14px;
+  width: min(220px, 100%);
+  border-color: rgba(255, 210, 64, .55) !important;
+  box-shadow: 0 0 0 1px rgba(255, 210, 64, .18), 0 14px 36px rgba(0, 0, 0, .28);
+}
+.ko-road-third-v371 > strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: #ffd84f;
+  font-size: 1rem;
+  letter-spacing: .02em;
+}
+.ko-road-third-v371 > small {
+  display: block;
+  color: rgba(255,255,255,.88);
+  font-weight: 800;
+  line-height: 1.25;
+}
+.ko-third-place-editor-v371 .ko-auto-note-v347 {
+  display: block;
+  margin: 8px 0 10px;
+  color: #ffd84f;
+}

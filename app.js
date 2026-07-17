@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v370";
+const APP_VERSION_LABEL = "v371";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -32705,3 +32705,408 @@ window.debugApostasEspeciaisExcelV370 = function debugApostasEspeciaisExcelV370(
   console.log("debugApostasEspeciaisExcelV370", debug);
   return debug;
 };
+
+
+/* v371 — Jogo do 3.º e 4.º lugar manual.
+   Regra: a app não preenche equipas automaticamente neste jogo. O Dono/Admin
+   escreve equipas, data/hora e resultado manualmente, como pedido. */
+const APP_VERSION_V371_THIRD_PLACE = "371.0";
+const KNOCKOUT_THIRD_PLACE_ID_V371 = "ko_third_01";
+const KNOCKOUT_THIRD_PLACE_ROUND_V371 = "third";
+const KNOCKOUT_THIRD_PLACE_LABEL_V371 = "3.º / 4.º lugar";
+
+function isThirdPlaceMatchV371(match = {}) {
+  const id = String(match?.id || match?.matchId || "").toLowerCase();
+  const round = String(match?.round || match?.roundKey || match?.phase || match?.roundLabel || "").toLowerCase();
+  const clean = String(match?.cleanId || match?.publicId || match?.matchNumber || "").toUpperCase();
+  return id === KNOCKOUT_THIRD_PLACE_ID_V371 || round === KNOCKOUT_THIRD_PLACE_ROUND_V371 || round.includes("3.º") || round.includes("3º") || round.includes("terceiro") || clean === "M94";
+}
+
+function thirdPlaceDefaultMatchV371(saved = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: KNOCKOUT_THIRD_PLACE_ID_V371,
+    round: KNOCKOUT_THIRD_PLACE_ROUND_V371,
+    roundLabel: KNOCKOUT_THIRD_PLACE_LABEL_V371,
+    index: 1,
+    homeTeam: "",
+    awayTeam: "",
+    homeScore: null,
+    awayScore: null,
+    homePenalties: null,
+    awayPenalties: null,
+    matchDate: "",
+    date: "",
+    kickoff: "",
+    startAt: "",
+    time: "",
+    winner: "",
+    winnerTeam: "",
+    qualified: "",
+    qualifiedTeam: "",
+    nextMatchId: "",
+    nextSlot: "",
+    cleanId: "M94",
+    cleanMatchId: "M94",
+    publicId: "M94",
+    matchNumber: 94,
+    fifaMatchNumber: 94,
+    officialMatchNumber: 94,
+    officialOrder: 1,
+    displayOrder: 1,
+    manualTeams: true,
+    thirdPlace: true,
+    source: "manual-v371-third-place",
+    footballDataId: "",
+    footballDataLocked: true,
+    updatedAt: saved.updatedAt || now,
+    ...saved,
+    id: KNOCKOUT_THIRD_PLACE_ID_V371,
+    round: KNOCKOUT_THIRD_PLACE_ROUND_V371,
+    roundLabel: KNOCKOUT_THIRD_PLACE_LABEL_V371,
+    index: 1,
+    nextMatchId: "",
+    nextSlot: "",
+    cleanId: "M94",
+    cleanMatchId: "M94",
+    publicId: "M94",
+    matchNumber: 94,
+    fifaMatchNumber: 94,
+    officialMatchNumber: 94,
+    manualTeams: true,
+    thirdPlace: true,
+    footballDataLocked: true
+  };
+}
+
+function ensureThirdPlaceMatchV371({ persist = false, reason = "garantir 3.º lugar v371" } = {}) {
+  if (!appSettings) return null;
+  if (!appSettings.knockout) appSettings.knockout = { adminUnlocked: false, layout: {}, matches: [] };
+  if (!Array.isArray(appSettings.knockout.matches)) appSettings.knockout.matches = [];
+
+  const matches = appSettings.knockout.matches;
+  let existing = matches.find(isThirdPlaceMatchV371);
+  let changed = false;
+
+  if (!existing) {
+    existing = thirdPlaceDefaultMatchV371();
+    matches.push(existing);
+    changed = true;
+  } else {
+    const before = JSON.stringify({ id: existing.id, round: existing.round, cleanId: existing.cleanId, matchNumber: existing.matchNumber, manualTeams: existing.manualTeams, thirdPlace: existing.thirdPlace });
+    Object.assign(existing, thirdPlaceDefaultMatchV371(existing));
+    const after = JSON.stringify({ id: existing.id, round: existing.round, cleanId: existing.cleanId, matchNumber: existing.matchNumber, manualTeams: existing.manualTeams, thirdPlace: existing.thirdPlace });
+    changed = before !== after;
+  }
+
+  // Se havia duplicados/versões antigas do jogo do 3.º lugar, mantém apenas o M94 oficial.
+  const filtered = [];
+  let keptThird = false;
+  for (const match of matches) {
+    if (isThirdPlaceMatchV371(match)) {
+      if (keptThird) { changed = true; continue; }
+      filtered.push(existing);
+      keptThird = true;
+    } else {
+      filtered.push(match);
+    }
+  }
+  if (filtered.length !== matches.length || filtered.some((item, idx) => item !== matches[idx])) {
+    appSettings.knockout.matches = filtered;
+    changed = true;
+  }
+
+  if (changed && persist) {
+    try { markSettingsPending?.(); } catch {}
+    try { markKnockoutVaultPendingV355?.(reason); } catch {}
+    try { saveLocalData?.(reason); } catch {}
+    try { scheduleFullSync?.(reason, 500); } catch {}
+  }
+  return existing;
+}
+
+const defaultKnockoutMatchesBeforeV371 = typeof defaultKnockoutMatches === "function" ? defaultKnockoutMatches : null;
+if (defaultKnockoutMatchesBeforeV371 && !defaultKnockoutMatchesBeforeV371.__thirdPlaceV371) {
+  defaultKnockoutMatches = function defaultKnockoutMatchesThirdPlaceV371() {
+    const list = defaultKnockoutMatchesBeforeV371.apply(this, arguments) || [];
+    if (!list.some(isThirdPlaceMatchV371)) list.push(thirdPlaceDefaultMatchV371());
+    return list;
+  };
+  defaultKnockoutMatches.__thirdPlaceV371 = true;
+}
+
+const ensureKnockoutSettingsBeforeV371 = typeof ensureKnockoutSettings === "function" ? ensureKnockoutSettings : null;
+if (ensureKnockoutSettingsBeforeV371 && !ensureKnockoutSettingsBeforeV371.__thirdPlaceV371) {
+  ensureKnockoutSettings = function ensureKnockoutSettingsThirdPlaceV371() {
+    const result = ensureKnockoutSettingsBeforeV371.apply(this, arguments);
+    ensureThirdPlaceMatchV371({ persist: false, reason: "ensure knockout terceiro lugar v371" });
+    return result;
+  };
+  ensureKnockoutSettings.__thirdPlaceV371 = true;
+}
+
+const knockoutMatchesBeforeV371 = typeof knockoutMatches === "function" ? knockoutMatches : null;
+if (knockoutMatchesBeforeV371 && !knockoutMatchesBeforeV371.__thirdPlaceV371) {
+  knockoutMatches = function knockoutMatchesThirdPlaceV371() {
+    const result = knockoutMatchesBeforeV371.apply(this, arguments) || [];
+    ensureThirdPlaceMatchV371({ persist: false, reason: "knockout matches terceiro lugar v371" });
+    const rank = { r32: 1, r16: 2, qf: 3, sf: 4, final: 5, third: 6 };
+    return [...(appSettings?.knockout?.matches || result || [])].sort((a, b) => {
+      const ar = isThirdPlaceMatchV371(a) ? "third" : (typeof cleanKnockoutRoundV338 === "function" ? cleanKnockoutRoundV338(a) : String(a.round || ""));
+      const br = isThirdPlaceMatchV371(b) ? "third" : (typeof cleanKnockoutRoundV338 === "function" ? cleanKnockoutRoundV338(b) : String(b.round || ""));
+      return (rank[ar] || 99) - (rank[br] || 99) || Number(a.index || 0) - Number(b.index || 0);
+    });
+  };
+  knockoutMatches.__thirdPlaceV371 = true;
+}
+
+const knockoutRoundLabelBeforeV371 = typeof knockoutRoundLabel === "function" ? knockoutRoundLabel : null;
+if (knockoutRoundLabelBeforeV371 && !knockoutRoundLabelBeforeV371.__thirdPlaceV371) {
+  knockoutRoundLabel = function knockoutRoundLabelThirdPlaceV371(round) {
+    if (String(round || "").toLowerCase() === KNOCKOUT_THIRD_PLACE_ROUND_V371) return KNOCKOUT_THIRD_PLACE_LABEL_V371;
+    return knockoutRoundLabelBeforeV371.apply(this, arguments);
+  };
+  knockoutRoundLabel.__thirdPlaceV371 = true;
+}
+
+const cleanKnockoutRoundBeforeV371 = typeof cleanKnockoutRoundV338 === "function" ? cleanKnockoutRoundV338 : null;
+if (cleanKnockoutRoundBeforeV371 && !cleanKnockoutRoundBeforeV371.__thirdPlaceV371) {
+  cleanKnockoutRoundV338 = function cleanKnockoutRoundThirdPlaceV371(match) {
+    if (isThirdPlaceMatchV371(match)) return KNOCKOUT_THIRD_PLACE_ROUND_V371;
+    return cleanKnockoutRoundBeforeV371.apply(this, arguments);
+  };
+  cleanKnockoutRoundV338.__thirdPlaceV371 = true;
+}
+
+const cleanKnockoutIdBeforeV371 = typeof cleanKnockoutIdV338 === "function" ? cleanKnockoutIdV338 : null;
+if (cleanKnockoutIdBeforeV371 && !cleanKnockoutIdBeforeV371.__thirdPlaceV371) {
+  cleanKnockoutIdV338 = function cleanKnockoutIdThirdPlaceV371(match) {
+    if (isThirdPlaceMatchV371(match)) return "M94";
+    return cleanKnockoutIdBeforeV371.apply(this, arguments);
+  };
+  cleanKnockoutIdV338.__thirdPlaceV371 = true;
+}
+
+const applyCleanKnockoutIdsBeforeV371 = typeof applyCleanKnockoutIdsV338 === "function" ? applyCleanKnockoutIdsV338 : null;
+if (applyCleanKnockoutIdsBeforeV371 && !applyCleanKnockoutIdsBeforeV371.__thirdPlaceV371) {
+  applyCleanKnockoutIdsV338 = function applyCleanKnockoutIdsThirdPlaceV371() {
+    const result = applyCleanKnockoutIdsBeforeV371.apply(this, arguments);
+    const third = ensureThirdPlaceMatchV371({ persist: false, reason: "ids limpos terceiro lugar v371" });
+    if (third) Object.assign(third, thirdPlaceDefaultMatchV371(third));
+    return result;
+  };
+  applyCleanKnockoutIdsV338.__thirdPlaceV371 = true;
+}
+
+const koV270ShortRoundLabelBeforeV371 = typeof koV270ShortRoundLabel === "function" ? koV270ShortRoundLabel : null;
+if (koV270ShortRoundLabelBeforeV371 && !koV270ShortRoundLabelBeforeV371.__thirdPlaceV371) {
+  koV270ShortRoundLabel = function koV270ShortRoundLabelThirdPlaceV371(roundKey) {
+    if (String(roundKey || "").toLowerCase() === KNOCKOUT_THIRD_PLACE_ROUND_V371) return "3.º lugar";
+    return koV270ShortRoundLabelBeforeV371.apply(this, arguments);
+  };
+  koV270ShortRoundLabel.__thirdPlaceV371 = true;
+}
+
+const koV270MatchNumberBeforeV371 = typeof koV270MatchNumber === "function" ? koV270MatchNumber : null;
+if (koV270MatchNumberBeforeV371 && !koV270MatchNumberBeforeV371.__thirdPlaceV371) {
+  koV270MatchNumber = function koV270MatchNumberThirdPlaceV371(match) {
+    if (isThirdPlaceMatchV371(match)) return "M94";
+    return koV270MatchNumberBeforeV371.apply(this, arguments);
+  };
+  koV270MatchNumber.__thirdPlaceV371 = true;
+}
+
+function renderThirdPlaceRoadCardV371(match) {
+  if (!match) return "";
+  const editable = canEditKnockoutInline?.();
+  const teams = `${koV260Team?.(match, "home") || "A definir"} vs ${koV260Team?.(match, "away") || "A definir"}`;
+  const score = typeof koV270ResultText === "function" ? koV270ResultText(match) : "VS";
+  const date = typeof koV270DateText === "function" ? koV270DateText(match) : "Sem hora";
+  return `
+    <article class="ko-road-third-v371 ko-road-card-v270 ko-round-third-v371 ${editable ? "is-editable" : ""}" data-ko-road-match-v270="${escapeHtml(match.id)}" ${editable ? "role=\"button\" tabindex=\"0\"" : ""}>
+      <div class="ko-road-card-head-v270"><b>M94</b><span>3.º / 4.º</span></div>
+      <strong>3.º / 4.º LUGAR</strong>
+      <small>${escapeHtml(teams)}</small>
+      <div class="ko-road-card-foot-v270"><strong>${escapeHtml(score)}</strong><small>${escapeHtml(date)}</small></div>
+      ${editable ? `<em>Selecionar</em>` : ""}
+    </article>`;
+}
+
+const koV270RenderRoadmapBeforeV371 = typeof koV270RenderRoadmap === "function" ? koV270RenderRoadmap : null;
+if (koV270RenderRoadmapBeforeV371 && !koV270RenderRoadmapBeforeV371.__thirdPlaceV371) {
+  koV270RenderRoadmap = function koV270RenderRoadmapThirdPlaceV371() {
+    ensureThirdPlaceMatchV371({ persist: false, reason: "render mapa terceiro lugar v371" });
+    const result = koV270RenderRoadmapBeforeV371.apply(this, arguments);
+    const container = document.getElementById("knockoutBracket");
+    const center = container?.querySelector?.(".ko-road-center-v270");
+    const third = (appSettings?.knockout?.matches || []).find(isThirdPlaceMatchV371);
+    if (center && third && !center.querySelector(".ko-road-third-v371")) {
+      center.insertAdjacentHTML("beforeend", renderThirdPlaceRoadCardV371(third));
+      try { koV270BindRoadmapCards?.(center); } catch {}
+    }
+    return result;
+  };
+  koV270RenderRoadmap.__thirdPlaceV371 = true;
+  window.koV270RenderRoadmap = koV270RenderRoadmap;
+}
+
+const renderKnockoutRecordFormBeforeV371 = typeof renderKnockoutRecordForm === "function" ? renderKnockoutRecordForm : null;
+if (renderKnockoutRecordFormBeforeV371 && !renderKnockoutRecordFormBeforeV371.__thirdPlaceV371) {
+  renderKnockoutRecordForm = function renderKnockoutRecordFormThirdPlaceV371(match) {
+    if (!isThirdPlaceMatchV371(match)) return renderKnockoutRecordFormBeforeV371.apply(this, arguments);
+    const teamsReady = Boolean(match.homeTeam && match.awayTeam);
+    return `
+      <div class="ko-card-editor ko-third-place-editor-v371" data-ko-admin="${escapeHtml(match.id)}">
+        <div class="ko-card-editor-teams">
+          <select class="ko-home-team" aria-label="Equipa da casa">${knockoutTeamOptionsHtml(match.homeTeam)}</select>
+          <select class="ko-away-team" aria-label="Equipa visitante">${knockoutTeamOptionsHtml(match.awayTeam)}</select>
+        </div>
+        <small class="ko-auto-note-v347">Jogo do 3.º / 4.º lugar totalmente manual. A app não mete equipas automaticamente.</small>
+        <label class="ko-match-date-label-v243">Data/hora do jogo
+          <input class="ko-match-date-v243" type="datetime-local" value="${escapeHtml(knockoutMatchDateInputValueV243(match))}" />
+        </label>
+        <div class="ko-card-editor-scores">
+          <label>Resultado aos 90 minutos + compensação
+            <span class="ko-score-pair">
+              <input class="ko-home-score" type="number" min="0" inputmode="numeric" value="${match.homeScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+              <em>-</em>
+              <input class="ko-away-score" type="number" min="0" inputmode="numeric" value="${match.awayScore ?? ""}" placeholder="0" ${teamsReady ? "" : "disabled"} />
+            </span>
+          </label>
+          ${renderKnockoutQualifiedControl(match)}
+        </div>
+        <button class="primary small ko-card-save" type="button" data-ko-save="${escapeHtml(match.id)}">Guardar 3.º / 4.º lugar</button>
+      </div>`;
+  };
+  renderKnockoutRecordForm.__thirdPlaceV371 = true;
+  window.renderKnockoutRecordForm = renderKnockoutRecordForm;
+}
+
+async function saveThirdPlaceMatchV371(matchId, sourceElement = null) {
+  if (!hasPermission?.("editKnockout")) { toast?.("Sem permissão."); return false; }
+  try { ensureKnockoutSettings?.(); } catch {}
+  const match = (appSettings?.knockout?.matches || []).find(isThirdPlaceMatchV371) || ensureThirdPlaceMatchV371({ persist: false });
+  const row = sourceElement?.closest?.(`[data-ko-admin="${CSS.escape(matchId)}"]`) || document.querySelector(`[data-ko-admin="${CSS.escape(matchId)}"]`) || document.querySelector(`[data-ko-admin="${CSS.escape(KNOCKOUT_THIRD_PLACE_ID_V371)}"]`);
+  const sourceModal = sourceElement?.closest?.("#knockoutRecordModal");
+  if (!match || !row) return false;
+
+  match.homeTeam = row.querySelector(".ko-home-team")?.value || "";
+  match.awayTeam = row.querySelector(".ko-away-team")?.value || "";
+  match.matchDate = normalizeKnockoutMatchDateV243?.(row.querySelector(".ko-match-date-v243")?.value || match.matchDate || "") || "";
+  match.date = match.matchDate;
+  match.kickoff = match.matchDate;
+  match.startAt = match.matchDate;
+  match.time = match.matchDate;
+  match.manualTeams = true;
+  match.thirdPlace = true;
+  match.round = KNOCKOUT_THIRD_PLACE_ROUND_V371;
+  match.roundLabel = KNOCKOUT_THIRD_PLACE_LABEL_V371;
+  match.cleanId = match.cleanMatchId = match.publicId = "M94";
+  match.matchNumber = match.fifaMatchNumber = match.officialMatchNumber = 94;
+  match.nextMatchId = "";
+  match.nextSlot = "";
+  try { clearKnockoutApiFieldsV341?.(match); } catch {}
+
+  const homeScoreValue = row.querySelector(".ko-home-score")?.value ?? "";
+  const awayScoreValue = row.querySelector(".ko-away-score")?.value ?? "";
+  if ((homeScoreValue === "") !== (awayScoreValue === "")) { toast?.("Preenche os dois campos do resultado ou deixa os dois vazios."); return false; }
+  if (homeScoreValue !== "") {
+    const homeNumber = Number(homeScoreValue);
+    const awayNumber = Number(awayScoreValue);
+    if (!Number.isFinite(homeNumber) || !Number.isFinite(awayNumber) || homeNumber < 0 || awayNumber < 0 || !Number.isInteger(homeNumber) || !Number.isInteger(awayNumber)) {
+      toast?.("O resultado tem de ter golos válidos.");
+      return false;
+    }
+  }
+
+  match.homeScore = homeScoreValue === "" ? null : Number(homeScoreValue);
+  match.awayScore = awayScoreValue === "" ? null : Number(awayScoreValue);
+  match.homePenalties = null;
+  match.awayPenalties = null;
+
+  const hasFullScore = match.homeScore !== null && match.awayScore !== null;
+  const qualifiedValue = row.querySelector(".ko-qualified-team-v247")?.value || "";
+  if (qualifiedValue) {
+    const valid = normalizeComparable?.(qualifiedValue) === normalizeComparable?.(match.homeTeam) || normalizeComparable?.(qualifiedValue) === normalizeComparable?.(match.awayTeam);
+    if (!valid) { toast?.("Escolhe uma das duas equipas como vencedora."); return false; }
+    match.winner = match.winnerTeam = match.qualified = match.qualifiedTeam = qualifiedValue;
+  } else if (hasFullScore) {
+    if (match.homeScore > match.awayScore) match.winner = match.winnerTeam = match.qualified = match.qualifiedTeam = match.homeTeam;
+    else if (match.awayScore > match.homeScore) match.winner = match.winnerTeam = match.qualified = match.qualifiedTeam = match.awayTeam;
+    else { match.winner = match.winnerTeam = match.qualified = match.qualifiedTeam = ""; toast?.("Jogo empatado. Escolhe manualmente a equipa vencedora."); return false; }
+  } else {
+    match.winner = match.winnerTeam = match.qualified = match.qualifiedTeam = "";
+  }
+  match.updatedAt = new Date().toISOString();
+
+  try { syncKnockoutCalendarGameV259?.(match, { persist: false, removeIfIncomplete: true, reason: "3 lugar manual v371" }); } catch {}
+  try { ensureKnockoutCalendarGamesV259?.({ persist: false, reason: "3 lugar manual v371" }); } catch {}
+  try { addSystemLog?.("Jogo 3.º/4.º lugar guardado", `${match.homeTeam || "A definir"} ${match.homeScore ?? "-"}-${match.awayScore ?? "-"} ${match.awayTeam || "A definir"}`, { matchId: match.id, round: match.round }, { sync: true }); } catch {}
+
+  try { markSettingsPending?.(); } catch {}
+  try { markKnockoutVaultPendingV355?.("3 lugar manual v371"); } catch {}
+  try { saveLocalData?.("3 lugar manual v371"); } catch {}
+  try { renderKnockout?.(); renderKnockoutAdmin?.(); renderCalendar?.(); } catch {}
+  if (sourceModal) closeKnockoutRecordModal?.();
+
+  try {
+    if (typeof saveKnockoutVaultToFirebaseV356 === "function") await saveKnockoutVaultToFirebaseV356("3 lugar manual v371", { source: "third-place-v371", status: false });
+    else if (typeof saveKnockoutVaultToFirebaseV355 === "function") await saveKnockoutVaultToFirebaseV355("3 lugar manual v371", { source: "third-place-v371", status: false });
+    else if (typeof saveSettingsFastToFirebase === "function") await saveSettingsFastToFirebase("3 lugar manual v371");
+    try { await awaitMaybeV265?.(ensureKnockoutCalendarGamesV259?.({ persist: true, reason: "3 lugar manual v371" })); } catch {}
+    setFirebaseStatus?.("success", "Firebase: 3.º/4.º lugar guardado");
+  } catch (error) {
+    console.error("v371: falhou guardar 3.º/4.º lugar", error);
+    try { scheduleFullSync?.("3 lugar manual v371", 700); } catch {}
+    setFirebaseStatus?.("error", `Firebase: 3.º/4.º lugar pendente (${typeof shortFirebaseError === "function" ? shortFirebaseError(error) : (error?.message || error)})`);
+  }
+  toast?.("Jogo do 3.º / 4.º lugar guardado.");
+  return true;
+}
+
+const saveKnockoutMatchFromAdminBeforeV371 = typeof saveKnockoutMatchFromAdmin === "function" ? saveKnockoutMatchFromAdmin : null;
+if (saveKnockoutMatchFromAdminBeforeV371 && !saveKnockoutMatchFromAdminBeforeV371.__thirdPlaceV371) {
+  saveKnockoutMatchFromAdmin = async function saveKnockoutMatchFromAdminThirdPlaceV371(matchId, sourceElement = null) {
+    const match = (appSettings?.knockout?.matches || []).find(item => String(item.id || "") === String(matchId || "")) || null;
+    if (match && isThirdPlaceMatchV371(match)) return saveThirdPlaceMatchV371(matchId, sourceElement);
+    return saveKnockoutMatchFromAdminBeforeV371.apply(this, arguments);
+  };
+  saveKnockoutMatchFromAdmin.__thirdPlaceV371 = true;
+  window.saveKnockoutMatchFromAdmin = saveKnockoutMatchFromAdmin;
+}
+
+function debugTerceiroLugarV371() {
+  try { ensureKnockoutSettings?.(); } catch {}
+  const third = (appSettings?.knockout?.matches || []).find(isThirdPlaceMatchV371) || null;
+  const game = third ? (games || []).find(item => String(item.id || "") === String(third.id || "")) : null;
+  const debug = {
+    version: APP_VERSION_V371_THIRD_PLACE,
+    appVersionLabel: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "",
+    existe: Boolean(third),
+    jogo: third ? {
+      id: third.id,
+      cleanId: third.cleanId || third.publicId || "",
+      round: third.round,
+      label: third.roundLabel,
+      homeTeam: third.homeTeam || "",
+      awayTeam: third.awayTeam || "",
+      matchDate: third.matchDate || "",
+      result: `${third.homeScore ?? ""}-${third.awayScore ?? ""}`,
+      winner: third.qualified || third.winnerTeam || third.winner || "",
+      manualTeams: third.manualTeams === true,
+      nextMatchId: third.nextMatchId || ""
+    } : null,
+    calendario: game ? { id: game.id, homeTeam: game.homeTeam, awayTeam: game.awayTeam, date: game.date || game.matchDate || game.kickoff || "" } : null,
+    regra: "M94 é totalmente manual. A app não mete perdedores/vencedores automaticamente neste jogo."
+  };
+  console.log("debugTerceiroLugarV371", debug);
+  return debug;
+}
+window.debugTerceiroLugarV371 = debugTerceiroLugarV371;
+
+setTimeout(() => {
+  try {
+    ensureThirdPlaceMatchV371({ persist: true, reason: "instalar terceiro lugar v371" });
+    if (document.getElementById("knockoutTab")?.classList.contains("active")) renderKnockout?.();
+  } catch (error) { console.warn("v371: instalação do 3.º lugar falhou", error); }
+}, 1200);
