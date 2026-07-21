@@ -10,7 +10,7 @@ const PENDING_SETTINGS_KEY = `${STORAGE_KEY}_pending_settings_v1`;
 const PORTUGAL_TZ = "Europe/Lisbon";
 const MAX_SYSTEM_LOGS = 200;
 const LOGS_PIN = "26160";
-const APP_VERSION_LABEL = "v371";
+const APP_VERSION_LABEL = "v373";
 const NOTIFICATIONS_READ_KEY_V164 = `${STORAGE_KEY}_notifications_read_v164`;
 const PUSH_DEVICE_KEY_V165 = `${STORAGE_KEY}_push_device_id_v165`;
 const PUSH_OPT_IN_DISMISSED_KEY_V182 = `${STORAGE_KEY}_push_opt_in_dismissed_v182`;
@@ -33110,3 +33110,139 @@ setTimeout(() => {
     if (document.getElementById("knockoutTab")?.classList.contains("active")) renderKnockout?.();
   } catch (error) { console.warn("v371: instalação do 3.º lugar falhou", error); }
 }, 1200);
+
+
+/* ============================================================
+   v372 — Ecrã final do vencedor + encerramento automático
+   - Mostra apenas o vencedor ao abrir a app.
+   - Contagem decrescente até 10/08/2026 23:59 (Portugal).
+   - Depois da data, bloqueia a interface sem apagar dados.
+   - Dono/Admin pode entrar temporariamente em manutenção.
+   ============================================================ */
+const APP_V372_EXPIRES_AT = new Date("2026-08-10T23:59:59+01:00").getTime();
+let appV372MaintenanceMode = false;
+let appV372Timer = null;
+
+function appV372OwnerCanMaintain(){
+  try {
+    return Boolean(isAdminProfile?.() || isAdmin || String(currentProfile?.role || "").toLowerCase() === "owner");
+  } catch (_) {
+    return false;
+  }
+}
+
+function appV372WinnerData(){
+  try {
+    const rows = typeof leaderboard === "function" ? leaderboard() : [];
+    const first = Array.isArray(rows) && rows.length ? rows[0] : null;
+    return {
+      name: String(first?.playerName || first?.name || "Vencedor Mundial Pontos 2026").trim(),
+      points: Number(first?.points || 0),
+      tied: Array.isArray(rows) ? rows.filter(r => Number(r?.points || 0) === Number(first?.points || 0)).length : 1
+    };
+  } catch (_) {
+    return { name: "Vencedor Mundial Pontos 2026", points: 0, tied: 1 };
+  }
+}
+
+function appV372CountdownParts(ms){
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return {
+    days: Math.floor(total / 86400),
+    hours: Math.floor((total % 86400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60
+  };
+}
+
+function appV372EnsureScreen(){
+  let root = document.getElementById("appWinnerOnlyV372");
+  if (root) return root;
+  root = document.createElement("section");
+  root.id = "appWinnerOnlyV372";
+  root.className = "app-winner-only-v372";
+  root.setAttribute("role", "dialog");
+  root.setAttribute("aria-modal", "true");
+  document.body.appendChild(root);
+  return root;
+}
+
+function appV372Render(){
+  const root = appV372EnsureScreen();
+  if (appV372MaintenanceMode) {
+    root.classList.add("hidden");
+    document.documentElement.classList.remove("winner-only-lock-v372");
+    return;
+  }
+
+  const now = Date.now();
+  const expired = now >= APP_V372_EXPIRES_AT;
+  const winner = appV372WinnerData();
+  const ownerTools = appV372OwnerCanMaintain()
+    ? `<button type="button" class="winner-maintenance-v372" id="winnerMaintenanceV372">Acesso do Dono</button>`
+    : "";
+
+  root.classList.remove("hidden");
+  document.documentElement.classList.add("winner-only-lock-v372");
+
+  if (expired) {
+    root.innerHTML = `
+      <div class="winner-bg-v372"></div>
+      <main class="winner-finished-only-v373" role="status" aria-label="Terminado">
+        <h1>Terminado</h1>
+      </main>`;
+  } else {
+    const c = appV372CountdownParts(APP_V372_EXPIRES_AT - now);
+    root.innerHTML = `
+      <div class="winner-bg-v372"></div>
+      <article class="winner-card-v372">
+        <div class="winner-confetti-v372" aria-hidden="true"></div>
+        <div class="winner-trophy-v372">🏆</div>
+        <p class="winner-kicker-v372">CAMPEÃO MUNDIAL PONTOS 2026</p>
+        <h1>Parabéns, ${escapeHtml(winner.name)}!</h1>
+        <img class="winner-photo-v372" src="vencedor-mundial-2026.jpeg?v=373" alt="Entrega do prémio ao vencedor" />
+        <p class="winner-message-v372">Uma grande vitória na classificação por pontos. Parabéns ao vencedor e obrigado a todos os participantes!</p>
+        ${winner.points ? `<div class="winner-score-v372"><strong>${winner.points}</strong><span>pontos</span></div>` : `<div class="winner-score-v372 winner-loading-v372">A calcular pontuação final…</div>`}
+        <div class="winner-countdown-title-v372">A app encerra automaticamente dentro de</div>
+        <div class="winner-countdown-v372">
+          <div><strong>${c.days}</strong><span>dias</span></div>
+          <div><strong>${String(c.hours).padStart(2,"0")}</strong><span>horas</span></div>
+          <div><strong>${String(c.minutes).padStart(2,"0")}</strong><span>min</span></div>
+          <div><strong>${String(c.seconds).padStart(2,"0")}</strong><span>seg</span></div>
+        </div>
+        ${ownerTools}
+      </article>`;
+  }
+
+  const maintenanceBtn = document.getElementById("winnerMaintenanceV372");
+  if (maintenanceBtn) maintenanceBtn.onclick = () => {
+    appV372MaintenanceMode = true;
+    appV372Render();
+    toast?.("Modo de manutenção aberto. Volta a carregar a página para regressar ao ecrã do vencedor.");
+  };
+}
+
+function initWinnerOnlyV372(){
+  appV372Render();
+  if (appV372Timer) clearInterval(appV372Timer);
+  appV372Timer = setInterval(appV372Render, 1000);
+  setTimeout(appV372Render, 2500);
+  setTimeout(appV372Render, 6000);
+}
+
+window.debugWinnerOnlyV372 = function(){
+  const winner = appV372WinnerData();
+  const payload = {
+    version: typeof APP_VERSION_LABEL !== "undefined" ? APP_VERSION_LABEL : "v373",
+    winner,
+    expiresAt: new Date(APP_V372_EXPIRES_AT).toISOString(),
+    expired: Date.now() >= APP_V372_EXPIRES_AT,
+    ownerCanMaintain: appV372OwnerCanMaintain(),
+    maintenanceMode: appV372MaintenanceMode
+  };
+  console.table(payload);
+  return payload;
+};
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initWinnerOnlyV372, { once:true });
+else initWinnerOnlyV372();
